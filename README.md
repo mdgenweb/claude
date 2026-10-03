@@ -78,5 +78,6 @@ Vorauswahl per Link ist möglich, z. B. von Unterseiten oder aus Anzeigen: `/?ar
 
 - axe-core (WCAG 2.1 AA + Best Practices): 0 Verstöße auf Desktop und Mobil
 - keine externen Requests beim Laden, keine Cookies
+- Layout-Verschiebung (CLS) 0; der Rasen-Hero rendert sparsam und ruht nach 8 Sekunden ohne Interaktion
 - `prefers-reduced-motion` wird vollständig berücksichtigt (Rasen als Standbild, keine Effekte)
 - Frühere Versionen liegen im Git-Verlauf: V1 ruhig/editorial mit Scroll-Ranke (Commit `cbaf5ca`), V2 mit fixierter Leistungs-Galerie

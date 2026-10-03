@@ -5,7 +5,10 @@
    Mählinie von links nach rechts: Halme werden gekürzt, Mähstreifen entstehen,
    die große Headline wird vollständig frei.
    – zwei Ebenen: hinter der Headline (dicht) und davor (locker, für Tiefe)
-   – läuft nur, solange der Hero sichtbar ist; DPR auf 2 begrenzt
+   – sparsam: hintere Ebene in einfacher Auflösung, vordere nur im unteren
+     Bereich und höchstens 1,5-fach; Halmzahl gedeckelt; ohne Interaktion
+     30 Bilder pro Sekunde und nach 8 s Pause; läuft nur, solange der Hero
+     sichtbar ist
    – prefers-reduced-motion: ein ruhiges Standbild, halb gemäht
    ========================================================================== */
 (() => {
@@ -30,15 +33,17 @@
     stripeB: ['#15301F', '#3B6B45'],
   };
 
-  let W = 0, H = 0, dpr = 1;
+  let W = 0, H = 0, HF = 0, dprB = 1, dprF = 1;
   let blades = { back: [], front: [] };
   let grads = null;
   let particles = [];
   let mow = 0, mowTarget = 0, lastMowX = -999;
   let grow = 0;
-  let running = false, visible = true, raf = 0;
-  const start = performance.now();
+  let running = false, visible = true, raf = 0, lastDraw = 0, lastPointer = 0;
+  let lastActivity = performance.now(), clock = 0;
+  const REST_AFTER = 8000;
   const pointer = { x: -9999, y: -9999, on: false };
+  const MAX_BACK = 1000, MAX_FRONT = 260;
 
   function rng(seed) {
     let s = seed >>> 0;
@@ -51,16 +56,28 @@
     };
   }
 
+  // Größe der Zeichenflächen; gibt false zurück, wenn sich nichts geändert hat
+  function measure() {
+    const rb = back.getBoundingClientRect();
+    const rf = front.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rb.width)), h = Math.max(1, Math.round(rb.height)), hf = Math.max(1, Math.round(rf.height));
+    if (w === W && h === H && hf === HF) return false;
+    W = w; H = h; HF = hf;
+    return true;
+  }
+
   function build() {
-    const r = front.getBoundingClientRect();
-    W = Math.max(1, r.width);
-    H = Math.max(1, r.height);
-    dpr = Math.min(2, window.devicePixelRatio || 1);
-    [back, front].forEach((c) => {
-      c.width = Math.round(W * dpr);
-      c.height = Math.round(H * dpr);
-    });
-    [ctxB, ctxF].forEach((c) => c.setTransform(dpr, 0, 0, dpr, 0, 0));
+    measure();
+    const dpr = window.devicePixelRatio || 1;
+    dprB = Math.min(1, dpr);   // hinter der Schrift: weich darf sein
+    dprF = Math.min(1.5, dpr);
+    back.width = Math.round(W * dprB);
+    back.height = Math.round(H * dprB);
+    front.width = Math.round(W * dprF);
+    front.height = Math.round(HF * dprF);
+    ctxB.setTransform(dprB, 0, 0, dprB, 0, 0);
+    // vordere Ebene ist niedriger: gleiche Koordinaten wie hinten, nach unten versetzt
+    ctxF.setTransform(dprF, 0, 0, dprF, 0, (HF - H) * dprF);
 
     const rand = rng(11);
     const narrow = W < 700;
@@ -85,8 +102,8 @@
       return arr;
     };
     const k = narrow ? 0.55 : 1;
-    blades.back = make(Math.round(W * 0.85 * k), 0.38, 0.95, PAL.back.length, 3, 7);
-    blades.front = make(Math.round(W * 0.2 * k), 0.1, 0.42, PAL.front.length, 3.5, 7.5);
+    blades.back = make(Math.min(MAX_BACK, Math.round(W * 0.85 * k)), 0.38, 0.95, PAL.back.length, 3, 7);
+    blades.front = make(Math.min(MAX_FRONT, Math.round(W * 0.2 * k)), 0.1, 0.42, PAL.front.length, 3.5, 7.5);
 
     const g = (ctx, [a, b]) => {
       const lg = ctx.createLinearGradient(0, H, 0, H * 0.05);
@@ -94,9 +111,19 @@
       lg.addColorStop(1, b);
       return lg;
     };
+    // Ungemähte Halme: einfarbig (Spitzenfarbe), danach ein Verlauf über die
+    // ganze Ebene (source-atop) – sieht aus wie Verlauf je Halm, kostet aber
+    // nur eine Fläche statt hunderter Verlaufsfüllungen
+    const shade = (ctx, base) => {
+      const lg = ctx.createLinearGradient(0, H, 0, H * 0.05);
+      lg.addColorStop(0, base);
+      lg.addColorStop(1, base + '00');
+      return lg;
+    };
     grads = {
-      back: PAL.back.map((p) => g(ctxB, p)),
-      front: PAL.front.map((p) => g(ctxF, p)),
+      back: PAL.back.map((p) => p[1]),
+      front: PAL.front.map((p) => p[1]),
+      shade: [shade(ctxB, PAL.back[0][0]), shade(ctxF, PAL.front[0][0])],
       stripeA: [g(ctxB, PAL.stripeA), g(ctxF, PAL.stripeA)],
       stripeB: [g(ctxB, PAL.stripeB), g(ctxF, PAL.stripeB)],
     };
@@ -153,8 +180,7 @@
       arr.push(b.x - w / 2, cx - w * 0.28, cy, tipX, tipY, cx + w * 0.28, b.x + w / 2);
     }
 
-    for (const [key, a] of groups) {
-      ctx.fillStyle = key === 'A' ? grads.stripeA[li] : key === 'B' ? grads.stripeB[li] : pal[key];
+    const fillGroup = (a) => {
       ctx.beginPath();
       for (let i = 0; i < a.length; i += 7) {
         ctx.moveTo(a[i], H + 2);
@@ -162,6 +188,26 @@
         ctx.quadraticCurveTo(a[i + 5], a[i + 2], a[i + 6], H + 2);
       }
       ctx.fill();
+    };
+    let tall = false;
+    for (const [key, a] of groups) {
+      if (key === 'A' || key === 'B') continue;
+      ctx.fillStyle = pal[key];
+      fillGroup(a);
+      tall = true;
+    }
+    if (tall) {
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = grads.shade[li];
+      ctx.fillRect(0, 0, W, H + 2);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    // gemähte Halme sind kurz: hier lohnt der echte Verlauf (Mähstreifen)
+    for (const key of ['A', 'B']) {
+      const a = groups.get(key);
+      if (!a) continue;
+      ctx.fillStyle = key === 'A' ? grads.stripeA[li] : grads.stripeB[li];
+      fillGroup(a);
     }
   }
 
@@ -189,9 +235,15 @@
   let lastT = performance.now();
   function frame(now) {
     raf = 0;
+    // Ruhephase (nur Wind): jedes zweite Bild auslassen
+    const busy = grow < 1.6 || particles.length > 0 || Math.abs(mowTarget - mow) > 0.002 || now - lastPointer < 1500;
+    if (!busy && now - lastActivity > REST_AFTER) return; // ruht, bis wieder etwas passiert
+    if (!busy && now - lastDraw < 30) { if (running) raf = requestAnimationFrame(frame); return; }
+    lastDraw = now;
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
-    const time = (now - start) / 1000;
+    clock += dt; // eigene Uhr: nach einer Pause schwingt der Wind ohne Sprung weiter
+    const time = clock;
     grow = Math.min(1.6, grow + dt / 1.5);
     mow += (mowTarget - mow) * Math.min(1, dt * 6);
     const mx = mowX();
@@ -202,7 +254,7 @@
       for (let i = 0; i < n && particles.length < 220; i++) {
         particles.push({
           x: mx - Math.random() * 18, y: H - H * (0.08 + Math.random() * 0.25),
-          vx: -40 - Math.random() * 160, vy: -120 - Math.random() * 220,
+          vx: -40 - Math.random() * 160, vy: -100 - Math.random() * 180,
           r: Math.random() * 3, vr: (Math.random() - 0.5) * 14,
           s: 2 + Math.random() * 3.5, life: 0.6 + Math.random() * 0.6,
         });
@@ -227,7 +279,13 @@
     if (running && !raf) { lastT = performance.now(); raf = requestAnimationFrame(frame); }
   }
 
+  function wake() {
+    lastActivity = performance.now();
+    setRunning(true);
+  }
+
   function onScroll() {
+    if (!reduce.matches) wake();
     const r = hero.getBoundingClientRect();
     const span = Math.max(1, r.height * 0.55);
     mowTarget = Math.min(1, Math.max(0, -r.top / span));
@@ -237,22 +295,37 @@
   onScroll();
   if (reduce.matches) drawStatic(); else setRunning(true);
 
-  new IntersectionObserver(([en]) => { visible = en.isIntersecting; setRunning(true); }).observe(hero);
-  document.addEventListener('visibilitychange', () => setRunning(true));
+  new IntersectionObserver(([en]) => { visible = en.isIntersecting; if (visible) lastActivity = performance.now(); setRunning(true); }).observe(hero);
+  document.addEventListener('visibilitychange', () => { lastActivity = performance.now(); setRunning(true); });
   window.addEventListener('scroll', onScroll, { passive: true });
+  // Neu aufbauen nur, wenn sich die Fläche wirklich ändert (mobil feuert
+  // resize auch beim Ein-/Ausblenden der Adressleiste)
   let rt = 0;
   window.addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = setTimeout(() => { const g = grow; build(); grow = g; blades.back.concat(blades.front).forEach((b) => { b.cur = b.h; }); if (reduce.matches) drawStatic(); }, 150);
+    rt = setTimeout(() => {
+      const w = W, h = H, hf = HF;
+      if (!measure()) return;
+      W = w; H = h; HF = hf;
+      const g = grow;
+      build();
+      grow = g;
+      const mx = mowX();
+      blades.back.concat(blades.front).forEach((b) => { b.cur = b.x < mx ? Math.min(b.h, b.cut) : b.h; });
+      if (reduce.matches || !running) drawStatic();
+    }, 150);
   });
   reduce.addEventListener('change', () => { build(); if (reduce.matches) { running = false; drawStatic(); } else setRunning(true); });
 
   hero.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
-    const r = front.getBoundingClientRect();
+    const r = back.getBoundingClientRect();
     pointer.x = e.clientX - r.left;
     pointer.y = e.clientY - r.top;
     pointer.on = true;
+    lastPointer = performance.now();
+    wake();
   });
+  hero.addEventListener('touchstart', () => { if (!reduce.matches) wake(); }, { passive: true });
   hero.addEventListener('pointerleave', () => { pointer.on = false; });
 })();

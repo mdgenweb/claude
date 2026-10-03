@@ -35,21 +35,23 @@ const doc = (bg, body, label) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}"><rect width="${W}" height="${H}" fill="${bg}"/>${body}</svg>\n`;
 
 // kleine Blattform als Pfad (für Texturen)
-const leafAt = (x, y, len, ang, fill) => {
+const leafD = (x, y, len, ang) => {
   const c = Math.cos(ang), s = Math.sin(ang), w = len * 0.42;
   const P = (px, py) => `${n(x + px * c - py * s)} ${n(y + px * s + py * c)}`;
-  return `<path fill="${fill}" d="M${P(0, 0)}Q${P(len * 0.5, w)} ${P(len, 0)}Q${P(len * 0.5, -w)} ${P(0, 0)}Z"/>`;
+  return `M${P(0, 0)}Q${P(len * 0.5, w)} ${P(len, 0)}Q${P(len * 0.5, -w)} ${P(0, 0)}Z`;
 };
-// Laubtextur innerhalb eines Rechtecks
+const leafAt = (x, y, len, ang, fill) => `<path fill="${fill}" d="${leafD(x, y, len, ang)}"/>`;
+// Laubtextur innerhalb eines Rechtecks – je Farbe ein einziger Pfad (klein, schnell)
 const texture = (x0, y0, x1, y1, fills, seed, density = 0.012, size = [10, 16]) => {
   const r = rng(seed);
-  let out = '';
+  const groups = fills.map(() => []);
   const count = Math.round((x1 - x0) * (y1 - y0) * density);
   for (let i = 0; i < count; i++) {
     const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0);
-    out += leafAt(x, y, size[0] + r() * (size[1] - size[0]), -Math.PI / 2 + (r() - 0.5) * 1.6, fills[Math.floor(r() * fills.length)]);
+    const len = size[0] + r() * (size[1] - size[0]), ang = -Math.PI / 2 + (r() - 0.5) * 1.6;
+    groups[Math.floor(r() * fills.length)].push(leafD(x, y, len, ang));
   }
-  return out;
+  return groups.map((g, i) => (g.length ? `<path fill="${fills[i]}" d="${g.join('')}"/>` : '')).join('');
 };
 // Grashalm-Dreiecke entlang einer Linie
 const blades = (x0, x1, y, hMin, hMax, fill, seed, step = 7) => {

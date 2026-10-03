@@ -148,7 +148,8 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 - die Halme wiegen sich im Wind und weichen dem Mauszeiger aus
 - beim Scrollen fährt eine unsichtbare Mählinie von links nach rechts: Die Halme werden gekürzt, Mähstreifen entstehen, Schnittgut fliegt, und die Headline steht vollständig frei
 - zwei Ebenen: dichtes Gras hinter der Schrift, einzelne Halme davor (Tiefe)
-- läuft nur, solange der Hero sichtbar ist; Pixeldichte auf 2 begrenzt; auf dem Smartphone etwa halb so viele Halme
+- sparsam gerendert: hintere Ebene in einfacher Auflösung (wirkt wie Tiefenunschärfe), vordere nur im unteren Bereich und höchstens 1,5-fach; Halme einfarbig, der Verlauf liegt als eine Fläche darüber; Halmzahl gedeckelt (auf dem Smartphone etwa halb so viele)
+- ohne Interaktion 30 Bilder pro Sekunde, nach 8 Sekunden Ruhe hält das Feld an und läuft bei Maus, Touch oder Scrollen nahtlos weiter; außerhalb des Sichtbereichs pausiert es ganz
 
 **Weitere Effekte:**
 | Effekt | Wo |
@@ -164,7 +165,7 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 | Header blendet beim Runterscrollen aus und passt sich hell/dunkel an | überall |
 | Vollbild-Menü mit gestaffelten Versalien | Mobil/Tablet |
 
-**Grenzen:** Die Grabpflege bekommt nur ein ruhiges Einblenden. Alle Effekte nutzen transform/opacity und einen gemeinsamen Takt. Bei **prefers-reduced-motion** gibt es keine dieser Bewegungen: Der Rasen steht als ruhiges Standbild (halb gemäht), alle Inhalte sind sofort sichtbar.
+**Grenzen:** Die Grabpflege bekommt nur ein ruhiges Einblenden. Alle Effekte nutzen transform/opacity und einen gemeinsamen Takt. Das Einblenden läuft als CSS-Animation, damit Hover-Übergänge der Karten danach sofort und unverzögert reagieren. Bei **prefers-reduced-motion** gibt es keine dieser Bewegungen: Der Rasen steht als ruhiges Standbild (halb gemäht), alle Inhalte sind sofort sichtbar.
 
 ---
 
@@ -219,7 +220,8 @@ Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus
 
 - **Barrierefreiheit:** Kontraste ≥ 4,5 : 1 für Text, sichtbarer Fokus (Lehm-Kontur), Skip-Link, vollständige Tastaturbedienung (Drawer mit Fokusfalle und Esc, Vorher/Nachher als echter Regler, FAQ mit nativem `details`), beschriftete Formularfelder mit verknüpften Fehlermeldungen, Bedienelemente ≥ 44 px, Information nie nur über Farbe. Automatisierter Test mit axe-core (WCAG 2.1 AA + Best Practices): **0 Verstöße** auf Desktop und Mobil.
 - **DSGVO:** keine externen Anfragen beim Laden, keine Cookies, keine Tracker, Schriften lokal, abstrakte Einsatzkarte statt Google Maps. WhatsApp öffnet sich erst nach einem Klick. Ein Cookie-Banner ist deshalb nicht nötig. Impressum und Datenschutz liegen als Vorlage bei.
-- **Performance:** kein Framework, ca. 31 KB JavaScript unkomprimiert (ca. 11 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Bilder lazy, keine Videos. Der Rasen läuft auf Canvas 2D mit gebündelten Zeichenaufrufen und pausiert außerhalb des Sichtbereichs.
+- **Performance:** kein Framework, ca. 35 KB JavaScript unkomprimiert (ca. 12 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Illustrationen als schlanke SVG (gleichfarbige Formen in einem Pfad), Bilder lazy und asynchron dekodiert, keine Videos. Gemessen (Chromium, lokal): Layout-Verschiebung (CLS) 0, Scrollen ohne lange Tasks, der Rasen ruht nach 8 Sekunden ohne Interaktion vollständig. Die große Hero-Schrift startet per CSS bereits in ihrer eingepassten Größe.
+- **Ausrichtung:** Riesentypo im Hero und Wortmarke im Footer liegen auch auf sehr breiten Bildschirmen exakt im Inhaltsraster. Die Leistungskarten nutzen CSS-Subgrid, damit Titel, Text und Button in jeder Reihe auf einer Linie stehen.
 
 ---
 

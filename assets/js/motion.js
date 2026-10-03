@@ -16,22 +16,26 @@
   if (motion) root.classList.add('motion-ok');
 
   /* ── Riesentypo exakt auf Breite setzen ─────────────────────────────── */
+  const fitOne = (el) => {
+    const cs = getComputedStyle(el);
+    const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const parts = $$('.hero__word', el);
+    let width;
+    if (parts.length) {
+      width = parts[parts.length - 1].getBoundingClientRect().right - parts[0].getBoundingClientRect().left;
+    } else {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      width = r.getBoundingClientRect().width;
+    }
+    if (width > 0) el.style.fontSize = (parseFloat(cs.fontSize) * (avail / width) * 0.999) + 'px';
+  };
   const fitAll = () => {
     $$('[data-fit]').forEach((el) => {
       el.style.fontSize = '';
       if (getComputedStyle(el).whiteSpace !== 'nowrap') return; // mobil: gestapelt
-      const cs = getComputedStyle(el);
-      const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-      const parts = $$('.hero__word', el);
-      let width;
-      if (parts.length) {
-        width = parts[parts.length - 1].getBoundingClientRect().right - parts[0].getBoundingClientRect().left;
-      } else {
-        const r = document.createRange();
-        r.selectNodeContents(el);
-        width = r.getBoundingClientRect().width;
-      }
-      if (width > 0) el.style.fontSize = (parseFloat(cs.fontSize) * (avail / width) * 0.995) + 'px';
+      fitOne(el);
+      fitOne(el); // zweiter Durchgang gleicht Rundung und Kerning aus
     });
   };
 
@@ -82,7 +86,7 @@
   $$('[data-reveal], [data-split], [data-map]').forEach((el) => {
     const sib = el.parentElement ? [...el.parentElement.children].filter((c) => c.hasAttribute('data-reveal')) : [];
     const idx = sib.indexOf(el);
-    if (idx > 0 && el.hasAttribute('data-reveal')) el.style.transitionDelay = Math.min(idx, 5) * 90 + 'ms';
+    if (idx > 0 && el.hasAttribute('data-reveal')) el.style.setProperty('--rd', Math.min(idx, 5) * 90 + 'ms');
     io.observe(el);
   });
 
@@ -159,8 +163,9 @@
       else if (!wide.matches) heroInner.style.transform = '';
     }
 
-    if (steps) {
-      const r = steps.getBoundingClientRect();
+    const sr = steps && steps.getBoundingClientRect();
+    if (sr && sr.bottom > -vh && sr.top < vh * 2) {
+      const r = sr;
       if (stacked.matches) {
         const p = clamp((vh * 0.62 - r.top) / Math.max(1, r.height));
         steps.style.setProperty('--p', p.toFixed(3));

@@ -157,6 +157,8 @@ figure { margin: 0; }
 }
 .eyebrow::before { content: ""; width: 28px; height: 1px; background: currentColor; opacity: .6; }
 .eyebrow:has(.icon)::before { display: none; }
+.eyebrow:has(.icon) { align-items: flex-start; }
+.eyebrow .icon { margin-top: .3em; }
 .eyebrow--leaf { color: var(--leaf); }
 .eyebrow--muted { color: #4D5A52; }
 .prose p { color: var(--ink-2); max-width: 58ch; }
@@ -211,6 +213,8 @@ figure { margin: 0; }
   padding: 5px 9px; border-radius: 999px; color: var(--leaf-soft); border: 1px dashed rgba(185, 207, 159, .45);
 }
 .ph-tag--corner { color: var(--forest); border-color: var(--line-2); background: rgba(251, 249, 244, .85); }
+/* in Rundbögen unten rechts – oben würde die Rundung das Etikett anschneiden */
+.about__arch .ph-tag, .grave__media .ph-tag, .page-hero__media .ph-tag { top: auto; bottom: 14px; right: 14px; }
 
 .section-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); gap: var(--gap) calc(var(--gap) * 2); align-items: end; margin-bottom: clamp(2.5rem, 2rem + 3vw, 4.5rem); }
 .section-head__lead { margin: 0; font-size: var(--fs-lead); line-height: 1.5; color: var(--ink-2); }
@@ -287,6 +291,7 @@ figure { margin: 0; }
 
 /* Hero – direkte Ansprache links, Schnellanfrage rechts, Rasen-Signature unten */
 .hero {
+  --giant-fs: calc((min(100vw, var(--wrap) + 2 * var(--gutter)) - 2 * var(--gutter)) * .1277);
   position: relative; overflow: clip;
   display: flex; flex-direction: column;
   min-height: min(100svh, 1040px);
@@ -358,12 +363,14 @@ figure { margin: 0; }
 .quick__alt .icon { color: var(--leaf-ink); }
 
 .hero__giant {
-  position: relative; z-index: 2; margin: auto 0 0;
+  position: relative; z-index: 2; width: 100%; max-width: calc(var(--wrap) + 2 * var(--gutter)); margin: auto auto 0;
   padding: clamp(28px, 4vw, 56px) var(--gutter) clamp(14px, 2.6vw, 40px);
-  font-size: 11.4vw; line-height: .8; white-space: nowrap; color: var(--linen);
+  /* Startgröße ≈ eingepasste Größe (Inhaltsbreite × Verhältnis der Wortbreite) → kein Sprung beim Laden */
+  font-size: var(--giant-fs); line-height: .8; white-space: nowrap; color: var(--linen);
 }
 .hero__word { display: inline-block; }
-.grass { position: absolute; left: 0; bottom: 0; width: 100%; height: calc(11.4vw + 220px); pointer-events: none; }
+.grass { --gh: calc(var(--giant-fs) + 215px); position: absolute; left: 0; bottom: 0; width: 100%; height: var(--gh); pointer-events: none; }
+.grass--front { height: calc(var(--gh) * .62); }
 .grass--back { z-index: 1; }
 .grass--front { z-index: 3; }
 
@@ -398,6 +405,16 @@ figure { margin: 0; }
 .card__more { position: relative; z-index: 2; font-size: var(--fs-small); font-weight: 600; color: var(--ink-3); }
 .card__more:hover { color: var(--ink); }
 .card--calm { background: #F0EDE7; }
+@supports (grid-template-rows: subgrid) {
+  @media (min-width: 768px) {
+    .services__grid { row-gap: var(--gap); }
+    .card { display: grid; grid-template-rows: subgrid; grid-row: span 4; row-gap: 0; }
+    .card__body { display: contents; }
+    .card__head { padding: 22px 24px 10px; }
+    .card__body > p { padding: 0 24px; }
+    .card__foot { align-self: end; padding: 14px 24px 24px; }
+  }
+}
 .card--calm .card__num { color: #5E6A62; }
 .card--calm:hover .card__link .icon { background: var(--forest); transform: none; }
 
@@ -634,7 +651,7 @@ figure { margin: 0; }
 .site-footer__cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .site-footer__h { margin-bottom: 1rem; font-size: var(--fs-label); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--leaf); }
 .site-footer__cols ul { display: grid; gap: .55rem; }
-.site-footer__wordmark { margin: clamp(48px, 6vw, 96px) 0 0; font-size: 19vw; line-height: .78; white-space: nowrap; color: var(--linen); }
+.site-footer__wordmark { margin: clamp(48px, 6vw, 96px) 0 0; font-size: calc((min(100vw, var(--wrap) + 2 * var(--gutter)) - 2 * var(--gutter)) * .1955); line-height: .78; white-space: nowrap; color: var(--linen); }
 .site-footer__bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line-dark); }
 .site-footer__bottom p { margin: 0; }
 .site-footer__bottom ul { display: flex; gap: 24px; }
@@ -700,9 +717,9 @@ figure { margin: 0; }
 .motion-ok [data-split].is-in .split-w > span { transform: none; transition: transform 1s var(--ease-out); transition-delay: calc(var(--i, 0) * 55ms); }
 
 /* Elemente einblenden */
-.motion-ok [data-reveal] { opacity: 0; transform: translateY(40px); }
-.motion-ok [data-reveal].is-in { opacity: 1; transform: none; transition: opacity 1s var(--ease-out), transform 1s var(--ease-out); }
-.motion-ok [data-reveal="clip"] { opacity: 1; transform: none; }
+.motion-ok [data-reveal]:not([data-reveal="clip"]):not(.is-in) { opacity: 0; }
+.motion-ok [data-reveal]:not([data-reveal="clip"]).is-in { animation: reveal-up 1s var(--ease-out) var(--rd, 0ms) backwards; }
+@keyframes reveal-up { from { opacity: 0; transform: translateY(40px); } }
 .motion-ok [data-reveal="clip"] .about__arch { clip-path: inset(100% 0 0 0); }
 .motion-ok [data-reveal="clip"].is-in .about__arch { clip-path: inset(0 0 0 0); transition: clip-path 1.4s var(--ease-io); }
 .motion-ok [data-reveal="clip"] .about__silhouette { transform: translateX(-50%) translateY(14%); }
@@ -773,7 +790,7 @@ figure { margin: 0; }
   .quick__submit { width: 100%; min-height: 58px; font-size: 1.0625rem; }
   .hero__giant { font-size: 25.5vw; line-height: .82; white-space: normal; padding-top: 40px; padding-bottom: 18px; }
   .hero__word { display: block; }
-  .grass { height: calc(80vw + 40px); }
+  .grass { --gh: calc(80vw + 40px); }
   .hero__actions { flex-direction: column; align-items: stretch; }
   .hero__actions .pill { width: 100%; }
 
