@@ -1,6 +1,6 @@
-/* [FIRMENNAME] Gartenservice – Interaktionen
-   Kein Framework, keine Abhängigkeiten. Alles funktioniert auch ohne JS
-   (Links, Formular-Fallback, Details/Summary); JS ergänzt nur. */
+/* [FIRMENNAME] Gartenservice – Grundfunktionen
+   Header, Navigation, Vorher/Nachher, Formular, mobile Kontaktleiste.
+   Kein Framework. Ohne JS bleiben Links, Formular und FAQ benutzbar. */
 (() => {
   'use strict';
 
@@ -9,73 +9,77 @@
   const root = document.documentElement;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-  /* ── Seite geladen (Unterstrich im Hero zeichnen) ───────────────────── */
-  const markLoaded = () => requestAnimationFrame(() => root.classList.add('is-loaded'));
-  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(markLoaded);
-
-  /* ── Header: kompakter nach leichtem Scrollen ───────────────────────── */
+  /* ── Header: hell/dunkel je nach Sektion, beim Runterscrollen ausblenden ─ */
   const header = $('[data-header]');
+  const darkSections = $$('[data-theme-dark]');
+  let lastY = window.scrollY;
   let ticking = false;
-  const onScroll = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      header.classList.toggle('is-scrolled', window.scrollY > 24);
-      ticking = false;
+  const updateHeader = () => {
+    ticking = false;
+    if (!header) return;
+    const y = window.scrollY;
+    const probe = header.offsetHeight + 2;
+    const onDark = darkSections.some((s) => {
+      const r = s.getBoundingClientRect();
+      return r.top <= probe && r.bottom > probe;
     });
+    header.classList.toggle('is-scrolled', y > 12);
+    header.classList.toggle('is-light', y > 12 && !onDark);
+    const drawerOpen = root.classList.contains('drawer-open');
+    if (!drawerOpen && !reduceMotion.matches) {
+      header.classList.toggle('is-hidden', y > lastY + 4 && y > 640);
+      if (y < lastY - 4 || y < 640) header.classList.remove('is-hidden');
+    }
+    lastY = y;
   };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(updateHeader); } }, { passive: true });
+  window.addEventListener('resize', updateHeader);
+  updateHeader();
 
-  /* ── Drawer (Mobile-/Tablet-Navigation) ─────────────────────────────── */
+  /* ── Drawer ─────────────────────────────────────────────────────────── */
   const drawer = $('[data-drawer]');
   const openBtn = $('[data-menu-open]');
   const closeBtn = $('[data-menu-close]');
   const main = $('main');
   let lastFocus = null;
-
-  const focusables = () =>
-    $$('a[href], button:not([disabled]), input, textarea, [tabindex]:not([tabindex="-1"])', drawer)
-      .filter((el) => el.offsetParent !== null);
-
-  const openDrawer = () => {
-    lastFocus = document.activeElement;
-    drawer.hidden = false;
-    requestAnimationFrame(() => drawer.classList.add('is-open'));
-    openBtn.setAttribute('aria-expanded', 'true');
-    root.style.overflow = 'hidden';
-    main.inert = true;
-    setTimeout(() => closeBtn.focus(), 60);
-  };
-  const closeDrawer = (restore = true) => {
-    drawer.classList.remove('is-open');
-    openBtn.setAttribute('aria-expanded', 'false');
-    root.style.overflow = '';
-    main.inert = false;
-    const done = () => { drawer.hidden = true; };
-    if (reduceMotion.matches) done(); else setTimeout(done, 380);
-    if (restore && lastFocus) lastFocus.focus();
-  };
-
-  openBtn.addEventListener('click', openDrawer);
-  closeBtn.addEventListener('click', () => closeDrawer());
-  drawer.addEventListener('click', (e) => {
-    if (e.target === drawer) closeDrawer();
-    if (e.target.closest('a[href^="#"]')) closeDrawer(false);
-  });
-  drawer.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeDrawer();
-    if (e.key !== 'Tab') return;
-    const f = focusables();
-    const first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  });
+  if (drawer && openBtn && closeBtn) {
+    const focusables = () => $$('a[href], button:not([disabled])', drawer).filter((el) => el.offsetParent !== null);
+    const openDrawer = () => {
+      lastFocus = document.activeElement;
+      drawer.hidden = false;
+      root.classList.add('drawer-open');
+      requestAnimationFrame(() => requestAnimationFrame(() => drawer.classList.add('is-open')));
+      openBtn.setAttribute('aria-expanded', 'true');
+      root.style.overflow = 'hidden';
+      if (main) main.inert = true;
+      setTimeout(() => closeBtn.focus(), 80);
+    };
+    const closeDrawer = (restore = true) => {
+      drawer.classList.remove('is-open');
+      root.classList.remove('drawer-open');
+      openBtn.setAttribute('aria-expanded', 'false');
+      root.style.overflow = '';
+      if (main) main.inert = false;
+      setTimeout(() => { drawer.hidden = true; }, reduceMotion.matches ? 0 : 620);
+      if (restore && lastFocus) lastFocus.focus();
+    };
+    openBtn.addEventListener('click', openDrawer);
+    closeBtn.addEventListener('click', () => closeDrawer());
+    drawer.addEventListener('click', (e) => { if (e.target.closest('a[href^="#"]')) closeDrawer(false); });
+    drawer.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+      if (e.key !== 'Tab') return;
+      const f = focusables();
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  }
 
   /* ── Aktiver Navigationspunkt ───────────────────────────────────────── */
   const navLinks = $$('.nav__list a');
-  const sections = navLinks.map((a) => $(a.getAttribute('href'))).filter(Boolean);
-  if ('IntersectionObserver' in window && sections.length) {
+  const targets = navLinks.map((a) => $(a.getAttribute('href'))).filter(Boolean);
+  if ('IntersectionObserver' in window && targets.length) {
     const io = new IntersectionObserver((entries) => {
       entries.forEach((en) => {
         if (!en.isIntersecting) return;
@@ -85,46 +89,15 @@
         });
       });
     }, { rootMargin: '-45% 0px -50% 0px' });
-    sections.forEach((s) => io.observe(s));
-  }
-
-  /* ── Sanftes Einblenden ─────────────────────────────────────────────── */
-  const reveals = $$('.reveal');
-  if ('IntersectionObserver' in window && !reduceMotion.matches) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((en) => {
-        if (en.isIntersecting) { en.target.classList.add('is-in'); io.unobserve(en.target); }
-      });
-    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
-    reveals.forEach((el, i) => {
-      // Geschwister leicht versetzt – ruhig, nicht verspielt
-      const sib = el.parentElement ? [...el.parentElement.children].filter((c) => c.classList.contains('reveal')) : [];
-      const idx = sib.indexOf(el);
-      if (idx > 0) el.style.transitionDelay = Math.min(idx, 4) * 90 + 'ms';
-      io.observe(el);
-    });
-  } else {
-    reveals.forEach((el) => el.classList.add('is-in'));
-  }
-
-  /* ── Linien beim Eintritt zeichnen (mobil: Ablauf) ─────────────────── */
-  const draws = $$('[data-draw]');
-  if ('IntersectionObserver' in window && !reduceMotion.matches) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('is-drawn'); io.unobserve(en.target); } });
-    }, { threshold: 0.15 });
-    draws.forEach((d) => io.observe(d));
-  } else {
-    draws.forEach((d) => d.classList.add('is-drawn'));
+    targets.forEach((s) => io.observe(s));
   }
 
   /* ── Vorher/Nachher ─────────────────────────────────────────────────── */
   $$('[data-compare]').forEach((cmp) => {
     const range = $('.compare__range', cmp);
     const set = (v) => cmp.style.setProperty('--pos', v + '%');
-    range.addEventListener('input', () => set(range.value));
+    range.addEventListener('input', () => { range.dataset.touched = '1'; set(range.value); });
     set(range.value);
-    // Einmaliger, dezenter Hinweis auf die Funktion beim ersten Sichtkontakt
     if (!reduceMotion.matches && 'IntersectionObserver' in window) {
       const io = new IntersectionObserver(([en]) => {
         if (!en.isIntersecting) return;
@@ -133,24 +106,20 @@
         const anim = (t) => {
           if (range.dataset.touched) return;
           t0 = t0 || t;
-          const p = Math.min(1, (t - t0) / 1600);
-          const v = 50 + Math.sin(p * Math.PI * 2) * 9 * (1 - p);
-          set(v);
+          const p = Math.min(1, (t - t0) / 1800);
+          set(50 + Math.sin(p * Math.PI * 2) * 14 * (1 - p));
           if (p < 1) requestAnimationFrame(anim); else set(range.value);
         };
-        setTimeout(() => requestAnimationFrame(anim), 500);
+        setTimeout(() => requestAnimationFrame(anim), 600);
       }, { threshold: 0.6 });
       io.observe(cmp);
     }
-    range.addEventListener('pointerdown', () => { range.dataset.touched = '1'; });
-    range.addEventListener('keydown', () => { range.dataset.touched = '1'; });
   });
 
-  /* ── Leistung vorauswählen ("Heckenschnitt anfragen" → Chip aktiv) ──── */
+  /* ── Leistung im Formular vorauswählen ──────────────────────────────── */
   $$('[data-service]').forEach((a) => {
     a.addEventListener('click', () => {
-      const v = a.dataset.service;
-      const box = $$('.chip input').find((i) => i.value === v);
+      const box = $$('.chip input').find((i) => i.value === a.dataset.service);
       if (box) { box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); }
     });
   });
@@ -202,35 +171,24 @@
       renderFiles();
       status.textContent = [...new Set(msgs)].join(' ');
     };
-
     fileInput.addEventListener('change', () => addFiles(fileInput.files));
-    ['dragenter', 'dragover'].forEach((ev) => upload.addEventListener(ev, (e) => {
-      e.preventDefault(); upload.classList.add('is-dragover');
-    }));
-    ['dragleave', 'drop'].forEach((ev) => upload.addEventListener(ev, (e) => {
-      e.preventDefault(); upload.classList.remove('is-dragover');
-    }));
+    ['dragenter', 'dragover'].forEach((ev) => upload.addEventListener(ev, (e) => { e.preventDefault(); upload.classList.add('is-dragover'); }));
+    ['dragleave', 'drop'].forEach((ev) => upload.addEventListener(ev, (e) => { e.preventDefault(); upload.classList.remove('is-dragover'); }));
     upload.addEventListener('drop', (e) => { if (e.dataTransfer) addFiles(e.dataTransfer.files); });
 
     const rules = [
       { el: $('#f-name', form), err: $('#f-name-err', form), ok: (v) => v.trim().length > 1 },
-      {
-        el: $('#f-contact', form), err: $('#f-contact-err', form),
-        ok: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) || v.replace(/[^\d]/g, '').length >= 6,
-      },
+      { el: $('#f-contact', form), err: $('#f-contact-err', form), ok: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) || v.replace(/[^\d]/g, '').length >= 6 },
       { el: $('#f-place', form), err: $('#f-place-err', form), ok: (v) => v.trim().length > 1 },
     ];
     const chips = $('.chips', form);
     const workErr = $('#f-work-err', form);
-
     const showErr = (field, err, bad) => {
       field.classList.toggle('is-invalid', bad);
       err.hidden = !bad;
       const input = $('input, textarea', field);
-      if (input && input.type !== 'checkbox') {
-        input.setAttribute('aria-invalid', bad ? 'true' : 'false');
-        if (bad) input.setAttribute('aria-describedby', err.id); else input.removeAttribute('aria-describedby');
-      }
+      input.setAttribute('aria-invalid', bad ? 'true' : 'false');
+      if (bad) input.setAttribute('aria-describedby', err.id); else input.removeAttribute('aria-describedby');
     };
     const validate = () => {
       let firstBad = null;
@@ -245,7 +203,6 @@
       if (workBad && !firstBad) firstBad = $('input', chips);
       return firstBad;
     };
-    // Fehler nach Korrektur sofort entfernen – nicht schon beim ersten Tippen schimpfen
     rules.forEach((r) => r.el.addEventListener('input', () => {
       if (r.el.closest('.field').classList.contains('is-invalid') && r.ok(r.el.value)) showErr(r.el.closest('.field'), r.err, false);
     }));
@@ -258,19 +215,14 @@
       status.textContent = '';
       const bad = validate();
       if (bad) { bad.focus(); return; }
-
-      const endpoint = form.dataset.endpoint;
       const success = () => {
         form.hidden = true;
         const s = $('[data-form-success]');
         s.hidden = false;
         s.focus();
       };
-      if (!endpoint) {
-        // Demo-Modus: kein Versand konfiguriert (siehe README → Formularversand)
-        success();
-        return;
-      }
+      const endpoint = form.dataset.endpoint;
+      if (!endpoint) { success(); return; } // Demo-Modus, siehe README → Formularversand
       form.classList.add('is-sending');
       try {
         const res = await fetch(endpoint, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
@@ -289,7 +241,7 @@
   const heroActions = $('.hero__actions');
   const contact = $('#kontakt');
   const footer = $('.site-footer');
-  if (bar && 'IntersectionObserver' in window) {
+  if (bar && heroActions && contact && footer && 'IntersectionObserver' in window) {
     const state = { hero: true, contact: false, footer: false };
     const update = () => bar.classList.toggle('is-visible', !state.hero && !state.contact && !state.footer);
     const watch = (el, key) => new IntersectionObserver(([en]) => { state[key] = en.isIntersecting; update(); }).observe(el);
@@ -299,6 +251,5 @@
   }
 
   /* ── Jahr im Footer ─────────────────────────────────────────────────── */
-  const year = $('[data-year]');
-  if (year) year.textContent = new Date().getFullYear();
+  $$('[data-year]').forEach((n) => { n.textContent = new Date().getFullYear(); });
 })();

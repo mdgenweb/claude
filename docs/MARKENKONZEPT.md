@@ -2,6 +2,9 @@
 
 Gartenservice · Gartenpflege · Grabpflege · [ORT + EINSATZGEBIET]
 
+> **Version 2 – „Kraft & Ordnung“** (aktuell): Nike-inspiriert, kräftige Versalien, Nachtgrün, generativer Rasen-Hero, viel Bewegung.
+> Version 1 – „ruhig & editorial“ mit der Scroll-Ranke liegt im Git-Verlauf (Commit `cbaf5ca`).
+
 ---
 
 ## 1. Kurzfassung
@@ -67,48 +70,44 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 
 | Name | Hex | Rolle |
 |---|---|---|
-| **Waldgrün** | `#1E3A2B` | Markenfarbe, dunkle Flächen, Akzent-Headlines, Symbol |
-| Waldgrün tief | `#142A1E` | Footer |
-| **Blattgrün** | `#7FA35E` | Ranke, Illustrationen, Aufzählungsblätter – nie für Fließtext |
-| Blattgrün hell | `#B9CF9F` | Akzente auf Waldgrün |
-| Salbei | `#DFE6D4` | Bildflächen, Hinweise |
-| **Leinen** | `#F6F2EA` | Seitenhintergrund (warmes Off-White statt Reinweiß) |
-| Leinen dunkel | `#EEE7DA` | Wechselflächen |
-| Kalkstein | `#E9E6DF` | ausschließlich Grabpflege – kühler, ruhiger |
-| **Anthrazit** | `#1B201D` | Text |
-| Anthrazit 2 / 3 | `#3A433D` / `#56605A` | Fließtext (9,2 : 1) / Meta (5,8 : 1) |
-| **Lehm** | `#A5502D` | ausschließlich primäre Anfrage-Aktionen (5,5 : 1 mit Weiß) |
+| **Nachtgrün** | `#0E1D15` | das „Schwarz“ der Marke: Hero, Leistungen, Ablauf, Einsatzgebiet, Footer |
+| **Waldgrün** | `#1E3A2B` | Logo, Anfrage-Bereich |
+| Karte | `#15281C` | Leistungskarten auf Nachtgrün |
+| **Blattgrün** | `#8DB86A` | Akzent auf Dunkel (7,6 : 1), Marquee-Band, Ziffern, Linien |
+| Blattgrün hell | `#B9CF9F` | Linienzeichnungen auf Dunkel |
+| Blattgrün Text | `#426A2F` | Labels auf hellem Grund (≥ 5 : 1) |
+| **Leinen** | `#F4F0E6` | heller Grund, Text auf Dunkel (15 : 1) |
+| Leinen dunkel / Kalkstein | `#ECE6D8` / `#E7E3DA` | Wechselflächen / ausschließlich Grabpflege |
+| **Anthrazit** | `#121814` | Text auf Hell |
+| **Lehm** | `#AE542D` | ausschließlich primäre Anfrage-Aktionen (5,1 : 1 mit Weiß) |
 
-**Regel:** Lehm ist die einzige warme Farbe und erscheint nur auf Schaltflächen, die zur Anfrage führen. Dadurch erkennt das Auge die Handlungsaufforderung sofort, ohne dass die Seite laut wird. Die Grabpflege bekommt bewusst keinen Lehm-Akzent.
+**Regel:** Dunkle und helle Sektionen wechseln sich ab, damit die Seite Rhythmus bekommt. Lehm ist die einzige warme Farbe und erscheint nur auf Schaltflächen, die zur Anfrage führen. Die Grabpflege bleibt hell, kühl und ohne Lehm.
 
 ---
 
 ## 4. Typografie
 
-| Rolle | Schrift | Schnitt | Warum |
+| Rolle | Schrift | Schnitt | Einsatz |
 |---|---|---|---|
-| Headlines | **Bricolage Grotesque** (variabel, optische Größen) | 560–600, −2,5 bis −3,5 % Laufweite | Charakterstarke Grotesk mit leicht handwerklichen Details. Hat Persönlichkeit, wirkt aber nicht verspielt. |
-| Fließtext, UI | **Instrument Sans** (variabel) | 400–600 | Ruhig, offen, sehr gut lesbar auf Smartphones |
+| Display | **Bricolage Grotesque Condensed** | 800, Versalien, Breite 75 %, Zeilenabstand 0,8–0,86 | Hero „HECKE. RASEN. BEETE.“, Sektionstitel, Ziffern, Marquee, Footer-Wortmarke |
+| Satz-Headlines | **Bricolage Grotesque** | 600, normale Breite | Claims, H2-Sätze, Kartentitel, FAQ |
+| Fließtext, UI | **Instrument Sans** | 400–600 | Text, Buttons, Formular |
 
-- Beide unter SIL Open Font License, **lokal gehostet** (`assets/fonts/`, zusammen ca. 107 KB)
-- Skala (fluid): H1 42–84 px · H2 33–58 px · H3 24–33 px · Lead 18–21 px · Text 17 px · Label 13 px Versalien +14 %
-- Kurze Absätze, maximal ca. 60 Zeichen pro Zeile, `text-wrap: balance` für Headlines
-- Keine Texte unter 13 px, kein Hellgrau für Inhalte
+- beide SIL OFL, **lokal gehostet**: Bricolage mit Breiten-Achse (78 KB) + Instrument Sans (30 KB)
+- die Riesentypo im Hero und die Footer-Wortmarke werden per Skript exakt auf die verfügbare Breite gesetzt
+- kurze Versalien-Titel (2–4 Wörter) für Energie, ganze Sätze immer in normaler Breite für Lesbarkeit
 
 ---
 
 ## 5. UI-Designsystem
 
-- **Raster:** 12 Spalten, maximal 1280 px Inhaltsbreite, Seitenrand 20–64 px (fluid)
-- **Abstände:** Sektionen 88–160 px vertikal, Basis 8 px
-- **Formen:** kleine Radien (4 / 8 px) für UI-Elemente. Für Bilder gibt es zwei Formen aus der Marke:
-  - **Blattmaske:** zwei gerundete Ecken und eine schräg geschnittene Spitze, also das Logo als Bildform (`.mask-leaf`, `.mask-leaf--flip`)
-  - **Bogen** für Personen und die Grabpflege (`.portrait__arch`, `.media--arch`)
-- **Buttons:** Primär in Lehm mit weißer Schrift, sekundär als Outline in Waldgrün, auf dunklen Flächen hell. Mindesthöhe 44–58 px, keine Pillenform.
-- **Links:** Waldgrün, die Unterstreichung wächst beim Hover von links, der Pfeil gleitet 4 px.
-- **Formular:** 52 px Feldhöhe, sichtbare Labels, Pflichtfelder mit *, Fehlermeldungen in Klartext unter dem Feld, Arbeiten als Auswahl-Chips, Foto-Upload mit Vorschau.
-- **Icons:** Linienstil, 24er-Raster, 1,6 px Strich, runde Enden, keine Flächen
-- **Platzhalter:** getönte Fläche mit Papierkorn, Linienmotiv und dem Etikett „Foto folgt · Motiv“. Sie sind eindeutig als Platzhalter erkennbar und dienen gleichzeitig als Bildbriefing.
+- **Raster:** maximal 1360 px Inhaltsbreite, Seitenrand 16–64 px (fluid)
+- **Buttons:** Pill-Form. Beim Hover wischt eine zweite Farbe von unten herein, der Pfeil gleitet 4 px, und auf dem Desktop folgt der Button leicht dem Zeiger (magnetisch). Primär ist Lehm; sekundär Outline-Pills, auf Dunkel hell.
+- **Karten:** Leistungen als dunkle Karten (10 px Radius) mit heller Linienzeichnung, großer Ziffer und „Anfragen →“
+- **Bogen:** Personen- und Grabpflege-Bilder im Rundbogen
+- **Formular:** 54 px Felder mit 14 px Radius, Auswahl-Chips als Pills (das Blatt aus dem Logo als Häkchen), Foto-Upload mit Vorschau
+- **Icons:** Linienstil, 24er-Raster, 1,7 px Strich
+- **Platzhalter:** gestrichelte Etiketten „Foto folgt“ – eindeutig, aber unaufdringlich
 
 ---
 
@@ -133,25 +132,36 @@ Langfristig trägt **echte Fotografie des Unternehmens** die Seite. Bis dahin ze
 
 Feine Linienzeichnungen (1,1–1,4 px) in Waldgrün oder Blattgrün: Zweige, Olivenzweig, Gräser, Rosette mit Wurzel, Hecke. Erzeugt mit `tools/botanics.mjs` aus wenigen Grundformen und festen Zufallswerten. Dadurch wirken sie gezeichnet und bleiben trotzdem einheitlich.
 
-**Einsatz sparsam:** im Hero hinter dem Bogen, in den Bildplatzhaltern, im Ablauf (mobil) und als Ranke. Nie hinter Fließtext, nie dekorativ gestreut.
+**Einsatz:** in hellen Linien auf den dunklen Leistungskarten, im Porträt-Bogen, in der Grabpflege und als Vorher/Nachher-Illustration. Nie hinter Fließtext, nie dekorativ gestreut.
 
 ---
 
 ## 8. Bewegung
 
-**Signature: „Der Garten wächst durch die Website.“**
-Im Hero sitzt ein kleines gezeichnetes Blatt, die Linienform des Logos. Beim Scrollen wächst daraus eine feine Ranke:
-- verläuft im Seitenrand und durch bewusste Lücken im Layout, **kreuzt nie Text**
-- verschwindet hinter einigen Bildern (Hecke, Strauch, Porträt, Vorher/Nachher) und läuft vor anderen her (Detailbild, Rasen). So entsteht räumliche Tiefe.
-- verzweigt sich bei den Leistungen und verbindet die vier Ablauf-Schritte
-- bleibt im Grabpflege-Bereich ruhig, ohne Blätter
-- endet über dem Anfrageformular mit wenigen kleinen Blättern
-- **Stop-Motion-Charakter:** wächst in 9-px-Stufen mit ca. 14 Bildern pro Sekunde, Blätter erscheinen in drei Stufen. Einzelne Blätter wiegen sich danach sehr langsam (±3°, 7 s).
-- **Technik:** SVG-Pfade, Route relativ zu Layout-Elementen (passt sich jeder Breite an), Teilpfade zur Entlastung des Renderings, kein Framework
-- **Mobil/Tablet unter 1024 px:** keine Seitenranke. Im Ablauf zeichnet sich stattdessen beim Eintritt eine Linie, die die Schritte verbindet.
-- **prefers-reduced-motion:** Die Ranke steht fertig gezeichnet da, es gibt keine Bewegung und keine Einblendungen.
+**Signature: „Scrollen = Mähen.“**
+Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
+- beim Laden wachsen die Halme hoch, und die Wörter „HECKE. RASEN. BEETE.“ steigen aus dem Gras
+- die Halme wiegen sich im Wind und weichen dem Mauszeiger aus
+- beim Scrollen fährt eine unsichtbare Mählinie von links nach rechts: Die Halme werden gekürzt, Mähstreifen entstehen, Schnittgut fliegt, und die Headline steht vollständig frei
+- zwei Ebenen: dichtes Gras hinter der Schrift, einzelne Halme davor (Tiefe)
+- läuft nur, solange der Hero sichtbar ist; Pixeldichte auf 2 begrenzt; auf dem Smartphone etwa halb so viele Halme
 
-**Microinteractions:** Buttons heben sich um 1 px mit weichem Schatten, Pfeile gleiten 3–4 px, Bilder zoomen beim Hover um 2,5 % über 1,4 s, Inhalte blenden einmalig mit 18 px Versatz ein, die Unterstreichung im Hero zeichnet sich nach dem Laden, FAQ-Antworten öffnen weich, und der Vorher/Nachher-Regler zeigt beim ersten Sichtkontakt einmal kurz seine Funktion.
+**Weitere Effekte:**
+| Effekt | Wo |
+|---|---|
+| Marquee-Band, dessen Tempo und Richtung dem Scrollen folgen | unter dem Hero |
+| Text-Scrub: Wörter werden beim Lesen kräftig | Statement |
+| rollende Ziffern wie ein Zählwerk (6 · 1 · 0 €) | Fakten |
+| fixierte Galerie: vertikales Scrollen bewegt die Leistungskarten seitwärts (Desktop), Wischen mit Einrasten (Mobil) | Leistungen |
+| Wort-für-Wort-Reveal aus einer Maske | alle Display-Titel |
+| Bild-Reveal von unten | Über uns |
+| wachsende Linie, Ziffern füllen sich, Blätter springen an | Ablauf |
+| Karte zeichnet sich, Puls um den Ort | Einsatzgebiet |
+| rotierendes Badge „Kostenlos · unverbindlich“ | Hero |
+| Header blendet beim Runterscrollen aus und passt sich hell/dunkel an | überall |
+| Vollbild-Menü mit gestaffelten Versalien | Mobil/Tablet |
+
+**Grenzen:** Die Grabpflege bekommt nur ein ruhiges Einblenden. Alle Effekte nutzen transform/opacity und einen gemeinsamen Takt. Bei **prefers-reduced-motion** gibt es keine dieser Bewegungen: Der Rasen steht als ruhiges Standbild (halb gemäht), alle Inhalte sind sofort sichtbar.
 
 ---
 
@@ -159,23 +169,24 @@ Im Hero sitzt ein kleines gezeichnetes Blatt, die Linienform des Logos. Beim Scr
 
 | # | Sektion | Beantwortete Kundenfrage |
 |---|---|---|
-| 1 | Hero: „Hecke, Rasen, Beete. Wir kümmern uns darum.“ | Was macht das Unternehmen? Wo? Was muss ich tun? |
-| 2 | Vertrauenszone (6 überprüfbare Zusagen) | Kann ich denen vertrauen? Was kostet eine Anfrage? |
-| 3 | Leistungen (Editorial-Blöcke 01–05) | Was genau übernehmen sie? |
-| 4 | Über uns (fester Ansprechpartner) | Wer kommt zu mir? |
+| 1 | Hero: „HECKE. RASEN. BEETE.“ + „Wir kümmern uns darum.“ | Was macht das Unternehmen? Wo? Was muss ich tun? |
+| 2 | Marquee mit allen Leistungen | Was gibt es alles? |
+| 3 | Statement, Fakten (6 Leistungen · 1 Ansprechpartner · 0 € Anfrage), Zusagen | Kann ich vertrauen? Was kostet eine Anfrage? |
+| 4 | Leistungen als Galerie (01–06) | Was genau übernehmen sie? |
 | 5 | Vorher/Nachher | Wie sehen deren Arbeiten aus? |
-| 6 | Ablauf (4 Schritte) | Wie läuft die Anfrage ab? |
-| 7 | Grabpflege (eigener, ruhiger Bereich) | Pflegen sie auch Gräber, und wie? |
-| 8 | Kundenstimmen (vorbereitet, nur echte) | Was sagen andere? |
-| 9 | Einsatzgebiet | Arbeiten die in meiner Gegend? |
-| 10 | FAQ | Restliche Einwände |
-| 11 | Abschluss + Formular | Kann ich unkompliziert Kontakt aufnehmen? |
+| 6 | Über uns | Wer kommt zu mir? |
+| 7 | Ablauf (4 Schritte) | Wie läuft die Anfrage ab? |
+| 8 | Grabpflege (ruhig) | Pflegen sie auch Gräber, und wie? |
+| 9 | Kundenstimmen (vorbereitet, nur echte) | Was sagen andere? |
+| 10 | Einsatzgebiet | Arbeiten die in meiner Gegend? |
+| 11 | FAQ | Restliche Einwände |
+| 12 | „IHR GARTEN KÖNNTE WIEDER ETWAS PFLEGE GEBRAUCHEN?“ + Formular | Kann ich unkompliziert Kontakt aufnehmen? |
 
-**CTA-Strategie:** eine Hauptaktion, „Kostenlos anfragen“, in Lehm, an fünf Stellen (Header, Hero, Ablauf, Formular, mobile Leiste). Daneben immer Telefon und WhatsApp als gleichwertige direkte Wege. Bei jeder Leistung führt ein Link zur Anfrage und wählt die Leistung im Formular vor.
+Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus dem Briefing.
 
-**Formular:** sechs Felder, davon vier Pflicht. Die Arbeiten werden als Chips gewählt statt getippt. Der Foto-Upload wird aktiv empfohlen. Fehler werden freundlich und erst beim Absenden angezeigt. Nach dem Absenden erscheint eine persönliche Bestätigung.
+**CTA-Strategie:** eine Hauptaktion, „Kostenlos anfragen“, als Lehm-Pill im Header, im Hero, im Ablauf, im Formular und in der mobilen Leiste. Dazu das rotierende Badge im Hero. Telefon und WhatsApp sind immer gleichwertig erreichbar. Jede Leistungskarte führt zur Anfrage und wählt die Leistung im Formular vor.
 
-**Mobil:** Headline, Text, Hauptbutton und Telefon/WhatsApp liegen auf dem ersten Bildschirm. Eine dezente Kontaktleiste (Anrufen · WhatsApp · Anfrage) erscheint erst nach dem Hero und verschwindet am Formular und im Footer.
+**Mobil:** Claim, Text, Hauptbutton und Telefon/WhatsApp auf dem ersten Bildschirm, darunter die gestapelte Riesentypo im Gras. Die dunkle Kontaktleiste (Anrufen · WhatsApp · Anfrage) erscheint erst nach dem Hero.
 
 ---
 
@@ -193,10 +204,10 @@ Im Hero sitzt ein kleines gezeichnetes Blatt, die Linienform des Logos. Beim Scr
 
 ## 11. Responsive
 
-- **Desktop (ab 1240 px):** großzügig, asymmetrisch, editorial; volle Navigation, Ranke aktiv
-- **Laptop/Tablet quer (1024–1239 px):** Navigation im Drawer, Raster bleibt, Ranke aktiv
-- **Tablet (768–1023 px):** Hero-Text vor dem Bild, Leistungen zweispaltig, Formular einspaltig, keine Ranke
-- **Smartphone (unter 768 px):** eigene Komposition: Text und Hauptbutton zuerst, Bilder teils randlos, Nummer und Titel bei Leistungen nebeneinander, Ablauf als vertikale Linie, Formularfelder untereinander, Kontaktleiste unten
+- **Desktop (ab 1240 px):** volle Navigation, Riesentypo einzeilig, fixierte Leistungs-Galerie
+- **Laptop (1024–1239 px):** Navigation im Vollbild-Menü, Galerie weiterhin fixiert (ab 620 px Fensterhöhe)
+- **Tablet (768–1023 px):** einspaltige Sektionen, Galerie zum Wischen mit Einrasten
+- **Smartphone (unter 768 px):** Riesentypo dreizeilig gestapelt, weniger Halme, Fakten als Zeilen, randloses Vorher/Nachher, Kontaktleiste unten
 
 ---
 
@@ -204,7 +215,7 @@ Im Hero sitzt ein kleines gezeichnetes Blatt, die Linienform des Logos. Beim Scr
 
 - **Barrierefreiheit:** Kontraste ≥ 4,5 : 1 für Text, sichtbarer Fokus (Lehm-Kontur), Skip-Link, vollständige Tastaturbedienung (Drawer mit Fokusfalle und Esc, Vorher/Nachher als echter Regler, FAQ mit nativem `details`), beschriftete Formularfelder mit verknüpften Fehlermeldungen, Bedienelemente ≥ 44 px, Information nie nur über Farbe. Automatisierter Test mit axe-core (WCAG 2.1 AA + Best Practices): **0 Verstöße** auf Desktop und Mobil.
 - **DSGVO:** keine externen Anfragen beim Laden, keine Cookies, keine Tracker, Schriften lokal, abstrakte Einsatzkarte statt Google Maps. WhatsApp öffnet sich erst nach einem Klick. Ein Cookie-Banner ist deshalb nicht nötig. Impressum und Datenschutz liegen als Vorlage bei.
-- **Performance:** kein Framework, ca. 32 KB JavaScript unkomprimiert (ca. 11 KB gzip), ein Stylesheet, Schriften vorgeladen, Bilder lazy, keine Videos. Die Animation läuft über SVG-Strich-Offsets in Teilpfaden mit gedrosselter Bildrate.
+- **Performance:** kein Framework, ca. 32 KB JavaScript unkomprimiert (ca. 11 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Bilder lazy, keine Videos. Der Rasen läuft auf Canvas 2D mit gebündelten Zeichenaufrufen und pausiert außerhalb des Sichtbereichs.
 
 ---
 
@@ -233,12 +244,12 @@ Diese Formulierungen sind aus dem Briefing abgeleitet. Sie dürfen nur online ge
 
 | Frage | Antwort |
 |---|---|
-| Individuelles Markenprojekt oder Template? | Eigene Logoform, aus der sich Bildmasken, Aufzählungszeichen, Favicon und Ranke ableiten. Eine eigene Illustrationssprache. Eine reservierte Akzentfarbe mit klarer Funktion. |
+| Individuelles Markenprojekt oder Template? | Eigene Logoform (Badge, Chips, Erfolgsmeldung, Favicon), ein generativer Rasen-Hero, der nur zu diesem Thema passt, eigene Illustrationssprache, eine reservierte Akzentfarbe. |
 | In fünf Sekunden klar, was angeboten wird? | Die H1 nennt drei konkrete Arbeiten, die Unterzeile Ort und Art der Pflege. |
 | Nächster Schritt sofort klar? | Ein einziger Lehm-Button mit „Kostenlos anfragen“, daneben Telefon und WhatsApp |
 | Seriös genug für Zugang zum Grundstück? | Person sichtbar, Name, ruhige Gestaltung, keine Werbesprache, klare Abläufe, Impressum |
-| Grabpflege respektvoll? | Eigener kühler Farbraum, leisere Typografie, kein Lehm, keine Ranke mit Blättern, sachliche Liste, ehrliche Abgrenzung im FAQ |
-| Animationen elegant? | Eine einzige Signature-Bewegung, sonst nur einmalige, kurze Übergänge. Bei reduzierter Bewegung vollständig statisch. |
+| Grabpflege respektvoll? | Eigener heller, kühler Farbraum, leise Satz-Typografie statt Versalien, kein Lehm, nur ruhiges Einblenden, sachliche Liste, ehrliche Abgrenzung im FAQ |
+| Animationen sinnvoll? | Jede Bewegung erzählt etwas über Gartenarbeit (wachsen, mähen, zählen, verbinden). Die Grabpflege bleibt ruhig. Bei reduzierter Bewegung vollständig statisch. |
 | Überladen? | Pro Sektion eine Idee, viel Leinen-Fläche, Illustrationen nur dort, wo Bilder hingehören |
 | Konkrete Texte? | Verben und Gegenstände statt Adjektive. Keine Floskel aus der Verbotsliste. |
 | Mobil gleichwertig? | Eigene Reihenfolge und Komposition, Kontaktleiste, Linie im Ablauf, große Touch-Ziele |

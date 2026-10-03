@@ -226,6 +226,8 @@ const files = {};
 const MW = 800, MH = 1000;
 const motif = (name, body, bg) => {
   files[`motiv-${name}.svg`] = svgDoc(MW, MH, body, { bg, preserve: 'xMidYMid slice', sw: 1.3 });
+  // helle Linienvariante ohne Fläche – für dunkle Karten
+  files[`motiv-${name}-hell.svg`] = svgDoc(MW, MH, body, { stroke: '#B9CF9F', preserve: 'xMidYMid slice', sw: 1.3 });
 };
 // Hecke: geschnittener Block, Schnittlinie, fallende Blättchen
 {

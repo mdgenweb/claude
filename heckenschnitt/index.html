@@ -7,9 +7,9 @@
   <title>Heckenschnitt in [ORT] – Formschnitt &amp; Pflegeschnitt | [FIRMENNAME]</title>
   <meta name="description" content="Heckenschnitt und Formschnitt in [ORT] und Umgebung: saubere Kanten, gepflegte Form, einmalig oder regelmäßig. Kostenlos anfragen – gerne mit Foto.">
   <link rel="canonical" href="https://[DOMAIN]/heckenschnitt/">
-  <meta name="theme-color" content="#1E3A2B">
+  <meta name="theme-color" content="#0E1D15">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="../assets/fonts/bricolage-grotesque-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../assets/fonts/bricolage-grotesque-wdth-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/instrument-sans-var-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="../assets/css/main.css">
   <script type="application/ld+json">
@@ -36,7 +36,7 @@
   }
   </script>
 </head>
-<body>
+<body class="subpage">
 <svg class="sprite" aria-hidden="true" focusable="false">
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-5.5-6 6 6-6 6"/></symbol>
   <symbol id="i-phone" viewBox="0 0 24 24"><path d="M8.6 3.8 6.4 3.5a1.6 1.6 0 0 0-1.5.7C4.1 5.4 3.5 6.9 3.8 8.6c.9 4.9 6.7 10.7 11.6 11.6 1.7.3 3.2-.3 4.4-1.1a1.6 1.6 0 0 0 .7-1.5l-.3-2.2a1.4 1.4 0 0 0-1-1.1l-2.6-.8a1.4 1.4 0 0 0-1.4.4l-1.1 1.2a10.5 10.5 0 0 1-4.6-4.6l1.2-1.1a1.4 1.4 0 0 0 .4-1.4l-.8-2.6a1.4 1.4 0 0 0-1.1-1Z"/></symbol>
@@ -47,14 +47,15 @@
 </svg>
 <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
-<header class="site-header" data-header>
-  <div class="container site-header__inner">
+<header class="site-header">
+  <div class="wrap site-header__inner">
     <a class="brand" href="../" aria-label="[FIRMENNAME] Gartenservice – zur Startseite">
-      <img src="../assets/brand/logo-primaer.svg" alt="" width="674" height="120">
+      <img class="brand__light" src="../assets/brand/logo-primaer-invers.svg" alt="" width="674" height="120">
+      <img class="brand__dark" src="../assets/brand/logo-primaer.svg" alt="" width="674" height="120">
     </a>
-    <a class="link-arrow legal__back" href="../#leistungen">Alle Leistungen</a>
+    <a class="link-arrow legal__back" href="../#leistungen">Alle Leistungen <svg class="icon"><use href="#i-arrow"/></svg></a>
     <div class="site-header__actions">
-      <a class="btn btn--clay btn--sm site-header__cta" href="../#kontakt" data-service="Heckenschnitt">Angebot anfragen</a>
+      <a class="pill pill--clay pill--sm site-header__cta" href="../#kontakt">Angebot anfragen</a>
       <a class="icon-btn site-header__call" href="tel:[TELEFON_LINK]" aria-label="Anrufen: [TELEFON]"><svg class="icon"><use href="#i-phone"/></svg></a>
     </div>
   </div>
@@ -62,7 +63,7 @@
 
 <main id="inhalt">
   <section class="page-hero" aria-labelledby="page-title">
-    <div class="container page-hero__grid">
+    <div class="wrap page-hero__grid">
       <div class="page-hero__copy">
         <nav class="breadcrumb" aria-label="Brotkrümelnavigation">
           <ol>
@@ -71,42 +72,35 @@
             <li aria-current="page">Heckenschnitt</li>
           </ol>
         </nav>
-        <h1 class="hero__title" id="page-title">Heckenschnitt in [ORT] und Umgebung.</h1>
+        <h1 class="display" id="page-title">Heckenschnitt in [ORT].</h1>
         <p class="hero__lead">Saubere Kanten, gepflegte Form und ein ordentliches Gesamtbild – als einmaliger Schnitt oder regelmäßige Pflege.</p>
         <div class="hero__actions">
-          <a class="btn btn--clay btn--lg" href="../#kontakt">Heckenschnitt anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-          <a class="link-arrow" href="https://wa.me/[WHATSAPP_NUMMER]?text=Hallo%2C%20ich%20h%C3%A4tte%20gern%20ein%20Angebot%20f%C3%BCr%20einen%20Heckenschnitt." target="_blank" rel="noopener"><svg class="icon"><use href="#i-chat"/></svg> Foto per WhatsApp schicken</a>
+          <a class="pill pill--clay pill--lg" href="../#kontakt">Heckenschnitt anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
+          <a class="pill pill--outline pill--lg" href="https://wa.me/[WHATSAPP_NUMMER]?text=Hallo%2C%20ich%20h%C3%A4tte%20gern%20ein%20Angebot%20f%C3%BCr%20einen%20Heckenschnitt." target="_blank" rel="noopener"><svg class="icon"><use href="#i-chat"/></svg>Foto per WhatsApp</a>
         </div>
-        <p class="hero__note"><svg class="icon icon--sm"><use href="#i-check"/></svg>Unverbindlich und kostenlos</p>
       </div>
-      <figure class="page-hero__media media mask-leaf">
-        <div class="ph ph--sage">
-          <img src="../assets/img/illustrations/motiv-hecke.svg" alt="" width="800" height="1000">
-          <span class="ph__label">Foto folgt · Hecke nach dem Formschnitt</span>
-        </div>
+      <figure class="page-hero__media">
+        <img src="../assets/img/illustrations/motiv-hecke.svg" alt="" width="800" height="1000">
+        <span class="ph-tag ph-tag--corner">Foto folgt</span>
       </figure>
     </div>
   </section>
 
   <section class="section" aria-labelledby="scope-title" style="padding-top: 0">
-    <div class="container">
-      <header class="section-head section-head--split">
-        <div>
-          <p class="eyebrow">Was wir übernehmen</p>
-          <h2 class="h2" id="scope-title">Form, Pflege und Rückschnitt.</h2>
-        </div>
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="display display--md" id="scope-title">Form. Pflege. Rückschnitt.</h2>
         <p class="section-head__lead">Wir besprechen vorher, wie die Hecke aussehen soll – danach schneiden wir sauber und gleichmäßig.</p>
-      </header>
-      <div class="facts">
-        <div class="fact"><h3 class="h4">Formschnitt</h3><p>Klare Linien und gerade Kanten, damit die Hecke wieder in Form ist.</p></div>
-        <div class="fact"><h3 class="h4">Pflegeschnitt</h3><p>Regelmäßiger Schnitt, damit die Hecke dicht und ordentlich bleibt.</p></div>
-        <div class="fact"><h3 class="h4">Rückschnitt</h3><p>Für Hecken, die zu breit oder zu hoch geworden sind – in der erlaubten Zeit.</p></div>
       </div>
-
+      <div class="facts-list">
+        <div><h3>Formschnitt</h3><p>Klare Linien und gerade Kanten, damit die Hecke wieder in Form ist.</p></div>
+        <div><h3>Pflegeschnitt</h3><p>Regelmäßiger Schnitt, damit die Hecke dicht und ordentlich bleibt.</p></div>
+        <div><h3>Rückschnitt</h3><p>Für Hecken, die zu breit oder zu hoch geworden sind – in der erlaubten Zeit.</p></div>
+      </div>
       <aside class="notice" aria-label="Gut zu wissen">
         <svg class="icon icon--lg"><use href="#i-calendar"/></svg>
         <div>
-          <h3 class="h4">Gut zu wissen</h3>
+          <h3>Gut zu wissen</h3>
           <p>Zwischen dem 1. März und dem 30. September sind starke Rückschnitte von Hecken nach § 39 Bundesnaturschutzgesetz nicht erlaubt. Schonende Form- und Pflegeschnitte sind auch in dieser Zeit möglich. Brütende Vögel dürfen dabei nicht gestört werden.</p>
         </div>
       </aside>
@@ -114,50 +108,34 @@
   </section>
 
   <section class="section faq" aria-labelledby="faq-title" style="padding-top: 0">
-    <div class="container faq__grid">
-      <div class="faq__intro">
-        <p class="eyebrow">Fragen</p>
-        <h2 class="h2" id="faq-title">Zum Heckenschnitt.</h2>
-      </div>
+    <div class="wrap faq__grid">
+      <div class="faq__intro"><h2 class="display display--md" id="faq-title">Fragen.</h2></div>
       <div class="faq__list">
-        <details class="faq-item">
-          <summary><h3>Kann ich vorab ein Foto meiner Hecke schicken?</h3><svg class="icon"><use href="#i-plus"/></svg></summary>
-          <div class="faq-item__body"><p>Gerne – im <a href="../#kontakt">Anfrageformular</a> oder per WhatsApp. Mit Foto und ungefährer Länge und Höhe können wir den Aufwand oft schon gut einschätzen.</p></div>
-        </details>
+        <details class="faq-item"><summary><h3>Kann ich vorab ein Foto meiner Hecke schicken?</h3><svg class="icon"><use href="#i-plus"/></svg></summary><div class="faq-item__body"><p>Gerne – im <a href="../#kontakt">Anfrageformular</a> oder per WhatsApp. Mit Foto und ungefährer Länge und Höhe können wir den Aufwand oft schon gut einschätzen.</p></div></details>
         <!-- Bitte vom Unternehmen ergänzen -->
-        <details class="faq-item">
-          <summary><h3>Was passiert mit dem Schnittgut?</h3><svg class="icon"><use href="#i-plus"/></svg></summary>
-          <div class="faq-item__body"><p>[Bitte ergänzen: z. B. ob Schnittgut mitgenommen wird oder auf dem Grundstück bleibt.]</p></div>
-        </details>
-        <details class="faq-item">
-          <summary><h3>Wie oft sollte eine Hecke geschnitten werden?</h3><svg class="icon"><use href="#i-plus"/></svg></summary>
-          <div class="faq-item__body"><p>Das hängt von der Pflanze und der gewünschten Form ab. Viele Hecken werden ein- bis zweimal im Jahr geschnitten. Wir sprechen mit Ihnen ab, was für Ihre Hecke sinnvoll ist.</p></div>
-        </details>
+        <details class="faq-item"><summary><h3>Was passiert mit dem Schnittgut?</h3><svg class="icon"><use href="#i-plus"/></svg></summary><div class="faq-item__body"><p>[Bitte ergänzen: z. B. ob Schnittgut mitgenommen wird oder auf dem Grundstück bleibt.]</p></div></details>
+        <details class="faq-item"><summary><h3>Wie oft sollte eine Hecke geschnitten werden?</h3><svg class="icon"><use href="#i-plus"/></svg></summary><div class="faq-item__body"><p>Das hängt von der Pflanze und der gewünschten Form ab. Viele Hecken werden ein- bis zweimal im Jahr geschnitten. Wir sprechen mit Ihnen ab, was für Ihre Hecke sinnvoll ist.</p></div></details>
       </div>
     </div>
   </section>
 
-  <section class="cta-band" aria-labelledby="cta-title">
-    <div class="container cta-band__inner">
-      <h2 class="h2" id="cta-title">Ihre Hecke könnte wieder einen Schnitt gebrauchen?</h2>
+  <section class="cta-band" aria-labelledby="cta-title" data-theme-dark>
+    <div class="wrap cta-band__inner">
+      <h2 class="display" id="cta-title">Zeit für einen sauberen Schnitt?</h2>
       <div class="cta-band__actions">
-        <a class="btn btn--light btn--lg" href="../#kontakt">Jetzt anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-        <a class="btn btn--lg" style="--btn-bd: rgba(246,242,234,.35)" href="tel:[TELEFON_LINK]"><svg class="icon"><use href="#i-phone"/></svg>[TELEFON]</a>
+        <a class="pill pill--light pill--lg" href="../#kontakt">Jetzt anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
+        <a class="pill pill--ghost-light pill--lg" href="tel:[TELEFON_LINK]"><svg class="icon"><use href="#i-phone"/></svg>[TELEFON]</a>
       </div>
     </div>
   </section>
 </main>
 
 <footer class="site-footer site-footer--slim">
-  <div class="container site-footer__bottom">
+  <div class="wrap site-footer__bottom">
     <p>© <span data-year>2026</span> [FIRMENNAME] · <a href="../#leistungen">Leistungen</a> · <a href="../#einsatzgebiet">Einsatzgebiet</a></p>
     <ul role="list"><li><a href="../impressum.html">Impressum</a></li><li><a href="../datenschutz.html">Datenschutz</a></li></ul>
   </div>
 </footer>
-<script>
-  document.querySelectorAll('[data-year]').forEach(function (n) { n.textContent = new Date().getFullYear(); });
-  var h = document.querySelector('[data-header]');
-  addEventListener('scroll', function () { h.classList.toggle('is-scrolled', scrollY > 24); }, { passive: true });
-</script>
+<script>document.querySelectorAll('[data-year]').forEach(function (n) { n.textContent = new Date().getFullYear(); });</script>
 </body>
 </html>

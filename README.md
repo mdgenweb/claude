@@ -10,7 +10,7 @@ python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
-Die Seite benötigt keinen Build-Schritt und kein Framework. Zum Testen der fertig gezeichneten Ranke `?vine=full` an die URL hängen.
+Die Seite benötigt keinen Build-Schritt und kein Framework. Den Rasen-Hero am besten am Desktop mit Maus ausprobieren: Halme weichen dem Zeiger aus, Scrollen mäht.
 
 ## Aufbau
 
@@ -20,9 +20,10 @@ heckenschnitt/          Muster für Leistungs-Unterseiten
 impressum.html          Vorlage
 datenschutz.html        Vorlage
 assets/css/main.css     Designsystem (Tokens, Komponenten, Sektionen, Responsive)
-assets/js/main.js       Navigation, Drawer, Vorher/Nachher, Formular, Kontaktleiste
-assets/js/vine.js       Signature-Animation „Ranke“
-assets/fonts/           Bricolage Grotesque + Instrument Sans (lokal, OFL)
+assets/js/main.js       Header, Menü, Vorher/Nachher, Formular, Kontaktleiste
+assets/js/motion.js     Reveals, Marquee, Text-Scrub, Zahlen, Leistungs-Galerie, Ablauf, magnetische Buttons
+assets/js/grass.js      Signature: generatives Rasenfeld im Hero, wird beim Scrollen gemäht
+assets/fonts/           Bricolage Grotesque (mit Breiten-Achse) + Instrument Sans (lokal, OFL)
 assets/brand/           Logo-System als SVG, Icons als PNG
 assets/img/             Illustrationen/Platzhalter, OG-Bild
 tools/build_brand.py    setzt alle Logo-Lockups mit echtem Firmennamen neu
@@ -53,12 +54,11 @@ Platzhalter sind `<div class="ph …">…</div>`-Blöcke mit dem Etikett „Foto
 </picture>
 ```
 
-**Inhaberfoto im Hero:**
-- Ist das Foto freigestellt (PNG/WebP mit transparentem Hintergrund), behält die Figur die Klasse `portrait--cutout`. Das Foto ragt dann oben aus dem grünen Bogen.
-- Bei einem normalen Foto auf `portrait--framed` umstellen. Das Bild wird dann in den Bogen eingepasst.
-- Danach das `<svg class="portrait__placeholder">` und das Etikett `ph-tag` entfernen.
+**Inhaberfoto (Über uns):** In `.about__arch` das `<svg class="about__silhouette">` und den Zweig durch `<img class="about__img" src="…" alt="[NAME], Inhaber">` ersetzen und das Etikett `ph-tag` entfernen.
 
-**Vorher/Nachher:** Die beiden `<img>` in `.compare__pane--before` und `.compare__pane--after` tauschen. Beide Fotos brauchen denselben Ausschnitt, im Format 3 : 2.
+**Leistungskarten:** In `.card__media` die Linienzeichnung durch ein Foto ersetzen (Format etwa 1 : 1) und `ph-tag` entfernen.
+
+**Vorher/Nachher:** Die beiden `<img>` in `.compare__pane--before` und `.compare__pane--after` tauschen. Beide Fotos brauchen denselben Ausschnitt, im Breitformat (21 : 9 Desktop, mobil wird beschnitten).
 
 ## Formularversand
 
@@ -74,4 +74,5 @@ Das Formular sendet dann alle Felder inklusive Fotos (`multipart/form-data`) per
 
 - axe-core (WCAG 2.1 AA + Best Practices): 0 Verstöße auf Desktop und Mobil
 - keine externen Requests beim Laden, keine Cookies
-- `prefers-reduced-motion` wird vollständig berücksichtigt
+- `prefers-reduced-motion` wird vollständig berücksichtigt (Rasen als Standbild, keine Effekte)
+- Version 1 (ruhig/editorial mit Scroll-Ranke) liegt im Git-Verlauf: Commit `cbaf5ca`
