@@ -32,13 +32,16 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 
 ![Logo](../assets/brand/logo-primaer.svg)
 
-**Idee:** Ein Blatt, dessen Spitze gerade geschnitten ist. Das Blatt steht für Natur und Wachstum, der präzise Schnitt für Formschnitt, Sorgfalt und Ordnung. Die negative Mittelrippe macht das Blatt auch in kleinen Größen eindeutig lesbar. Es ist keine Clipart, kein Haus und kein Rasenmäher, sondern eine eigenständige, langlebige Form.
+**Idee:** Ein Blatt, dessen Spitze gerade geschnitten ist. Das Blatt steht für Natur und Wachstum, der präzise Schnitt für Formschnitt, Sorgfalt und Ordnung. Ein kurzer Stiel läuft als Fläche ins Blatt und setzt sich dort als ausgesparte Mittelrippe fort; so ist das Zeichen auch in kleinen Größen eindeutig ein Blatt (keine Feder, keine Schreibfeder). Es ist keine Clipart, kein Haus und kein Rasenmäher, sondern eine eigenständige, langlebige Form.
 
 **Konstruktion (64er-Raster):**
-- Linsenblatt aus zwei Viertelkreisen mit r = 48, Blattachse 45° (Basis unten links, Spitze oben rechts)
+- Linsenblatt aus zwei Kreisbögen, Blattachse 45° von (12 | 53) nach (60 | 5): Rücken oben links r = 44, Bauch unten rechts r = 50 – leicht asymmetrisch wie ein echtes Blatt
 - Schnitt rechtwinklig zur Blattachse bei 82 % der Achslänge
-- Mittelrippe als sich verjüngende Aussparung (1,45 → 0,6 Einheiten), von 15 % bis 70 % der Achse
-- Favicon-Variante mit kräftigerer Rippe (2,6 → 1,3) für 16–32 px
+- Stiel in Achsrichtung, 5,5 Einheiten lang, 3,2 → 2,4 breit, rundes Ende
+- Mittelrippe als sich verjüngende Aussparung (1,5 → 0,5 Einheiten), von 17 % bis 66 % der Achse
+- Favicon-Variante mit kräftigerem Stiel (4,4) und breiterer, kürzerer Rippe (2,1 → 1,1, 25–62 %) für 16–32 px
+
+**Wortmarke:** Bricolage Grotesque, leicht schmal (Breite 82 %) und kräftig (740), normale Schreibweise – dieselbe Familie wie die Display-Schrift der Website, damit Logo, Headlines und Footer-Wortmarke zusammengehören. Darunter „GARTENSERVICE“ in Instrument Sans 600, gesperrt (0,24 em).
 
 **Varianten** (alle in `assets/brand/`, reine Vektorpfade, Schrift in Kurven):
 
