@@ -221,6 +221,7 @@ Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus
 ## 11. Responsive
 
 - **Desktop (ab 1240 px):** volle Navigation, Headline und Schnellanfrage nebeneinander, Leistungen 3 × 2, Ablauf in einer Reihe
+- **Laptops mit wenig Höhe (ab 1100 px Breite, bis 1000 px Höhe):** Hero etwas dichter (flachere Kachelbilder, knappere Abstände, niedrigere Hecke), damit Riesentypo, Hecke und der Anfang des Rasens schon im ersten Bild stehen
 - **Laptop (1100–1239 px):** Navigation im Vollbild-Menü, sonst wie Desktop
 - **Tablet (768–1099 px):** Schnellanfrage unter der Headline, Leistungen 2 × 3, Ablauf untereinander (ab 1024 px wieder in einer Reihe)
 - **Smartphone (unter 768 px):** Riesentypo dreizeilig gestapelt, niedrigere Hecke und Rasenfläche, Leistungskarten mit Bild links, Fakten als Zeilen, randloses Vorher/Nachher, Kontaktleiste unten

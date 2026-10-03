@@ -876,6 +876,26 @@ figure { margin: 0; }
   .facts-band { grid-template-columns: 1fr; justify-items: start; }
 }
 
+/* Laptops mit wenig Höhe: Hero etwas dichter, damit Riesentypo, Hecke und der
+   Anfang des Rasens schon im ersten Bild stehen */
+@media (min-width: 1100px) and (max-height: 1000px) {
+  .hero__inner { padding-top: 6px; }
+  .quick { padding: 20px 22px; }
+  .quick__kicker { margin-bottom: .35rem; }
+  .quick__title { margin-bottom: .8rem; font-size: clamp(1.35rem, 1.1rem + .55vw, 1.6rem); }
+  .quick__chips { margin-bottom: 12px; }
+  .qchip img, .qchip span::before { aspect-ratio: 2 / 1; }
+  .qchip b { padding: 6px 10px 7px; }
+  .quick__field label { margin-bottom: 4px; }
+  .quick__field input, .quick__submit { min-height: 50px; }
+  .quick__alt { margin-top: 10px; padding-top: 10px; }
+  .hero__title { margin-bottom: 1.2rem; }
+  .hero__checks { margin-top: 1.4rem; }
+  .hero__giant { padding-top: 14px; }
+  .scene { --hedge-h: clamp(84px, 7.6vw, 120px); }
+  .scene__lawn { height: clamp(130px, 13vw, 210px); }
+}
+
 @media (max-width: 1099px) {
   .hero__inner { grid-template-columns: minmax(0, 1fr); gap: 36px; }
   .hero__title { font-size: clamp(3.4rem, 11vw, 7rem); }
