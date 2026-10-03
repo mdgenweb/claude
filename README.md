@@ -22,7 +22,7 @@ datenschutz.html        Vorlage
 assets/css/main.css     Designsystem (Tokens, Komponenten, Sektionen, Responsive)
 assets/js/main.js       Header, Menü, Schnellanfrage, Vorher/Nachher, Formular, Kontaktleiste
 assets/js/motion.js     Reveals, Marquee, rollende Zahlen, Ablauf-Linie, magnetische Buttons
-assets/js/grass.js      Signature: generatives Rasenfeld im Hero, wird beim Scrollen gemäht
+assets/js/grass.js      Signature: generatives Rasenfeld im Hero (Web Worker), wird beim Scrollen gemäht
 assets/fonts/           Bricolage Grotesque (mit Breiten-Achse) + Instrument Sans (lokal, OFL)
 assets/brand/           Logo-System als SVG, Icons als PNG
 assets/img/spots/       farbige Leistungs-Illustrationen und Vorher/Nachher
@@ -79,5 +79,6 @@ Vorauswahl per Link ist möglich, z. B. von Unterseiten oder aus Anzeigen: `/?ar
 - axe-core (WCAG 2.1 AA + Best Practices): 0 Verstöße auf Desktop und Mobil
 - keine externen Requests beim Laden, keine Cookies
 - Layout-Verschiebung (CLS) 0; der Rasen-Hero rendert sparsam, der Wind flaut nach 8 Sekunden ohne Interaktion sanft ab
+- Rasen läuft in einem Web Worker (Fallback im Haupt-Thread): Klicks und Scrollen bleiben flüssig
 - `prefers-reduced-motion` wird vollständig berücksichtigt (Rasen als Standbild, keine Effekte)
 - Frühere Versionen liegen im Git-Verlauf: V1 ruhig/editorial mit Scroll-Ranke (Commit `cbaf5ca`), V2 mit fixierter Leistungs-Galerie

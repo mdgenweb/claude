@@ -148,6 +148,7 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 - die Halme wiegen sich im Wind und weichen dem Mauszeiger aus
 - beim Scrollen fährt eine unsichtbare Mählinie von links nach rechts: Die Halme werden gekürzt, Mähstreifen entstehen, Schnittgut fliegt, und die Headline steht vollständig frei
 - zwei Ebenen: dichtes Gras hinter der Schrift, einzelne Halme davor (Tiefe)
+- gezeichnet in einem Web Worker (OffscreenCanvas): der Haupt-Thread bleibt für Klicks, Hover und Scrollen frei; ohne Worker-Unterstützung läuft dieselbe Engine im Haupt-Thread
 - sparsam gerendert: hintere Ebene in einfacher Auflösung (wirkt wie Tiefenunschärfe), vordere nur im unteren Bereich und höchstens 1,5-fach; Halme einfarbig, der Verlauf liegt als eine Fläche darüber; Halmzahl gedeckelt (auf dem Smartphone etwa halb so viele)
 - volle Bildrate, alle Übergänge bildratenunabhängig geglättet; nach 8 Sekunden ohne Interaktion flaut der Wind sanft ab und das Feld ruht, bei Maus, Touch oder Scrollen frischt er wieder auf; außerhalb des Sichtbereichs pausiert es ganz
 
@@ -163,7 +164,8 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 | Linie wächst seitwärts (mobil nach unten), Ziffern füllen sich, Blätter springen an | Ablauf |
 | Karte zeichnet sich, Puls um den Ort | Einsatzgebiet |
 | Header blendet beim Runterscrollen aus, passt sich hell/dunkel an, Milchglas über dem Inhalt (ebenso die mobile Kontaktleiste) | überall |
-| Parallaxe im Hero, Ablauf-Linie und Marquee-Tempo gleiten weich zum Ziel statt mit dem Mausrad zu springen | Hero, Ablauf, Marquee |
+| Parallaxe im Hero, Ablauf-Linie und Marquee-Tempo gleiten weich zum Ziel statt mit dem Mausrad zu springen; das Marquee läuft als Web Animation auf dem Compositor | Hero, Ablauf, Marquee |
+| Druck-Feedback beim Klicken/Tippen (Buttons, Karten, Kacheln, Chips, FAQ, Kontaktleiste); Hover-Effekte nur mit Maus, Tastatur bekommt denselben Zustand per Fokus | überall |
 | Menü-Overlay: Vorhang in zwei Ebenen (Blattgrün, dann Nachtgrün), nummerierte Links gleiten nacheinander hoch, Trennlinien zeichnen sich, Gras-Silhouette am unteren Rand; aktueller Abschnitt in Blattgrün; ab Tablet Kontaktspalte daneben | Mobil/Tablet/Laptop |
 
 **Grenzen:** Die Grabpflege bekommt nur ein ruhiges Einblenden. Alle Effekte nutzen transform/opacity und einen gemeinsamen Takt. Das Einblenden läuft als CSS-Animation, damit Hover-Übergänge der Karten danach sofort und unverzögert reagieren. Bei **prefers-reduced-motion** gibt es keine dieser Bewegungen: Der Rasen steht als ruhiges Standbild (halb gemäht), alle Inhalte sind sofort sichtbar.
@@ -221,7 +223,7 @@ Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus
 
 - **Barrierefreiheit:** Kontraste ≥ 4,5 : 1 für Text, sichtbarer Fokus (Lehm-Kontur), Skip-Link, vollständige Tastaturbedienung (Drawer mit Fokusfalle und Esc, Vorher/Nachher als echter Regler, FAQ mit nativem `details`), beschriftete Formularfelder mit verknüpften Fehlermeldungen, Bedienelemente ≥ 44 px, Information nie nur über Farbe. Automatisierter Test mit axe-core (WCAG 2.1 AA + Best Practices): **0 Verstöße** auf Desktop und Mobil.
 - **DSGVO:** keine externen Anfragen beim Laden, keine Cookies, keine Tracker, Schriften lokal, abstrakte Einsatzkarte statt Google Maps. WhatsApp öffnet sich erst nach einem Klick. Ein Cookie-Banner ist deshalb nicht nötig. Impressum und Datenschutz liegen als Vorlage bei.
-- **Performance:** kein Framework, ca. 35 KB JavaScript unkomprimiert (ca. 12 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Illustrationen als schlanke SVG (gleichfarbige Formen in einem Pfad), Bilder lazy und asynchron dekodiert, keine Videos. Gemessen (Chromium, lokal): Layout-Verschiebung (CLS) 0, Scrollen ohne lange Tasks, der Rasen ruht nach 8 Sekunden ohne Interaktion vollständig. Die große Hero-Schrift startet per CSS bereits in ihrer eingepassten Größe.
+- **Performance:** kein Framework, ca. 35 KB JavaScript unkomprimiert (ca. 12 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Illustrationen als schlanke SVG (gleichfarbige Formen in einem Pfad), Bilder lazy und asynchron dekodiert, keine Videos. Gemessen (Chromium, lokal): Layout-Verschiebung (CLS) 0; Haupt-Thread bei laufendem Rasen ca. 3 ms pro Sekunde; Scrollen konstant 60 fps, auch bei 4-fach gedrosselter CPU; Reaktionszeit auf Klicks (INP) unter 100 ms. Kartenschatten werden nur über die Deckkraft einer eigenen Ebene eingeblendet, das Menü bleibt im Layout und öffnet per Klassenwechsel. Die große Hero-Schrift startet per CSS bereits in ihrer eingepassten Größe.
 - **Ausrichtung:** Riesentypo im Hero und Wortmarke im Footer liegen auch auf sehr breiten Bildschirmen exakt im Inhaltsraster. Die Leistungskarten nutzen CSS-Subgrid, damit Titel, Text und Button in jeder Reihe auf einer Linie stehen.
 
 ---

@@ -112,39 +112,44 @@
   }
 
   /* ── Marquee: Tempo und Richtung folgen dem Scrollen ────────────────── */
+  // Läuft als Web Animation auf dem Compositor (kein Haupt-Thread-Takt);
+  // beim Scrollen wird nur die Wiedergabegeschwindigkeit weich nachgeführt.
   const mq = $('[data-marquee]');
   if (mq) {
     const track = $('.marquee__track', mq);
     const base = [...track.children].map((c) => c.cloneNode(true));
     while (track.scrollWidth < window.innerWidth * 2.2) base.forEach((c) => track.append(c.cloneNode(true)));
-    const half = () => track.scrollWidth / 2;
-    // exakt verdoppeln, damit die Schleife nahtlos ist
+    // exakt verdoppeln, damit die Schleife bei −50 % nahtlos ist
     [...track.children].forEach((c) => track.append(c.cloneNode(true)));
-    let x = 0, dir = -1, boost = 0, v = -70, last = performance.now(), on = false, lastY = window.scrollY;
-    const tick = (t) => {
-      const dt = Math.min(0.05, (t - last) / 1000);
+    const SPEED = 70; // px/s
+    const dur = () => (track.scrollWidth / 2 / SPEED) * 1000;
+    const anim = track.animate(
+      [{ transform: 'translate3d(0, 0, 0)' }, { transform: 'translate3d(-50%, 0, 0)' }],
+      { duration: dur(), iterations: Infinity },
+    );
+    ready.then(() => anim.effect.updateTiming({ duration: dur() })); // Breite nach dem Laden der Schrift
+    let dir = 1, boost = 0, rate = 1, last = 0, steering = false, lastY = window.scrollY;
+    const steer = (t) => {
+      const dt = Math.min(0.05, (t - last) / 1000 || 0.016);
       last = t;
       boost *= Math.exp(-dt * 3.2);
-      // Geschwindigkeit gleitet zum Ziel – auch beim Richtungswechsel kein Ruck
-      v += (dir * (70 + boost) - v) * follow(dt, 3.5);
-      x += v * dt;
-      const h = half();
-      if (x < -h) x += h;
-      if (x > 0) x -= h;
-      track.style.transform = `translate3d(${x}px,0,0)`;
-      if (on) requestAnimationFrame(tick);
+      const target = dir * (1 + boost);
+      rate += (target - rate) * follow(dt, 3.5);
+      const settled = boost < 0.01 && Math.abs(target - rate) < 0.01;
+      if (settled) rate = dir;
+      anim.playbackRate = rate;
+      if (settled) steering = false; else requestAnimationFrame(steer);
     };
     window.addEventListener('scroll', () => {
       const y = window.scrollY;
       const d = y - lastY;
       lastY = y;
-      if (Math.abs(d) > 1) { dir = d > 0 ? -1 : 1; boost = Math.min(700, boost + Math.abs(d) * 4); }
+      if (Math.abs(d) < 1) return;
+      dir = d > 0 ? 1 : -1;
+      boost = Math.min(10, boost + Math.abs(d) * 0.06);
+      if (!steering) { steering = true; last = performance.now(); requestAnimationFrame(steer); }
     }, { passive: true });
-    new IntersectionObserver(([en]) => {
-      const was = on;
-      on = en.isIntersecting;
-      if (on && !was) { last = performance.now(); requestAnimationFrame(tick); }
-    }).observe(mq);
+    new IntersectionObserver(([en]) => { if (en.isIntersecting) anim.play(); else anim.pause(); }).observe(mq);
   }
 
   /* ── Ablauf-Linie ───────────────────────────────────────────────────── */
@@ -203,15 +208,20 @@
   settle();
 
   /* ── Magnetische Buttons ────────────────────────────────────────────── */
+  // höchstens ein Update pro Bild; die CSS-Transition glättet die Bewegung,
+  // Druck-Feedback läuft getrennt über die Eigenschaft „scale“
   if (fine.matches) {
     $$('[data-magnetic]').forEach((el) => {
+      let rect = null, mx = 0, my = 0, queued = false;
+      const apply = () => { queued = false; el.style.transform = rect ? `translate(${mx.toFixed(1)}px, ${my.toFixed(1)}px)` : ''; };
+      el.addEventListener('pointerenter', () => { rect = el.getBoundingClientRect(); });
       el.addEventListener('pointermove', (e) => {
-        const r = el.getBoundingClientRect();
-        const dx = e.clientX - (r.left + r.width / 2);
-        const dy = e.clientY - (r.top + r.height / 2);
-        el.style.transform = `translate(${(dx * 0.22).toFixed(1)}px, ${(dy * 0.32).toFixed(1)}px)`;
+        if (!rect) rect = el.getBoundingClientRect();
+        mx = (e.clientX - (rect.left + rect.width / 2)) * 0.22;
+        my = (e.clientY - (rect.top + rect.height / 2)) * 0.32;
+        if (!queued) { queued = true; requestAnimationFrame(apply); }
       });
-      el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+      el.addEventListener('pointerleave', () => { rect = null; if (!queued) { queued = true; requestAnimationFrame(apply); } });
     });
   }
 })();

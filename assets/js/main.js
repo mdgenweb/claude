@@ -37,33 +37,42 @@
   updateHeader();
 
   /* ── Drawer ─────────────────────────────────────────────────────────── */
+  // Das Menü bleibt im Layout (unsichtbar + inert), damit der Klick nur eine
+  // Klasse setzt und nichts neu berechnet werden muss. Unsichtbar wird es per
+  // CSS erst nach dem Schließ-Vorhang (visibility mit Verzögerung).
   const drawer = $('[data-drawer]');
   const openBtn = $('[data-menu-open]');
   const closeBtn = $('[data-menu-close]');
   const main = $('main');
   let lastFocus = null;
-  let hideTimer = 0;
   if (drawer && openBtn && closeBtn) {
     const focusables = () => $$('a[href], button:not([disabled])', drawer).filter((el) => el.offsetParent !== null);
     const openDrawer = () => {
-      clearTimeout(hideTimer); // erneut geöffnet, während es sich noch schließt
       lastFocus = document.activeElement;
-      drawer.hidden = false;
+      drawer.inert = false;
+      drawer.classList.add('is-open');
       root.classList.add('drawer-open');
-      requestAnimationFrame(() => requestAnimationFrame(() => drawer.classList.add('is-open')));
       openBtn.setAttribute('aria-expanded', 'true');
-      root.style.overflow = 'hidden';
-      if (main) main.inert = true;
-      setTimeout(() => closeBtn.focus(), 80);
+      closeBtn.focus({ preventScroll: true });
+      // teure Seitenänderungen erst nach dem ersten Bild des Vorhangs
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!drawer.classList.contains('is-open')) return;
+        root.style.overflow = 'hidden';
+        if (main) main.inert = true;
+      }));
     };
     const closeDrawer = (restore = true) => {
       drawer.classList.remove('is-open');
+      drawer.inert = true;
       root.classList.remove('drawer-open');
       openBtn.setAttribute('aria-expanded', 'false');
-      root.style.overflow = '';
-      if (main) main.inert = false;
-      hideTimer = setTimeout(() => { drawer.hidden = true; }, reduceMotion.matches ? 0 : 900); // Vorhang: 0,1 s + 0,75 s
-      if (restore && lastFocus) lastFocus.focus();
+      if (restore && lastFocus) lastFocus.focus({ preventScroll: true });
+      // Seite erst nach dem ersten Bild des Vorhangs freigeben – er deckt sie noch ab
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (drawer.classList.contains('is-open')) return;
+        root.style.overflow = '';
+        if (main) main.inert = false;
+      }));
     };
     openBtn.addEventListener('click', openDrawer);
     closeBtn.addEventListener('click', () => closeDrawer());
