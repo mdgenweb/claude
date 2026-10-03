@@ -32,16 +32,18 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 
 ![Logo](../assets/brand/logo-primaer.svg)
 
-**Idee:** Ein Blatt, dessen Spitze gerade geschnitten ist. Das Blatt steht für Natur und Wachstum, der präzise Schnitt für Formschnitt, Sorgfalt und Ordnung. Ein kurzer Stiel läuft als Fläche ins Blatt und setzt sich dort als ausgesparte Mittelrippe fort; so ist das Zeichen auch in kleinen Größen eindeutig ein Blatt (keine Feder, keine Schreibfeder). Es ist keine Clipart, kein Haus und kein Rasenmäher, sondern eine eigenständige, langlebige Form.
+**Idee:** Ein gezeichnetes Blatt, dessen Spitze gerade abgeschnitten ist. Das Blatt ist in einem Zug gezeichnet – geschwungener Stiel, voller Rücken, flacherer Bauch, eine leicht gebogene Mittelrippe –, der Schnitt ist die einzige gerade Linie. Natur und Handarbeit auf der einen Seite, der präzise Schnitt des Gärtners auf der anderen: genau das, was der Betrieb tut. Es ist keine Clipart, kein Haus und kein Rasenmäher, sondern eine eigenständige, langlebige Form.
 
-**Konstruktion (64er-Raster):**
-- Linsenblatt aus zwei Kreisbögen, Blattachse 45° von (12 | 53) nach (60 | 5): Rücken oben links r = 44, Bauch unten rechts r = 50 – leicht asymmetrisch wie ein echtes Blatt
-- Schnitt rechtwinklig zur Blattachse bei 82 % der Achslänge
-- Stiel in Achsrichtung, 5,5 Einheiten lang, 3,2 → 2,4 breit, rundes Ende
-- Mittelrippe als sich verjüngende Aussparung (1,5 → 0,5 Einheiten), von 17 % bis 66 % der Achse
-- Favicon-Variante mit kräftigerem Stiel (4,4) und breiterer, kürzerer Rippe (2,1 → 1,1, 25–62 %) für 16–32 px
+**Zeichnung (64er-Raster, `tools/build_brand.py`):**
+- Blattachse unter 45°, Basis unten links, Spitze oben rechts; die Umrisse sind von Hand gesetzte Stützpunkte, als weiche Kurve verbunden – keine Kreise, kein Raster
+- Rücken (oben links) voller als der Bauch (unten rechts), Stiel mit leichtem Schwung, der ohne Absatz in die Blattfläche übergeht
+- Mittelrippe als Schlitz entlang einer leicht gebogenen Linie: beginnt spitz bei 11 % der Achse und öffnet sich bis zum Schnitt
+- Schnitt rechtwinklig zur Blattachse bei 82 % – die einzige gerade Kante
+- **Passerversatz:** In den farbigen Fassungen liegt eine helle Druckebene (Blattgrün, auf dunklem Grund Grasgrün) leicht nach oben links versetzt unter dem Blatt. Sie blitzt an der Rückenkante und in der Rippe auf, wie bei den Illustrationen der Website: gedruckt statt digital.
+- Einfarbige Fassungen (Stick, Stempel, Folie, Gravur) ohne Passerebene
+- Favicon-Variante mit breiterer Rippe und kräftigerem Stiel für 16–32 px
 
-**Wortmarke:** Bricolage Grotesque, leicht schmal (Breite 82 %) und kräftig (740), normale Schreibweise – dieselbe Familie wie die Display-Schrift der Website, damit Logo, Headlines und Footer-Wortmarke zusammengehören. Darunter „GARTENSERVICE“ in Instrument Sans 600, gesperrt (0,24 em).
+**Wortmarke:** Bricolage Grotesque, leicht schmal (Breite 82 %) und kräftig (740), normale Schreibweise – bewusst ruhig als Gegenpol zum gezeichneten Blatt, dieselbe Familie wie die Display-Schrift der Website, damit Logo, Headlines und Footer-Wortmarke zusammengehören. Darunter „GARTENSERVICE“ in Instrument Sans 600, gesperrt (0,24 em).
 
 **Varianten** (alle in `assets/brand/`, reine Vektorpfade, Schrift in Kurven):
 
@@ -52,7 +54,8 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 | `symbol.svg` | Stick auf Arbeitskleidung (Ärmel/Kappe), Stempel, Werkzeugmarkierung |
 | `favicon.svg`, `assets/brand/apple-touch-icon.png` | Browser, Homescreen |
 | `social-avatar.svg` | Profilbild Google Unternehmensprofil, Instagram, WhatsApp Business (kreisrund beschnitten) |
-| `*-invers.svg` / `*-schwarz.svg` / `*-weiss.svg` | dunkle Flächen, Einfarbdruck, Folie, Gravur |
+| `*-invers.svg` | dunkle Flächen (mit Passerebene in Grasgrün) |
+| `*-einfarbig.svg` / `*-schwarz.svg` / `*-weiss.svg` | Stick, Stempel, Einfarbdruck, Folie, Gravur (ohne Passerebene) |
 
 **Schutzraum:** rundum mindestens ½ Symbolhöhe.
 **Mindestgrößen:** Primärlogo 120 px / 30 mm breit · Symbol 16 px / 6 mm.
@@ -63,7 +66,7 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 - **Rechnung/Angebot:** Primärlogo oben links mit 25 mm Breite, Fließtext in Instrument Sans, Akzentlinie Blattgrün.
 - **Visitenkarte:** Vorderseite Symbol groß auf Waldgrün, Rückseite Name, Telefon, WhatsApp, Website auf Leinen.
 
-**Nicht erlaubt:** verzerren, Farben außerhalb der Palette, Schatten/Verläufe, Symbol drehen, Wortmarke in anderer Schrift setzen.
+**Nicht erlaubt:** verzerren, Farben außerhalb der Palette, Schatten/Verläufe, Symbol drehen, Passerebene anders versetzen oder einfärben, Wortmarke in anderer Schrift setzen.
 
 > Der Firmenname ist Platzhalter. Mit `python3 tools/build_brand.py "Echter Name"` werden alle Lockups neu gesetzt.
 
