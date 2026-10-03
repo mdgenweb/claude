@@ -28,22 +28,23 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 
 ---
 
-## 2. Logo-System – „Der Heckenigel“
+## 2. Logo-System – „Das Schnittblatt“
 
 ![Logo](../assets/brand/logo-primaer.svg)
 
-**Idee:** Ein Igel, dessen Stachelkleid eine frisch geschnittene Hecke ist – oben gerade wie ein Formschnitt, mit denselben Schuppenreihen wie die Hecke im Hero der Website. Der Igel lebt in Hecken und Gärten, ist bei Gartenbesitzern beliebt und steht für das, was der Betrieb tut: ordentlich schneiden, ohne die Natur zu vertreiben. Das Zeichen ist bewusst flach und geometrisch gezeichnet, freundlich und mit Charakter (Auge mit Glanzpunkt), aber ohne Comic-Übertreibung. Es ist keine Clipart, kein Haus und kein Rasenmäher.
+**Idee:** Ein Blatt, flach illustriert wie ein Bilderbuch-Motiv: eine sonnige und eine schattige Hälfte, gebogene Adern, ein eingerollter Stiel – und eine gerade abgeschnittene Spitze, von der ein Tautropfen fällt. Das Blatt steht für Natur und Wachstum, der saubere Schnitt für Formschnitt und Sorgfalt, der Tropfen für Pflege: frisch geschnitten, gut versorgt. Freundlich und mit Charakter, aber ohne Gesicht und ohne Comic-Übertreibung. Es ist keine Clipart, kein Haus und kein Rasenmäher.
 
 **Zeichnung (64er-Raster, `tools/build_brand.py`):**
-- nur wenige Grundformen: Rücken aus Viertelbogen und gerader Oberkante, Gesicht als Keil mit runder Spitznase, Kreise für Auge, Glanz und Nase, zwei kurze Füße
-- Rücken hinten rund, oben gerade geschnitten (Formschnitt), vorn schräg zum Gesicht; Blick nach rechts, also nach vorn in die Seite
-- drei Schuppenreihen als Halbkreisbögen, versetzt wie die Hecke im Hero
-- flache Farben, keine Verläufe: auf Hell Moosgrün mit Grasgrün-Schuppen und sandfarbenem Gesicht, auf Dunkel Blattgrün mit hellen Schuppen und Leinen-Gesicht
-- einfarbige Fassungen (Stick, Stempel, Folie, Gravur) ohne Schuppen; Kante zwischen Rücken und Gesicht, Auge und Nase als Aussparung
-- Favicon ohne Schuppen (16–32 px), App-Icon und Profilbild auf Waldgrün
-- das Blatt bleibt Gestaltungselement der Website (Trenner im Laufband, Häkchen), ist aber nicht mehr das Logo
+- nur Grundformen: Blatt aus zwei Kreisbögen (r = 34), Blattachse 45°, Spitze rechtwinklig zur Achse bei 80 % gerade geschnitten
+- Licht und Schatten statt Verlauf: obere Hälfte hell, untere dunkel; die Grenze ist die Mittelrippe
+- drei leicht gebogene Adern auf der Schattenseite, in der hellen Farbe, mit Abstand zur Rippe
+- Stiel: kurzes Stück in Achsrichtung, dann als Kreisbogen eingerollt (r = 5,5, 100°), runde Enden
+- Tautropfen unter der Schnittkante, mit weißem Glanzpunkt – der einzige kühle Ton im Zeichen
+- auf Hell: Blattgrün / Moosgrün, Tropfen `#BFE0D4`; auf Dunkel: Blattgrün hell / Grasgrün, Tropfen `#CFEADF`
+- einfarbige Fassungen (Stick, Stempel, Folie, Gravur): eine Fläche, Mittelrippe, Adern und Glanzpunkt als Aussparung
+- dieselbe Silhouette (Blatt + eingerollter Stiel) dient als Trenner im Laufband und als Blatt im Ablauf
 
-**Wortmarke:** Bricolage Grotesque, leicht schmal (Breite 82 %) und kräftig (740), normale Schreibweise – bewusst ruhig als Gegenpol zum Igel, dieselbe Familie wie die Display-Schrift der Website, damit Logo, Headlines und Footer-Wortmarke zusammengehören. Darunter „GARTENSERVICE“ in Instrument Sans 600, gesperrt (0,24 em).
+**Wortmarke:** Bricolage Grotesque, leicht schmal (Breite 82 %) und kräftig (740), normale Schreibweise – bewusst ruhig als Gegenpol zum illustrierten Blatt, dieselbe Familie wie die Display-Schrift der Website, damit Logo, Headlines und Footer-Wortmarke zusammengehören. Darunter „GARTENSERVICE“ in Instrument Sans 600, gesperrt (0,24 em).
 
 **Varianten** (alle in `assets/brand/`, reine Vektorpfade, Schrift in Kurven):
 
@@ -54,8 +55,8 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 | `symbol.svg` | Stick auf Arbeitskleidung (Ärmel/Kappe), Stempel, Werkzeugmarkierung |
 | `favicon.svg`, `assets/brand/apple-touch-icon.png` | Browser, Homescreen |
 | `social-avatar.svg` | Profilbild Google Unternehmensprofil, Instagram, WhatsApp Business (kreisrund beschnitten) |
-| `*-invers.svg` | dunkle Flächen (Blattgrün, Leinen-Gesicht) |
-| `*-einfarbig.svg` / `*-schwarz.svg` / `*-weiss.svg` | Stick, Stempel, Einfarbdruck, Folie, Gravur (ohne Schuppen) |
+| `*-invers.svg` | dunkle Flächen (hellere Grüntöne) |
+| `*-einfarbig.svg` / `*-schwarz.svg` / `*-weiss.svg` | Stick, Stempel, Einfarbdruck, Folie, Gravur (Rippe und Adern ausgespart) |
 
 **Schutzraum:** rundum mindestens ½ Symbolhöhe.
 **Mindestgrößen:** Primärlogo 120 px / 30 mm breit · Symbol 16 px / 6 mm.
@@ -66,7 +67,7 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 - **Rechnung/Angebot:** Primärlogo oben links mit 25 mm Breite, Fließtext in Instrument Sans, Akzentlinie Blattgrün.
 - **Visitenkarte:** Vorderseite Symbol groß auf Waldgrün, Rückseite Name, Telefon, WhatsApp, Website auf Leinen.
 
-**Nicht erlaubt:** verzerren, spiegeln (der Igel schaut nach rechts), Farben außerhalb der Palette, Schatten/Verläufe, Symbol drehen, Gesicht oder Mimik verändern, Wortmarke in anderer Schrift setzen.
+**Nicht erlaubt:** verzerren, spiegeln, Farben außerhalb der Palette, Schatten/Verläufe, Symbol drehen, Tropfen weglassen oder versetzen (außer in der Favicon-Größe nötig), Wortmarke in anderer Schrift setzen.
 
 > Der Firmenname ist Platzhalter. Mit `python3 tools/build_brand.py "Echter Name"` werden alle Lockups neu gesetzt.
 
@@ -78,13 +79,13 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 |---|---|---|
 | **Nachtgrün** | `#0E1D15` | das „Schwarz“ der Marke: Hero, Leistungen, Ablauf, Einsatzgebiet, Footer |
 | **Waldgrün** | `#1E3A2B` | Wortmarke-Zusatz, App-Icon, Anfrage-Bereich |
-| Moosgrün / Grasgrün | `#2F5A3C` / `#4E7F45` | Igel-Rücken und Schuppen auf Hell, Illustrationen |
+| Moosgrün / Grasgrün | `#2F5A3C` / `#4E7F45` | Schattenseite des Logo-Blatts (Hell / Dunkel), Illustrationen |
 | Karte | `#15281C` | Leistungskarten auf Nachtgrün |
 | **Blattgrün** | `#8DB86A` | Akzent auf Dunkel (7,6 : 1), Marquee-Band, Ziffern, Linien |
 | Blattgrün hell | `#B9CF9F` | Linienzeichnungen auf Dunkel |
 | Blattgrün Text | `#426A2F` | Labels auf hellem Grund (≥ 5 : 1) |
 | **Leinen** | `#F4F0E6` | heller Grund, Text auf Dunkel (15 : 1) |
-| Sand | `#DCC8A4` | nur das Igel-Gesicht im Logo auf hellem Grund |
+| Tau | `#BFE0D4` / `#CFEADF` | nur der Tautropfen im Logo (Hell / Dunkel) |
 | Leinen dunkel / Kalkstein | `#ECE6D8` / `#E7E3DA` | Wechselflächen / ausschließlich Grabpflege |
 | **Anthrazit** | `#121814` | Text auf Hell |
 | **Lehm** | `#AE542D` | ausschließlich primäre Anfrage-Aktionen (5,1 : 1 mit Weiß) |
@@ -270,7 +271,7 @@ Diese Formulierungen sind aus dem Briefing abgeleitet. Sie dürfen nur online ge
 
 | Frage | Antwort |
 |---|---|
-| Individuelles Markenprojekt oder Template? | Eigenes Zeichen (Heckenigel mit Schuppen wie die Hero-Hecke), eigene Blattform für Chips und Erfolgsmeldung, ein generativer Rasen-Hero, der nur zu diesem Thema passt, eigene Illustrationen für jede Leistung, eine reservierte Akzentfarbe. |
+| Individuelles Markenprojekt oder Template? | Eigenes, illustriertes Zeichen (Schnittblatt mit Tautropfen), dieselbe Blattform als Trenner, Häkchen und in der Erfolgsmeldung, ein generativer Rasen-Hero, der nur zu diesem Thema passt, eigene Illustrationen für jede Leistung, eine reservierte Akzentfarbe. |
 | In fünf Sekunden klar, was angeboten wird? | Die H1 spricht den Besucher direkt an, der Text darunter nennt die Arbeiten, die Schnellanfrage zeigt alle sechs Leistungen als Bild. |
 | Nächster Schritt sofort klar? | Im Hero ankreuzen und „Anfrage starten“, sonst überall derselbe Lehm-Button „Kostenlos anfragen“, daneben Telefon und WhatsApp |
 | Seriös genug für Zugang zum Grundstück? | Person sichtbar, Name, ruhige Gestaltung, keine Werbesprache, klare Abläufe, Impressum |

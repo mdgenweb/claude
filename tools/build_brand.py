@@ -34,79 +34,159 @@ LEAF = "#B9CF9F"
 INK = "#1B201D"
 
 # ---------------------------------------------------------------- Symbol
-# "Heckenigel": flaches, geometrisches Zeichen. Der Rücken ist eine frisch
-# geschnittene Hecke – oben gerade (Formschnitt), hinten rund, mit Schuppen-
-# reihen wie die Hecke im Hero der Website. Davor ein helles Gesicht mit
-# Spitznase, Auge mit Glanzpunkt, zwei kurze Füße. Nur wenige Grundformen
-# (Bögen, Geraden, Kreise), flache Farben, keine Verläufe.
-# 64er-Raster, Blick nach rechts, Bodenlinie bei y = 45.
-TOP, GROUND = 17.0, 45.0
-SAND = "#DCC8A4"              # Gesicht auf hellem Grund (nur im Logo)
-MOSS = "#2F5A3C"
-GRASS = "#4E7F45"
-LEAF_GREEN = "#8DB86A"
-LEAF_LIGHT = "#A6CA86"
-NIGHT = "#0E1D15"
+# "Schnittblatt", flach illustriert: ein Blatt aus zwei Kreisbögen mit Licht-
+# und Schattenhälfte (die Grenze ist die Mittelrippe), drei gebogenen Adern auf
+# der Schattenseite, eingerolltem Stiel und gerade geschnittener Spitze. Von der
+# Schnittkante fällt ein Tautropfen mit Glanzpunkt – frisch geschnitten,
+# gepflegt. Nur Grundformen, flache Farben, keine Verläufe.
+# 64er-Raster, Blattachse 45° (Basis unten links, Spitze oben rechts).
+LEAF_B, LEAF_T, LEAF_R, CUT = (15.0, 49.0), (57.0, 7.0), 34.0, 0.8
+VEINS = (0.25, 0.41, 0.57)         # Ansatz der Adern auf der Achse
+MOSS, GRASS = "#2F5A3C", "#4E7F45"
+LEAF_GREEN, LEAF_LIGHT = "#8DB86A", "#A6CA86"
+DEW, DEW_DARK = "#BFE0D4", "#CFEADF"   # Tautropfen auf hellem / dunklem Grund
 
 
 def _f(v):
     return f"{v:.2f}".rstrip("0").rstrip(".")
 
 
-def igel_parts(top=TOP, g=GROUND):
-    """Pfade des Igels: Rücken, Schuppen (Strich), Gesicht, Trennlinie, Auge, Nase, Füße."""
-    r = g - top
-    x0, xt1 = 5.0, 39.0
-    xt0 = x0 + r * 0.55
-    back = (f"M{_f(x0)} {_f(g)}C{_f(x0)} {_f(g - r * 0.62)} {_f(xt0 - r * 0.42)} {_f(top)} {_f(xt0)} {_f(top)}"
-            f"L{_f(xt1)} {_f(top)}C{_f(xt1 + 8)} {_f(top)} 47.5 {_f(top + 6)} 48.5 {_f(top + 12)}L35 {_f(g)}Z")
-    rows, w = [], 7.0
-    for k in range(3):
-        y, x = top + 8.0 + k * 6.6, 2 - (k % 2) * w / 2
-        while x < 50:
-            rows.append(f"M{_f(x)} {_f(y)}a{_f(w / 2)} {_f(w / 2)} 0 0 1 {_f(w)} 0")
-            x += w
-    face = (f"M33.5 {_f(g)}L46.6 {_f(top + 10.2)}C48.8 {_f(top + 6.4)} 52.6 {_f(top + 8.6)} 54 {_f(top + 13)}"
-            f"L59.4 {_f(g - 8.6)}C60.4 {_f(g - 6)} 59.6 {_f(g - 3.8)} 57 {_f(g - 3.4)}"
-            f"C52 {_f(g - 2.4)} 49 {_f(g)} 45 {_f(g)}Z")
-    seam = f"M34.2 {_f(g + 1)}L47.4 {_f(top + 10.6)}"          # Kante Rücken/Gesicht (für einfarbig)
-    foot = lambda x: f"M{_f(x)} {_f(g - 1)}h5.2v2.4a2.6 2.6 0 0 1-5.2 0Z"
-    return dict(back=back, scales="".join(rows), face=face, seam=seam,
-                eye=(51.6, g - 15.6, 2.75), nose=(59.1, g - 7.3, 2.25), feet=foot(13.5) + foot(28.5))
+def _pt(p):
+    return f"{_f(p[0])} {_f(p[1])}"
 
 
-def igel_svg(colors=None, mono=None, uid="i", scales=True):
-    """Farbig: colors = (Rücken, Schuppen, Gesicht, Dunkel, Glanz, Füße).
-    Einfarbig: mono = Farbe; Details werden per Maske ausgespart."""
-    p = igel_parts()
-    ex, ey, er = p["eye"]
-    nx, ny, nr = p["nose"]
-    clip = f'<clipPath id="{uid}-c"><path d="{p["back"]}"/></clipPath>'
+def _unit(v):
+    ln = math.hypot(*v)
+    return v[0] / ln, v[1] / ln
+
+
+def _center(b, t, r, side, n):
+    half = math.dist(b, t) / 2
+    d = math.sqrt(r * r - half * half)
+    return ((b[0] + t[0]) / 2 - side * n[0] * d, (b[1] + t[1]) / 2 - side * n[1] * d)
+
+
+def _hit(o, r, a, v, t1):
+    fx, fy = a[0] - o[0], a[1] - o[1]
+    qa, qb, qc = v[0] ** 2 + v[1] ** 2, 2 * (fx * v[0] + fy * v[1]), fx * fx + fy * fy - r * r
+    w = math.sqrt(qb * qb - 4 * qa * qc)
+    for t in ((-qb - w) / (2 * qa), (-qb + w) / (2 * qa)):
+        if -1e-6 <= t <= t1 + 1e-6:
+            return a[0] + t * v[0], a[1] + t * v[1]
+    raise ValueError("kein Schnittpunkt")
+
+
+def _sweep(o, p, q):
+    return 1 if (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]) > 0 else 0
+
+
+def leaf_parts():
+    b, t, r = LEAF_B, LEAF_T, LEAF_R
+    u = _unit((t[0] - b[0], t[1] - b[1]))
+    n = (-u[1], u[0])                                   # zur Schattenseite (unten rechts)
+    ln = math.dist(b, t)
+    at = lambda s, off=0.0: (b[0] + u[0] * s * ln + n[0] * off, b[1] + u[1] * s * ln + n[1] * off)
+    ob, ok = _center(b, t, r, +1, n), _center(b, t, r, -1, n)
+    c = at(CUT)
+    cb, ck = _hit(ob, r, c, n, ln), _hit(ok, r, c, (-n[0], -n[1]), ln)
+    body = (f"M{_pt(b)}A{_f(r)} {_f(r)} 0 0 {_sweep(ob, b, cb)} {_pt(cb)}L{_pt(ck)}"
+            f"A{_f(r)} {_f(r)} 0 0 {_sweep(ok, ck, b)} {_pt(b)}Z")
+    shade = f"M{_pt(b)}L{_pt(c)}L{_pt(cb)}A{_f(r)} {_f(r)} 0 0 {_sweep(ob, cb, b)} {_pt(b)}Z"
+    veins = ""
+    a = math.radians(34)
+    for s0 in VEINS:
+        p0 = at(s0, 1.6)
+        dx, dy = u[0] * math.cos(a) + n[0] * math.sin(a), u[1] * math.cos(a) + n[1] * math.sin(a)
+        p1 = (p0[0] + dx * 10.5, p0[1] + dy * 10.5)
+        mid = ((p0[0] + p1[0]) / 2 + u[0] * 1.6, (p0[1] + p1[1]) / 2 + u[1] * 1.6)
+        veins += f"M{_pt(p0)}Q{_pt(mid)} {_pt(p1)}"
+    # Stiel: kurz in Achsrichtung, dann eingerollt (Kreisbogen r = 5,5, 100°)
+    p0, p1 = at(0.05), (b[0] - u[0] * 3, b[1] - u[1] * 3)
+    rs = 5.5
+    d0 = (-u[0], -u[1])
+    n0 = (-d0[1], d0[0])
+    cs = (p1[0] + n0[0] * rs, p1[1] + n0[1] * rs)
+    a0 = math.atan2(p1[1] - cs[1], p1[0] - cs[0]) + math.radians(100)
+    p2 = (cs[0] + rs * math.cos(a0), cs[1] + rs * math.sin(a0))
+    stem = f"M{_pt(p0)}L{_pt(p1)}A{_f(rs)} {_f(rs)} 0 0 1 {_pt(p2)}"
+    # Tautropfen unter der Bauchecke der Schnittkante
+    x, y, rr = cb[0] + 0.6, cb[1] + 9.6, 3.6
+    top = (x, y - rr * 2.05)
+    drop = (f"M{_pt(top)}C{_f(x + rr * .35)} {_f(y - rr * 1.25)} {_f(x + rr)} {_f(y - rr * .75)} {_f(x + rr)} {_f(y)}"
+            f"A{_f(rr)} {_f(rr)} 0 0 1 {_f(x - rr)} {_f(y)}C{_f(x - rr)} {_f(y - rr * .75)} {_f(x - rr * .35)} "
+            f"{_f(y - rr * 1.25)} {_pt(top)}Z")
+    glint = (x + rr * .38, y - rr * .15, rr * .3)
+    rib = f"M{_pt(at(0.04))}L{_pt(c)}"
+    # Begrenzung (abgetastet): Blatt, Stiel (mit halber Strichbreite), Tropfen
+    pts = [b, cb, ck]
+    for o, p, q in ((ob, b, cb), (ok, ck, b)):
+        a1, a2 = math.atan2(p[1] - o[1], p[0] - o[0]), math.atan2(q[1] - o[1], q[0] - o[0])
+        da = (a2 - a1 + math.pi) % (2 * math.pi) - math.pi
+        pts += [(o[0] + r * math.cos(a1 + da * k / 24), o[1] + r * math.sin(a1 + da * k / 24)) for k in range(25)]
+    a1 = math.atan2(p1[1] - cs[1], p1[0] - cs[0])
+    pts += [(cs[0] + (rs + 2.2) * math.cos(a1 + math.radians(100) * k / 12),
+             cs[1] + (rs + 2.2) * math.sin(a1 + math.radians(100) * k / 12)) for k in range(13)]
+    pts += [(x - rr, y), (x + rr, y), (x, y + rr), top]
+    box = (min(q[0] for q in pts), min(q[1] for q in pts), max(q[0] for q in pts), max(q[1] for q in pts))
+    return dict(body=body, shade=shade, veins=veins, stem=stem, drop=drop, glint=glint, rib=rib, box=box)
+
+
+LEAF_SHAPE = leaf_parts()
+
+
+def leaf_silhouette():
+    """Einfarbige Silhouette (Blatt + Stiel als Fläche), mittig im 64er-Raster –
+    für das Sprite #i-leaf (Trenner im Laufband, Ablauf), das per CSS-fill färbt."""
+    b, t = LEAF_B, LEAF_T
+    u = _unit((t[0] - b[0], t[1] - b[1]))
+    ln = math.dist(b, t)
+    p0 = (b[0] + u[0] * 0.05 * ln, b[1] + u[1] * 0.05 * ln)
+    p1 = (b[0] - u[0] * 3, b[1] - u[1] * 3)
+    rs, w = 5.5, 2.2
+    n0 = (u[1], -u[0])                           # +90° zur Laufrichtung (−u)
+    cs = (p1[0] + n0[0] * rs, p1[1] + n0[1] * rs)
+    a0 = math.atan2(p1[1] - cs[1], p1[0] - cs[0])
+    line = [(p0[0] + (p1[0] - p0[0]) * k / 4, p0[1] + (p1[1] - p0[1]) * k / 4) for k in range(5)]
+    arc = [(cs[0] + rs * math.cos(a0 + math.radians(100) * k / 10), cs[1] + rs * math.sin(a0 + math.radians(100) * k / 10)) for k in range(1, 11)]
+    cl = line + arc
+    left, right = [], []
+    for i, q in enumerate(cl):
+        a, c = cl[max(i - 1, 0)], cl[min(i + 1, len(cl) - 1)]
+        dx, dy = c[0] - a[0], c[1] - a[1]
+        dl = math.hypot(dx, dy)
+        nx, ny = -dy / dl, dx / dl
+        left.append((q[0] + nx * w, q[1] + ny * w))
+        right.append((q[0] - nx * w, q[1] - ny * w))
+    stem = (f"M{_pt(left[0])}" + "".join(f"L{_pt(q)}" for q in left[1:])
+            + f"A{_f(w)} {_f(w)} 0 0 0 {_pt(right[-1])}" + "".join(f"L{_pt(q)}" for q in right[-2::-1])
+            + f"A{_f(w)} {_f(w)} 0 0 1 {_pt(left[0])}Z")
+    bx0, by0, bx1, by1 = LEAF_SHAPE["box"]
+    dx, dy = 32 - (bx0 + bx1) / 2, 32 - (by0 + by1) / 2
+    shift = lambda d: re.sub(r"(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)(?=[A-Za-z]|$)",
+                             lambda m: f"{_f(float(m.group(1)) + dx)} {_f(float(m.group(2)) + dy)}", d)
+    return shift(LEAF_SHAPE["body"]), shift(stem)
+
+
+def leaf_svg(colors=None, mono=None, uid="b"):
+    """Farbig: colors = (Licht, Schatten, Tropfen, Glanz). Einfarbig: mono = Farbe,
+    Mittelrippe, Adern und Glanz werden per Maske ausgespart."""
+    p = LEAF_SHAPE
+    gx, gy, gr = p["glint"]
     if mono:
-        mask = (f'<mask id="{uid}-m" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">'
-                f'<rect width="64" height="64" fill="#fff"/>'
-                + (f'<path d="{p["scales"]}" clip-path="url(#{uid}-c)" fill="none" stroke="#000" stroke-width="1.6" stroke-linecap="round"/>' if scales else "")
-                + f'<path d="{p["seam"]}" fill="none" stroke="#000" stroke-width="1.5"/>'
-                f'<circle cx="{_f(ex)}" cy="{_f(ey)}" r="{_f(er)}" fill="#000"/>'
-                f'<circle cx="{_f(ex + 1)}" cy="{_f(ey - 1)}" r=".9" fill="#fff"/>'
-                f'<circle cx="{_f(nx)}" cy="{_f(ny)}" r="{_f(nr + .5)}" fill="none" stroke="#000" stroke-width=".9"/></mask>')
-        return (f"<defs>{clip}{mask}</defs>"
-                f'<g fill="{mono}" mask="url(#{uid}-m)"><path d="{p["back"]}"/><path d="{p["face"]}"/>'
-                f'<circle cx="{_f(nx)}" cy="{_f(ny)}" r="{_f(nr)}"/><path d="{p["feet"]}"/></g>')
-    c_back, c_scale, c_face, c_dark, c_glint, c_feet = colors
-    out = f'<defs>{clip}</defs><path fill="{c_feet}" d="{p["feet"]}"/><path fill="{c_back}" d="{p["back"]}"/>'
-    if scales:
-        out += (f'<path d="{p["scales"]}" clip-path="url(#{uid}-c)" fill="none" stroke="{c_scale}" '
-                f'stroke-width="1.6" stroke-linecap="round"/>')
-    out += (f'<path fill="{c_face}" d="{p["face"]}"/>'
-            f'<circle cx="{_f(ex)}" cy="{_f(ey)}" r="{_f(er)}" fill="{c_dark}"/>'
-            f'<circle cx="{_f(ex + 1)}" cy="{_f(ey - 1)}" r=".9" fill="{c_glint}"/>'
-            f'<circle cx="{_f(nx)}" cy="{_f(ny)}" r="{_f(nr)}" fill="{c_dark}"/>')
-    return out
-
-
-# Begrenzung im 64er-Raster (Rücken hinten bis Nase, Oberkante bis Fußsohle)
-IGEL_BOX = (5.0, TOP, 61.35, GROUND + 4.0)
+        mask = (f'<mask id="{uid}-m" maskUnits="userSpaceOnUse" x="-8" y="-8" width="80" height="80">'
+                f'<rect x="-8" y="-8" width="80" height="80" fill="#fff"/>'
+                f'<path d="{p["rib"]}" stroke="#000" stroke-width="1.6" stroke-linecap="round"/>'
+                f'<path d="{p["veins"]}" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/>'
+                f'<circle cx="{_f(gx)}" cy="{_f(gy)}" r="{_f(gr)}" fill="#000"/></mask>')
+        return (f"<defs>{mask}</defs><g mask=\"url(#{uid}-m)\">"
+                f'<path d="{p["stem"]}" fill="none" stroke="{mono}" stroke-width="4.4" stroke-linecap="round"/>'
+                f'<path fill="{mono}" d="{p["body"]}"/><path fill="{mono}" d="{p["drop"]}"/></g>')
+    c_light, c_dark, c_drop, c_glint = colors
+    return (f'<defs><clipPath id="{uid}-c"><path d="{p["shade"]}"/></clipPath></defs>'
+            f'<path d="{p["stem"]}" fill="none" stroke="{c_dark}" stroke-width="4.4" stroke-linecap="round"/>'
+            f'<path fill="{c_light}" d="{p["body"]}"/><path fill="{c_dark}" d="{p["shade"]}"/>'
+            f'<path d="{p["veins"]}" clip-path="url(#{uid}-c)" fill="none" stroke="{c_light}" stroke-width="2.3" stroke-linecap="round"/>'
+            f'<path fill="{c_drop}" d="{p["drop"]}"/><circle cx="{_f(gx)}" cy="{_f(gy)}" r="{_f(gr)}" fill="{c_glint}"/>')
 
 
 # ---------------------------------------------------------------- Text → Pfade
@@ -161,71 +241,74 @@ def svg(w, h, body, title):
 def build():
     OUT.mkdir(parents=True, exist_ok=True)
     # Wortmarke: Bricolage Grotesque leicht schmal und kräftig – ruhiger Gegenpol
-    # zum Igel, dieselbe Familie wie die Display-Schrift der Website
+    # zum illustrierten Blatt, dieselbe Familie wie die Display-Schrift der Website
     name_d, name_b, name_w, cap = text_path(
         "bricolage-grotesque-wdth-latin.woff2", NAME, 100, -0.006, wght=740, wdth=82)
     desc_d, desc_b, desc_w, desc_cap = text_path(
         "instrument-sans-var-latin.woff2", DESCRIPTOR, 25, 0.24, wght=600)
 
     title = f"{NAME} Gartenservice"
-    LIGHT = (MOSS, GRASS, SAND, NIGHT, LINEN, NIGHT)              # auf hellem Grund
-    DARK = (LEAF_GREEN, LEAF_LIGHT, LINEN, NIGHT, LINEN, LINEN)   # auf dunklem Grund
-    # Variante: (Igel farbig | einfarbig, Name, Zusatz)
+    LIGHT = (LEAF_GREEN, MOSS, DEW, "#fff")          # auf hellem Grund
+    DARK = (LEAF_LIGHT, GRASS, DEW_DARK, "#fff")     # auf dunklem Grund
+    # Variante: (Blatt farbig | einfarbig, Name, Zusatz)
     variants = {
         "": (dict(colors=LIGHT), INK, GREEN),
         "-invers": (dict(colors=DARK), LINEN, LEAF),
-        # einfarbig ohne Schuppen: ruhig genug für Stick, Stempel und Folie
-        "-einfarbig": (dict(mono=GREEN, scales=False), GREEN, GREEN),
-        "-schwarz": (dict(mono="#000", scales=False), "#000", "#000"),
-        "-weiss": (dict(mono="#fff", scales=False), "#fff", "#fff"),
+        "-einfarbig": (dict(mono=GREEN), GREEN, GREEN),
+        "-schwarz": (dict(mono="#000"), "#000", "#000"),
+        "-weiss": (dict(mono="#fff"), "#fff", "#fff"),
     }
-    bx0, by0, bx1, by1 = IGEL_BOX
-    bw = bx1 - bx0
+    bx0, by0, bx1, by1 = LEAF_SHAPE["box"]
+    bw, bh = bx1 - bx0, by1 - by0
 
-    # --- Primärlogo, horizontal: Rückenkante auf Höhe der Versalien, Bodenlinie
-    #     auf der Grundlinie von „GARTENSERVICE“
+    # --- Primärlogo, horizontal (Blatt mittig zum Textblock)
     name_y = -name_b[1]
     desc_y = name_y + name_b[3] + 24 + desc_cap
-    s = desc_y / (GROUND - TOP)
-    tx = bw * s + 22
+    sym_h = desc_y * 1.12
+    s = sym_h / bh
+    sy = (desc_y - sym_h) / 2
+    tx = bw * s + 26
     W = tx + max(name_w, desc_w) + 2
-    H = (by1 - TOP) * s + 2
-    for suffix, (igel, c_name, c_desc) in variants.items():
-        body = (f'<g transform="translate({fmt(-bx0 * s)} {fmt(-TOP * s)}) scale({fmt(s)})">{igel_svg(uid="ip", **igel)}</g>'
+    H = sym_h + 2
+    for suffix, (leaf, c_name, c_desc) in variants.items():
+        body = (f'<g transform="translate(0 {fmt(-sy)})">'
+                f'<g transform="translate({fmt(-bx0 * s)} {fmt(sy - by0 * s)}) scale({fmt(s)})">{leaf_svg(uid="bp", **leaf)}</g>'
                 f'<path fill="{c_name}" transform="translate({fmt(tx)} {fmt(name_y)})" d="{name_d}"/>'
-                f'<path fill="{c_desc}" transform="translate({fmt(tx + 2)} {fmt(desc_y)})" d="{desc_d}"/>')
+                f'<path fill="{c_desc}" transform="translate({fmt(tx + 2)} {fmt(desc_y)})" d="{desc_d}"/></g>')
         (OUT / f"logo-primaer{suffix}.svg").write_text(svg(W, H, body, title))
 
     # --- Kompakt (gestapelt)
     wmax = max(name_w, desc_w)
-    s2 = wmax * 0.62 / bw
-    W2 = wmax + 8
-    ih = (by1 - by0) * s2
-    ny = ih + 34 - name_b[1]
+    s2 = 170 / bh
+    W2 = max(wmax, bw * s2) + 8
+    ny = 170 + 34 - name_b[1]
     dy = ny + name_b[3] + 22 + desc_cap
-    for suffix, (igel, c_name, c_desc) in variants.items():
-        body = (f'<g transform="translate({fmt((W2 - bw * s2) / 2 - bx0 * s2)} {fmt(-by0 * s2)}) scale({fmt(s2)})">{igel_svg(uid="ik", **igel)}</g>'
+    for suffix, (leaf, c_name, c_desc) in variants.items():
+        body = (f'<g transform="translate({fmt((W2 - bw * s2) / 2 - bx0 * s2)} {fmt(-by0 * s2)}) scale({fmt(s2)})">{leaf_svg(uid="bk", **leaf)}</g>'
                 f'<path fill="{c_name}" transform="translate({fmt((W2 - name_w) / 2)} {fmt(ny)})" d="{name_d}"/>'
                 f'<path fill="{c_desc}" transform="translate({fmt((W2 - desc_w) / 2)} {fmt(dy)})" d="{desc_d}"/>')
         (OUT / f"logo-kompakt{suffix}.svg").write_text(svg(W2, dy + 4, body, title))
 
-    # --- Symbol (64er-Raster)
-    for suffix, (igel, _, _) in variants.items():
-        (OUT / f"symbol{suffix}.svg").write_text(
-            svg(64, 64, igel_svg(uid="is", **igel), title).replace('width="64" height="64" ', "", 1))
-
-    # --- Favicon & App-Icon: Igel auf Waldgrün, ohne Schuppen (16–32 px)
+    # --- Symbol (64er-Raster, mittig)
     cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2
-    k = 54 / bw
+    center = f'<g transform="translate({fmt(32 - cx)} {fmt(32 - cy)})">'
+    for suffix, (leaf, _, _) in variants.items():
+        (OUT / f"symbol{suffix}.svg").write_text(
+            svg(64, 64, center + leaf_svg(uid="bs", **leaf) + "</g>", title).replace('width="64" height="64" ', "", 1))
+
+    # --- Favicon & App-Icon: Blatt auf Waldgrün
+    k = 52 / max(bw, bh)
     fav = (f'<rect width="64" height="64" rx="12" fill="{GREEN}"/>'
-           f'<g transform="translate({fmt(32 - cx * k)} {fmt(33 - cy * k)}) scale({fmt(k)})">{igel_svg(DARK, uid="if", scales=False)}</g>')
+           f'<g transform="translate({fmt(32 - cx * k)} {fmt(32 - cy * k)}) scale({fmt(k)})">{leaf_svg(DARK, uid="bf")}</g>')
     (ROOT / "favicon.svg").write_text(svg(64, 64, fav, title).replace('width="64" height="64" ', "", 1))
-    k = 330 / bw
+    k = 300 / max(bw, bh)
     avatar = (f'<rect width="512" height="512" fill="{GREEN}"/>'
-              f'<g transform="translate({fmt(256 - cx * k)} {fmt(262 - cy * k)}) scale({fmt(k)})">{igel_svg(DARK, uid="ia")}</g>')
+              f'<g transform="translate({fmt(256 - cx * k)} {fmt(256 - cy * k)}) scale({fmt(k)})">{leaf_svg(DARK, uid="ba")}</g>')
     (OUT / "social-avatar.svg").write_text(svg(512, 512, avatar, title))
 
     print("ok", OUT, f"Primärlogo {fmt(W)} × {fmt(H)}")
+    body, stem = leaf_silhouette()
+    print("Sprite #i-leaf:", body + stem)
 
 
 if __name__ == "__main__":
