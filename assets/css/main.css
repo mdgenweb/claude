@@ -464,6 +464,14 @@ figure { margin: 0; }
 .marquee__track span { padding: 0 .38em; }
 .marquee__track svg { width: .5em; height: .5em; fill: var(--night); flex: none; }
 
+/* Papierkörnung über den Illustrationen: Siebdruck-Anmutung statt glatter Vektorfläche */
+.card__media::after, .compare::after, .page-hero__media::after, .qchip span::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: url("../img/grain.png") 0 0 / 128px 128px; mix-blend-mode: multiply; opacity: .6;
+}
+.qchip span::before { inset: 0 0 auto; aspect-ratio: 16 / 10; }
+.compare::after { z-index: 1; }
+
 /* Leistungen – klares Raster */
 .services { background: var(--linen); }
 .services__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
@@ -487,8 +495,10 @@ figure { margin: 0; }
   .card:hover .card__link .icon { background: var(--clay); transform: rotate(-45deg); }
   .card--calm:hover .card__link .icon { background: var(--forest); transform: none; }
 }
-.card__media { aspect-ratio: 4 / 3; overflow: hidden; border-radius: 19px 19px 0 0; }
+.card__media { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 19px 19px 0 0; }
 .card__media img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease-out); }
+/* bewegte Teile (Triebe, Halme) als eigene, transparente Ebene über dem stillen Bild */
+.card__media .card__motion { position: absolute; inset: 0; will-change: transform; } /* eigene Ebene: nur sie wird neu gezeichnet */
 .card__body { display: flex; flex-direction: column; gap: 10px; flex-grow: 1; padding: 22px 24px 24px; }
 .card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .card__title { font-family: var(--f-display); font-weight: 650; font-size: clamp(1.35rem, 1.2rem + .45vw, 1.65rem); line-height: 1.1; letter-spacing: -.02em; }

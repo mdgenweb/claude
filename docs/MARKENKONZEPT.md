@@ -132,7 +132,16 @@ Langfristig trägt **echte Fotografie des Unternehmens** die Seite. Bis dahin ze
 
 ## 7. Illustrationen
 
-**Spot-Illustrationen (Leistungen, Vorher/Nachher):** flächig, wenige Markenfarben, klare Formen, je Leistung eine kleine Geschichte: Hecke mit abgehobenem Schnitt, Rasen halb gemäht, Unkraut samt Wurzel gezogen, Strauch halb in Form geschnitten, aufgeräumtes Beet mit Rechen, ruhige Grabstätte mit Olivenzweig. Lehm-Rot setzt nur kleine Akzente (Schnittlinie, Pfeil). Die Grabpflege bleibt gedämpft und ohne Lehm. Vorher und Nachher zeigen dieselbe Szene, damit der Vergleichsregler funktioniert. Erzeugt mit `tools/spots.mjs` (feste Zufallswerte, reproduzierbar). Echte Fotos können jede Illustration 1 : 1 ersetzen.
+**Spot-Illustrationen im Siebdruck-Stil (Leistungen, Vorher/Nachher)** – bewusst gestaltet, nicht generiert:
+- **Wenige Druckfarben:** Waldgrün, Moos, Blattgrün, dazu Papiertöne; Lehm nur für die Aktion (Schnittlinie, Pfeil, Zielform). Keine Verläufe.
+- **Gestaltete Raster statt Zufall:** Laub als Schuppenmuster, Erde als Punktraster, Kies als Körnung, Rasen als Mähstreifen in Perspektive.
+- **Passerversatz:** große Formen haben eine hellere Kante oben links, wie beim Druck mit zwei Sieben. Das ist die eigene Handschrift.
+- **Papierkörnung:** eine kleine Kachel (`assets/img/grain.png`) liegt per „multiply“ über allen Illustrationen.
+- **Organische Konturen** werden geglättet (Löwenzahnblätter mit gerundeten Lappen statt Zickzack), Grundlinien bleiben gerade.
+- **Jedes Motiv erzählt den Vorher-nachher-Moment:** Hecke links zottig, rechts geschnitten; Rasen halb gemäht; Löwenzahn samt Wurzel gezogen; Strauch halb in Form; Hochbeet mit Rechen im Laub; Grabstätte ruhig, ohne Lehm und ohne Bewegung.
+- **Leichte Bewegung:** einzelne Triebe, Halme und ein Blatt wiegen sich in den Leistungskarten. Technisch liegt ein stilles Bild unten (`name-base.svg`) und eine dünne, transparente Bewegungsebene darüber (`name-motion.svg`, eigene Compositor-Ebene), damit nicht das ganze Muster in jedem Frame neu gezeichnet wird. Kacheln und Unterseite nutzen die komplette, stille Fassung (`name.svg`). Bei „reduzierter Bewegung“ steht alles still.
+
+Erzeugt mit `tools/spots.mjs` (feste Zufallswerte, reproduzierbar). Echte Fotos können jede Illustration 1 : 1 ersetzen.
 
 **Botanische Linien:** Feine Linienzeichnungen (1,1–1,4 px) in Waldgrün oder Blattgrün: Zweige, Olivenzweig, Gräser, Rosette mit Wurzel, Hecke. Erzeugt mit `tools/botanics.mjs` aus wenigen Grundformen und festen Zufallswerten. Dadurch wirken sie gezeichnet und bleiben trotzdem einheitlich.
 
@@ -150,7 +159,7 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 - zwei Ebenen: dichtes Gras hinter der Schrift, einzelne Halme davor (Tiefe)
 - gezeichnet in einem Web Worker (OffscreenCanvas): der Haupt-Thread bleibt für Klicks, Hover und Scrollen frei; ohne Worker-Unterstützung läuft dieselbe Engine im Haupt-Thread
 - sparsam gerendert: hintere Ebene in einfacher Auflösung (wirkt wie Tiefenunschärfe), vordere nur im unteren Bereich und höchstens 1,5-fach; Halme einfarbig, der Verlauf liegt als eine Fläche darüber; Halmzahl gedeckelt (auf dem Smartphone etwa halb so viele)
-- volle Bildrate, alle Übergänge bildratenunabhängig geglättet; nach 8 Sekunden ohne Interaktion flaut der Wind sanft ab und das Feld ruht, bei Maus, Touch oder Scrollen frischt er wieder auf; außerhalb des Sichtbereichs pausiert es ganz
+- ruhiger Wind: das Feld bewegt sich nur leicht; volle Bildrate, alle Übergänge bildratenunabhängig geglättet; nach 8 Sekunden ohne Interaktion flaut der Wind sanft ab und das Feld ruht, bei Maus, Touch oder Scrollen frischt er wieder auf; außerhalb des Sichtbereichs pausiert es ganz
 
 **Weitere Effekte:**
 | Effekt | Wo |

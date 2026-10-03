@@ -25,10 +25,12 @@ assets/js/motion.js     Reveals, Marquee, rollende Zahlen, Ablauf-Linie, magneti
 assets/js/grass.js      Signature: generatives Rasenfeld im Hero (Web Worker), wird beim Scrollen gemäht
 assets/fonts/           Bricolage Grotesque (mit Breiten-Achse) + Instrument Sans (lokal, OFL)
 assets/brand/           Logo-System als SVG, Icons als PNG
-assets/img/spots/       farbige Leistungs-Illustrationen und Vorher/Nachher
+assets/img/spots/       Leistungs-Illustrationen im Siebdruck-Stil (name.svg still,
+                        name-base.svg + name-motion.svg für die bewegten Karten)
+assets/img/grain.png    Papierkörnung, liegt per CSS über den Illustrationen
 assets/img/             weitere Illustrationen/Platzhalter, OG-Bild
 tools/build_brand.py    setzt alle Logo-Lockups mit echtem Firmennamen neu
-tools/spots.mjs         erzeugt die Leistungs-Illustrationen (node tools/spots.mjs)
+tools/spots.mjs         erzeugt Illustrationen und Körnung (node tools/spots.mjs)
 tools/botanics.mjs      erzeugt die botanischen Linienzeichnungen
 tools/og-card.html      Vorlage für das Social-Media-Vorschaubild
 ```
@@ -58,7 +60,7 @@ Platzhalter sind `<div class="ph …">…</div>`-Blöcke mit dem Etikett „Foto
 
 **Inhaberfoto (Über uns):** In `.about__arch` das `<svg class="about__silhouette">` und den Zweig durch `<img class="about__img" src="…" alt="[NAME], Inhaber">` ersetzen und das Etikett `ph-tag` entfernen.
 
-**Leistungskarten und Schnellanfrage:** Die farbigen Illustrationen in `.card__media` und `.qchip` können bleiben. Wer Fotos zeigen möchte, ersetzt sie im Format 4 : 3 (Motiv mittig, die Kacheln der Schnellanfrage schneiden auf 16 : 10 zu).
+**Leistungskarten und Schnellanfrage:** Die Illustrationen in `.card__media` und `.qchip` können bleiben. Wer Fotos zeigen möchte, ersetzt sie im Format 4 : 3 (Motiv mittig, die Kacheln der Schnellanfrage schneiden auf 16 : 10 zu). In den Karten dabei beide Bilder (`…-base.svg` und `.card__motion`) durch ein einziges Foto ersetzen.
 
 **Vorher/Nachher:** Die beiden `<img>` in `.compare__pane--before` und `.compare__pane--after` tauschen. Beide Fotos brauchen denselben Ausschnitt, im Breitformat (21 : 9 Desktop, mobil wird beschnitten). Danach das Etikett „Illustration · echte Projektfotos folgen“ entfernen.
 

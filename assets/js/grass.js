@@ -37,6 +37,7 @@
       stripeB: ['#15301F', '#3B6B45'],
     };
     const MAX_BACK = 1000, MAX_FRONT = 260, REST_AFTER = 8000;
+    const WIND = 0.62; // ruhiger Wind: das Feld bewegt sich nur leicht
 
     let W = 0, H = 0, HF = 0;
     let blades = { back: [], front: [] };
@@ -143,7 +144,7 @@
         const h = b.cur;
         if (h < 1) continue;
 
-        let ang = b.lean + windAmp * (
+        let ang = b.lean + windAmp * WIND * (
           Math.sin(time * 1.3 + b.x * 0.011 + b.ph) * (0.04 + wind * 0.05)
           + Math.sin(time * 0.55 + b.x * 0.0035) * (0.06 + gust));
         if (pointer.on) {
