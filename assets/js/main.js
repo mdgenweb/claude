@@ -42,9 +42,11 @@
   const closeBtn = $('[data-menu-close]');
   const main = $('main');
   let lastFocus = null;
+  let hideTimer = 0;
   if (drawer && openBtn && closeBtn) {
     const focusables = () => $$('a[href], button:not([disabled])', drawer).filter((el) => el.offsetParent !== null);
     const openDrawer = () => {
+      clearTimeout(hideTimer); // erneut geöffnet, während es sich noch schließt
       lastFocus = document.activeElement;
       drawer.hidden = false;
       root.classList.add('drawer-open');
@@ -60,7 +62,7 @@
       openBtn.setAttribute('aria-expanded', 'false');
       root.style.overflow = '';
       if (main) main.inert = false;
-      setTimeout(() => { drawer.hidden = true; }, reduceMotion.matches ? 0 : 620);
+      hideTimer = setTimeout(() => { drawer.hidden = true; }, reduceMotion.matches ? 0 : 900); // Vorhang: 0,1 s + 0,75 s
       if (restore && lastFocus) lastFocus.focus();
     };
     openBtn.addEventListener('click', openDrawer);
@@ -77,8 +79,8 @@
   }
 
   /* ── Aktiver Navigationspunkt ───────────────────────────────────────── */
-  const navLinks = $$('.nav__list a');
-  const targets = navLinks.map((a) => $(a.getAttribute('href'))).filter(Boolean);
+  const navLinks = $$('.nav__list a, .drawer__list a');
+  const targets = [...new Set(navLinks.map((a) => a.getAttribute('href')))].map((h) => $(h)).filter(Boolean);
   if ('IntersectionObserver' in window && targets.length) {
     const io = new IntersectionObserver((entries) => {
       entries.forEach((en) => {

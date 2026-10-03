@@ -13,6 +13,8 @@
   const fine = window.matchMedia('(pointer: fine)');
   const motion = !reduce.matches && 'IntersectionObserver' in window;
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  // bildratenunabhängiges Nachziehen: Anteil, der in dt Sekunden aufgeholt wird
+  const follow = (dt, k) => 1 - Math.exp(-dt * k);
   if (motion) root.classList.add('motion-ok');
 
   /* ── Riesentypo exakt auf Breite setzen ─────────────────────────────── */
@@ -118,12 +120,14 @@
     const half = () => track.scrollWidth / 2;
     // exakt verdoppeln, damit die Schleife nahtlos ist
     [...track.children].forEach((c) => track.append(c.cloneNode(true)));
-    let x = 0, dir = -1, boost = 0, last = performance.now(), on = false, lastY = window.scrollY;
+    let x = 0, dir = -1, boost = 0, v = -70, last = performance.now(), on = false, lastY = window.scrollY;
     const tick = (t) => {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
-      boost *= 0.92;
-      x += dir * (70 + boost) * dt;
+      boost *= Math.exp(-dt * 3.2);
+      // Geschwindigkeit gleitet zum Ziel – auch beim Richtungswechsel kein Ruck
+      v += (dir * (70 + boost) - v) * follow(dt, 3.5);
+      x += v * dt;
       const h = half();
       if (x < -h) x += h;
       if (x > 0) x -= h;
@@ -134,7 +138,7 @@
       const y = window.scrollY;
       const d = y - lastY;
       lastY = y;
-      if (Math.abs(d) > 1) { dir = d > 0 ? -1 : 1; boost = Math.min(900, boost + Math.abs(d) * 6); }
+      if (Math.abs(d) > 1) { dir = d > 0 ? -1 : 1; boost = Math.min(700, boost + Math.abs(d) * 4); }
     }, { passive: true });
     new IntersectionObserver(([en]) => {
       const was = on;
@@ -152,36 +156,51 @@
   /* ── Hero-Parallaxe (nur breit, ohne Ausblenden – die Schnellanfrage bleibt bedienbar) ── */
   const heroInner = $('.hero__inner');
 
-  let ticking = false;
-  const frame = () => {
-    ticking = false;
+  // Ziele werden beim Scrollen gesetzt; ein kurzer rAF-Lauf gleitet hin und
+  // stoppt, sobald alles angekommen ist (kein Springen bei Mausrad-Schritten)
+  const cur = { par: 0, p: 0 };
+  const tgt = { par: 0, p: 0 };
+  let looping = false, lastT = 0;
+  const measure = () => {
     const vh = window.innerHeight;
-
-    if (heroInner) {
-      const y = window.scrollY;
-      if (wide.matches && y < vh * 1.2) heroInner.style.transform = `translate3d(0, ${(y * -0.12).toFixed(1)}px, 0)`;
-      else if (!wide.matches) heroInner.style.transform = '';
-    }
-
+    const y = window.scrollY;
+    if (!wide.matches) tgt.par = 0;
+    else if (y < vh * 1.4) tgt.par = y * -0.12;
     const sr = steps && steps.getBoundingClientRect();
     if (sr && sr.bottom > -vh && sr.top < vh * 2) {
-      const r = sr;
       if (stacked.matches) {
-        const p = clamp((vh * 0.62 - r.top) / Math.max(1, r.height));
-        steps.style.setProperty('--p', p.toFixed(3));
+        tgt.p = clamp((vh * 0.62 - sr.top) / Math.max(1, sr.height));
         stepItems.forEach((s) => s.classList.toggle('is-on', s.getBoundingClientRect().top < vh * 0.62));
       } else {
-        const p = clamp((vh * 0.88 - r.top) / (vh * 0.5));
-        steps.style.setProperty('--p', p.toFixed(3));
-        stepItems.forEach((s, i) => s.classList.toggle('is-on', p > i / 4 + 0.02));
+        tgt.p = clamp((vh * 0.88 - sr.top) / (vh * 0.5));
+        stepItems.forEach((s, i) => s.classList.toggle('is-on', tgt.p > i / 4 + 0.02));
       }
     }
   };
-  const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } };
+  const apply = () => {
+    if (heroInner) heroInner.style.transform = cur.par ? `translate3d(0, ${cur.par.toFixed(2)}px, 0)` : '';
+    if (steps) steps.style.setProperty('--p', cur.p.toFixed(4));
+  };
+  const loop = (t) => {
+    const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016);
+    lastT = t;
+    cur.par += (tgt.par - cur.par) * follow(dt, 11);
+    cur.p += (tgt.p - cur.p) * follow(dt, 7);
+    const done = Math.abs(tgt.par - cur.par) < 0.05 && Math.abs(tgt.p - cur.p) < 0.0005;
+    if (done) { cur.par = tgt.par; cur.p = tgt.p; }
+    apply();
+    if (done) looping = false; else requestAnimationFrame(loop);
+  };
+  const onScroll = () => {
+    measure();
+    if (!looping) { looping = true; lastT = performance.now(); requestAnimationFrame(loop); }
+  };
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
-  ready.then(frame);
-  frame();
+  // Startzustand ohne Gleiten (z. B. nach Neuladen mitten auf der Seite)
+  const settle = () => { measure(); cur.par = tgt.par; cur.p = tgt.p; apply(); };
+  ready.then(settle);
+  settle();
 
   /* ── Magnetische Buttons ────────────────────────────────────────────── */
   if (fine.matches) {

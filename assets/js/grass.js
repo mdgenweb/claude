@@ -6,9 +6,9 @@
    die große Headline wird vollständig frei.
    – zwei Ebenen: hinter der Headline (dicht) und davor (locker, für Tiefe)
    – sparsam: hintere Ebene in einfacher Auflösung, vordere nur im unteren
-     Bereich und höchstens 1,5-fach; Halmzahl gedeckelt; ohne Interaktion
-     30 Bilder pro Sekunde und nach 8 s Pause; läuft nur, solange der Hero
-     sichtbar ist
+     Bereich und höchstens 1,5-fach; Halmzahl gedeckelt; nach 8 s ohne
+     Interaktion flaut der Wind sanft ab und das Feld ruht; läuft nur,
+     solange der Hero sichtbar ist
    – prefers-reduced-motion: ein ruhiges Standbild, halb gemäht
    ========================================================================== */
 (() => {
@@ -39,8 +39,8 @@
   let particles = [];
   let mow = 0, mowTarget = 0, lastMowX = -999;
   let grow = 0;
-  let running = false, visible = true, raf = 0, lastDraw = 0, lastPointer = 0;
-  let lastActivity = performance.now(), clock = 0;
+  let running = false, visible = true, raf = 0, lastPointer = 0;
+  let lastActivity = performance.now(), clock = 0, windAmp = 1;
   const REST_AFTER = 8000;
   const pointer = { x: -9999, y: -9999, on: false };
   const MAX_BACK = 1000, MAX_FRONT = 260;
@@ -137,7 +137,10 @@
   const mowX = () => mow * (W + 160) - 80;
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
-  function drawLayer(ctx, list, layer, time, mx) {
+  // bildratenunabhängiges Nachziehen: Anteil, der in dt Sekunden aufgeholt wird
+  const follow = (dt, k) => 1 - Math.exp(-dt * k);
+
+  function drawLayer(ctx, list, layer, time, mx, dt) {
     ctx.clearRect(0, 0, W, H);
     const pal = grads[layer];
     const li = layer === 'back' ? 0 : 1;
@@ -145,18 +148,19 @@
     const groups = new Map();
     const wind = Math.sin(time * 0.35) * 0.5 + 0.5;
     const gust = Math.max(0, Math.sin(time * 0.23 + 1.3)) * 0.12;
+    const fCut = follow(dt, 22), fGrow = follow(dt, 5.6);
 
     for (const b of list) {
       const cut = b.x < mx;
       const g0 = Math.min(1, Math.max(0, (grow - b.delay) / 0.55));
       const target = (cut ? Math.min(b.h, b.cut) : b.h) * easeOut(g0);
-      b.cur += (target - b.cur) * (cut && b.cur > target ? 0.35 : 0.09);
+      b.cur += (target - b.cur) * (cut && b.cur > target ? fCut : fGrow);
       const h = b.cur;
       if (h < 1) continue;
 
-      let ang = b.lean
-        + Math.sin(time * 1.3 + b.x * 0.011 + b.ph) * (0.04 + wind * 0.05)
-        + Math.sin(time * 0.55 + b.x * 0.0035) * (0.06 + gust);
+      let ang = b.lean + windAmp * (
+        Math.sin(time * 1.3 + b.x * 0.011 + b.ph) * (0.04 + wind * 0.05)
+        + Math.sin(time * 0.55 + b.x * 0.0035) * (0.06 + gust));
       if (pointer.on) {
         const dx = b.x - pointer.x;
         const dy = (H - h * 0.6) - pointer.y;
@@ -235,17 +239,16 @@
   let lastT = performance.now();
   function frame(now) {
     raf = 0;
-    // Ruhephase (nur Wind): jedes zweite Bild auslassen
-    const busy = grow < 1.6 || particles.length > 0 || Math.abs(mowTarget - mow) > 0.002 || now - lastPointer < 1500;
-    if (!busy && now - lastActivity > REST_AFTER) return; // ruht, bis wieder etwas passiert
-    if (!busy && now - lastDraw < 30) { if (running) raf = requestAnimationFrame(frame); return; }
-    lastDraw = now;
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
+    // Ruhe: nach 8 s ohne Interaktion flaut der Wind sanft ab, dann hält das Feld an
+    const busy = grow < 1.6 || particles.length > 0 || Math.abs(mowTarget - mow) > 0.002 || now - lastPointer < 1500;
+    const resting = !busy && now - lastActivity > REST_AFTER;
+    windAmp += ((resting ? 0 : 1) - windAmp) * follow(dt, resting ? 1.6 : 2.4);
     clock += dt; // eigene Uhr: nach einer Pause schwingt der Wind ohne Sprung weiter
     const time = clock;
     grow = Math.min(1.6, grow + dt / 1.5);
-    mow += (mowTarget - mow) * Math.min(1, dt * 6);
+    mow += (mowTarget - mow) * follow(dt, 5);
     const mx = mowX();
 
     // Schnittgut an der Mählinie, nur solange gemäht wird
@@ -262,16 +265,17 @@
     }
     lastMowX = mx;
 
-    drawLayer(ctxB, blades.back, 'back', time, mx);
-    drawLayer(ctxF, blades.front, 'front', time, mx);
+    drawLayer(ctxB, blades.back, 'back', time, mx, dt);
+    drawLayer(ctxF, blades.front, 'front', time, mx, dt);
     drawParticles(ctxF, dt);
 
+    if (resting && windAmp < 0.003) return; // ruht, bis wieder etwas passiert
     if (running) raf = requestAnimationFrame(frame);
   }
 
   function drawStatic() {
-    drawLayer(ctxB, blades.back, 'back', 2, mowX());
-    drawLayer(ctxF, blades.front, 'front', 2, mowX());
+    drawLayer(ctxB, blades.back, 'back', 2, mowX(), 1);
+    drawLayer(ctxF, blades.front, 'front', 2, mowX(), 1);
   }
 
   function setRunning(on) {

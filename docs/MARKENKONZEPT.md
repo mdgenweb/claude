@@ -149,7 +149,7 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 - beim Scrollen fährt eine unsichtbare Mählinie von links nach rechts: Die Halme werden gekürzt, Mähstreifen entstehen, Schnittgut fliegt, und die Headline steht vollständig frei
 - zwei Ebenen: dichtes Gras hinter der Schrift, einzelne Halme davor (Tiefe)
 - sparsam gerendert: hintere Ebene in einfacher Auflösung (wirkt wie Tiefenunschärfe), vordere nur im unteren Bereich und höchstens 1,5-fach; Halme einfarbig, der Verlauf liegt als eine Fläche darüber; Halmzahl gedeckelt (auf dem Smartphone etwa halb so viele)
-- ohne Interaktion 30 Bilder pro Sekunde, nach 8 Sekunden Ruhe hält das Feld an und läuft bei Maus, Touch oder Scrollen nahtlos weiter; außerhalb des Sichtbereichs pausiert es ganz
+- volle Bildrate, alle Übergänge bildratenunabhängig geglättet; nach 8 Sekunden ohne Interaktion flaut der Wind sanft ab und das Feld ruht, bei Maus, Touch oder Scrollen frischt er wieder auf; außerhalb des Sichtbereichs pausiert es ganz
 
 **Weitere Effekte:**
 | Effekt | Wo |
@@ -162,8 +162,9 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 | Bild-Reveal von unten | Über uns |
 | Linie wächst seitwärts (mobil nach unten), Ziffern füllen sich, Blätter springen an | Ablauf |
 | Karte zeichnet sich, Puls um den Ort | Einsatzgebiet |
-| Header blendet beim Runterscrollen aus und passt sich hell/dunkel an | überall |
-| Vollbild-Menü mit gestaffelten Versalien | Mobil/Tablet |
+| Header blendet beim Runterscrollen aus, passt sich hell/dunkel an, Milchglas über dem Inhalt (ebenso die mobile Kontaktleiste) | überall |
+| Parallaxe im Hero, Ablauf-Linie und Marquee-Tempo gleiten weich zum Ziel statt mit dem Mausrad zu springen | Hero, Ablauf, Marquee |
+| Menü-Overlay: Vorhang in zwei Ebenen (Blattgrün, dann Nachtgrün), nummerierte Links gleiten nacheinander hoch, Trennlinien zeichnen sich, Gras-Silhouette am unteren Rand; aktueller Abschnitt in Blattgrün; ab Tablet Kontaktspalte daneben | Mobil/Tablet/Laptop |
 
 **Grenzen:** Die Grabpflege bekommt nur ein ruhiges Einblenden. Alle Effekte nutzen transform/opacity und einen gemeinsamen Takt. Das Einblenden läuft als CSS-Animation, damit Hover-Übergänge der Karten danach sofort und unverzögert reagieren. Bei **prefers-reduced-motion** gibt es keine dieser Bewegungen: Der Rasen steht als ruhiges Standbild (halb gemäht), alle Inhalte sind sofort sichtbar.
 
