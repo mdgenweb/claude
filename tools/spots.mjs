@@ -1,5 +1,5 @@
 // Leistungs-Illustrationen im Siebdruck-Stil.
-//   node tools/spots.mjs  →  assets/img/spots/*.svg + assets/img/grain.png
+//   node tools/spots.mjs  →  assets/img/spots/*.svg + assets/img/grain(-soft).png
 //
 // Gestaltungsregeln (bewusst „gemacht“, nicht generiert):
 // – wenige Druckfarben: Waldgrün, Moos, Blattgrün, Lehm (nur für die Aktion),
@@ -359,6 +359,41 @@ const files = {};
   }
 }
 
+/* ── 8 Grabpflege hochformatig (Sektion Grabpflege): ruhig, still ──────── */
+{
+  const W = 480, H = 600;
+  const defs = PATTERNS.gravel('gv2') + PATTERNS.foliage('fb2', '#3E5C47', '#4F6E57', 0.8);
+  let b = '';
+  b += `<rect y="430" width="${W}" height="${H - 430}" fill="#D9D5CC"/>`;
+  b += `<path d="M70 448H410L452 560H28Z" fill="url(#gv2)"/>`;
+  b += `<path d="M64 442H416L460 566H20Z" fill="none" stroke="${C.stoneDark}" stroke-width="7" stroke-linejoin="round"/>`;
+  const slab = 'M150 450V214A90 90 0 0 1 330 214V450Z';
+  b += offsetEdge(slab, C.stoneLight, -5, -5) + path(slab, C.stone);
+  b += `<path d="M170 432V222A70 70 0 0 1 310 222V432" fill="none" stroke="${C.stoneDark}" stroke-width="1.8"/>`;
+  b += `<rect x="140" y="444" width="200" height="14" rx="3" fill="${C.stoneDark}"/>`;
+  b += offsetEdge('M72 470a40 36 0 1 1 80 0z', '#8FA796', -3, -3) + path('M72 470a40 36 0 1 1 80 0z', 'url(#fb2)');
+  b += offsetEdge('M352 474a32 28 0 1 1 64 0z', '#8FA796', -3, -3) + path('M352 474a32 28 0 1 1 64 0z', 'url(#fb2)');
+  b += `<path d="M172 528C220 506 268 498 318 486" fill="none" stroke="#3E5C47" stroke-width="2.6" stroke-linecap="round"/>`;
+  let ol = '';
+  for (let i = 0; i < 8; i++) { const t = 0.1 + i * 0.11, x = 172 + t * 146, y = 528 - t * 42; ol += leafD(x, y, 22, -0.95 - (i % 2) * 0.85, 0.36); }
+  b += path(ol, '#5F7D68');
+  files['grabpflege-hoch.svg'] = svg(W, H, '#E7E4DD', defs, b, 'Illustration: ruhige, gepflegte Grabstätte', false);
+}
+
+/* ── 9 Platzhalter Inhaberfoto (Über uns): Figur vor geschnittener Hecke ── */
+{
+  const W = 400, H = 500;
+  const defs = PATTERNS.foliage('fp', '#22422F', '#2D5139', 1.3);
+  let b = '';
+  b += `<rect y="250" width="${W}" height="${H - 250}" fill="url(#fp)"/>`;
+  b += `<rect y="244" width="${W}" height="10" fill="${C.moss}"/>`;
+  const fig = 'M200 120c-38 0-63 30-63 70 0 28 11 51 29 64v24c-48 9-95 33-111 76-7 18-10 50-10 146h310c0-96-3-128-10-146-16-43-63-67-111-76v-24c18-13 29-36 29-64 0-40-25-70-63-70Z';
+  b += offsetEdge(fig, '#6E9A6A', -5, -5) + path(fig, '#3F6A4C');
+  // Hemdkragen als kleines, gedrucktes Detail
+  b += path('M166 278l34 36 34-36-10-8-24 24-24-24z', '#2F5A3C');
+  files['portrait-platzhalter.svg'] = svg(W, H, C.forest, defs, b, 'Platzhalter für das Inhaberfoto', false);
+}
+
 for (const [name, art] of Object.entries(files)) {
   writeFileSync(join(OUT, name), render(art, 'full'));
   if (art.motion && MOVING.test(art.body)) {
@@ -369,23 +404,32 @@ for (const [name, art] of Object.entries(files)) {
   MOVING.lastIndex = 0;
 }
 
-/* ── Papierkörnung: kleine Graustufen-Kachel (PNG) für die CSS-Ebene ──── */
+/* ── Papierkörnung: kleine Graustufen-Kacheln (PNG) ─────────────────────
+   grain.png       überwiegend hell → als „multiply“-Ebene über den Bildern
+   grain-soft.png  dieselben Körner um Mittelgrau gestaucht → als „soft-light“
+                   ohne Deckkraft (entspricht soft-light bei 50 %), wird im Hero
+                   direkt in Hintergrund und Szene gemalt statt als Ebene darüber */
 {
   const S = 128, r = rng(2024);
-  const raw = Buffer.alloc((S + 1) * S);
-  for (let y = 0; y < S; y++) {
-    raw[y * (S + 1)] = 0; // Zeilenfilter: keiner
-    for (let x = 0; x < S; x++) {
-      const v = r(), w = r();
-      // überwiegend hell, wenige dunklere Körner → bei „multiply“ nur leichte Struktur
-      raw[y * (S + 1) + 1 + x] = Math.round(255 - (v * v * 60 + (w > 0.985 ? 70 : 0)));
-    }
+  const grain = new Uint8Array(S * S);
+  for (let i = 0; i < S * S; i++) {
+    const v = r(), w = r();
+    // überwiegend hell, wenige dunklere Körner → bei „multiply“ nur leichte Struktur
+    grain[i] = Math.round(255 - (v * v * 60 + (w > 0.985 ? 70 : 0)));
   }
   const crc = (buf) => { let c = ~0; for (const b of buf) { c ^= b; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
   const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([len, td, cr]); };
-  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(S, 0); ihdr.writeUInt32BE(S, 4); ihdr[8] = 8;
-  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
-  writeFileSync(join(ROOT, 'assets', 'img', 'grain.png'), png);
+  const png = (map) => {
+    const raw = Buffer.alloc((S + 1) * S);
+    for (let y = 0; y < S; y++) {
+      raw[y * (S + 1)] = 0; // Zeilenfilter: keiner
+      for (let x = 0; x < S; x++) raw[y * (S + 1) + 1 + x] = map(grain[y * S + x]);
+    }
+    const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(S, 0); ihdr.writeUInt32BE(S, 4); ihdr[8] = 8;
+    return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+  };
+  writeFileSync(join(ROOT, 'assets', 'img', 'grain.png'), png((g) => g));
+  writeFileSync(join(ROOT, 'assets', 'img', 'grain-soft.png'), png((g) => Math.round(128 + (g - 128) / 2)));
 }
 
-console.log('ok', Object.keys(files).join(', '), '+ grain.png');
+console.log('ok', Object.keys(files).join(', '), '+ grain.png, grain-soft.png');

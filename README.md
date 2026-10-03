@@ -10,7 +10,7 @@ python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
-Die Seite benötigt keinen Build-Schritt und kein Framework. Den Rasen-Hero am besten am Desktop mit Maus ausprobieren: Halme weichen dem Zeiger aus, Scrollen mäht. Die Schnellanfrage im Hero übernimmt die angekreuzten Arbeiten und den Ort ins Anfrageformular.
+Die Seite benötigt keinen Build-Schritt und kein Framework. Im Hero einmal langsam scrollen: Die Mählinie fährt über den Rasen. Die Schnellanfrage im Hero übernimmt die angekreuzten Arbeiten und den Ort ins Anfrageformular.
 
 ## Aufbau
 
@@ -21,17 +21,18 @@ impressum.html          Vorlage
 datenschutz.html        Vorlage
 assets/css/main.css     Designsystem (Tokens, Komponenten, Sektionen, Responsive)
 assets/js/main.js       Header, Menü, Schnellanfrage, Vorher/Nachher, Formular, Kontaktleiste
-assets/js/motion.js     Reveals, Marquee, rollende Zahlen, Ablauf-Linie, magnetische Buttons
-assets/js/grass.js      Signature: generatives Rasenfeld im Hero (Web Worker), wird beim Scrollen gemäht
+assets/js/motion.js     Reveals, Marquee, rollende Zahlen, Ablauf-Linie, Mählinie der Hero-Szene
 assets/fonts/           Bricolage Grotesque (mit Breiten-Achse) + Instrument Sans (lokal, OFL)
 assets/brand/           Logo-System als SVG, Icons als PNG
 assets/img/spots/       Leistungs-Illustrationen im Siebdruck-Stil (name.svg still,
                         name-base.svg + name-motion.svg für die bewegten Karten)
 assets/img/grain.png    Papierkörnung, liegt per CSS über den Illustrationen
+assets/img/grain-soft.png  dieselbe Körnung für den Hero (direkt eingemalt, soft-light)
 assets/img/             weitere Illustrationen/Platzhalter, OG-Bild
 tools/build_brand.py    setzt alle Logo-Lockups mit echtem Firmennamen neu
 tools/spots.mjs         erzeugt Illustrationen und Körnung (node tools/spots.mjs)
-tools/botanics.mjs      erzeugt die botanischen Linienzeichnungen
+tools/scene.mjs         erzeugt die Hero-Szene (Hecke, Rasen) direkt in index.html (node tools/scene.mjs)
+tools/botanics.mjs      erzeugt die botanischen Linienzeichnungen (Markenmaterial für Drucksachen)
 tools/og-card.html      Vorlage für das Social-Media-Vorschaubild
 ```
 

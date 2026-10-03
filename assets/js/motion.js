@@ -1,6 +1,6 @@
 /* [FIRMENNAME] Gartenservice – Bewegung
    Ladesequenz, Wort-Reveals, Marquee mit Scroll-Tempo, rollende Zahlen,
-   wachsende Ablauf-Linie, magnetische Buttons. Alles mit transform/opacity,
+   wachsende Ablauf-Linie, Mählinie der Hero-Szene. Alles mit transform/opacity,
    ein gemeinsamer rAF-Takt fürs Scrollen.
    prefers-reduced-motion: keine dieser Effekte, alles sofort sichtbar. */
 (() => {
@@ -10,7 +10,6 @@
   const $$ = (s, c = document) => [...c.querySelectorAll(s)];
   const root = document.documentElement;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const fine = window.matchMedia('(pointer: fine)');
   const motion = !reduce.matches && 'IntersectionObserver' in window;
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   // bildratenunabhängiges Nachziehen: Anteil, der in dt Sekunden aufgeholt wird
@@ -128,7 +127,10 @@
       { duration: dur(), iterations: Infinity },
     );
     ready.then(() => anim.effect.updateTiming({ duration: dur() })); // Breite nach dem Laden der Schrift
-    let dir = 1, boost = 0, rate = 1, last = 0, steering = false, lastY = window.scrollY;
+    // außerhalb des Sichtbereichs Tempo 0 statt pause()/play(): play() wirft bei
+    // rückwärts laufender Endlos-Animation (nach dem Hochscrollen) einen Fehler
+    let dir = 1, boost = 0, rate = 1, last = 0, steering = false, lastY = window.scrollY, seen = true;
+    const setRate = () => { anim.playbackRate = seen ? rate : 0; };
     const steer = (t) => {
       const dt = Math.min(0.05, (t - last) / 1000 || 0.016);
       last = t;
@@ -137,7 +139,7 @@
       rate += (target - rate) * follow(dt, 3.5);
       const settled = boost < 0.01 && Math.abs(target - rate) < 0.01;
       if (settled) rate = dir;
-      anim.playbackRate = rate;
+      setRate();
       if (settled) steering = false; else requestAnimationFrame(steer);
     };
     window.addEventListener('scroll', () => {
@@ -149,7 +151,7 @@
       boost = Math.min(10, boost + Math.abs(d) * 0.06);
       if (!steering) { steering = true; last = performance.now(); requestAnimationFrame(steer); }
     }, { passive: true });
-    new IntersectionObserver(([en]) => { if (en.isIntersecting) anim.play(); else anim.pause(); }).observe(mq);
+    new IntersectionObserver(([en]) => { seen = en.isIntersecting; setRate(); }).observe(mq);
   }
 
   /* ── Ablauf-Linie ───────────────────────────────────────────────────── */
@@ -161,16 +163,27 @@
   /* ── Hero-Parallaxe (nur breit, ohne Ausblenden – die Schnellanfrage bleibt bedienbar) ── */
   const heroInner = $('.hero__inner');
 
+  /* ── Hero-Szene: Mählinie fährt beim Laden ein Stück herein, Scrollen mäht weiter ── */
+  const hero = $('.hero');
+  const scene = $('[data-scene]');
+  if (scene && hero) {
+    new IntersectionObserver(([en]) => scene.classList.toggle('is-paused', !en.isIntersecting)).observe(hero);
+  }
+
   // Ziele werden beim Scrollen gesetzt; ein kurzer rAF-Lauf gleitet hin und
   // stoppt, sobald alles angekommen ist (kein Springen bei Mausrad-Schritten)
-  const cur = { par: 0, p: 0 };
-  const tgt = { par: 0, p: 0 };
+  const cur = { par: 0, p: 0, mow: 0 };
+  const tgt = { par: 0, p: 0, mow: 0 };
   let looping = false, lastT = 0;
   const measure = () => {
     const vh = window.innerHeight;
     const y = window.scrollY;
     if (!wide.matches) tgt.par = 0;
     else if (y < vh * 1.4) tgt.par = y * -0.12;
+    if (scene) {
+      const hr = hero.getBoundingClientRect();
+      tgt.mow = 0.36 + 0.64 * clamp(-hr.top / Math.max(1, hr.height * 0.7));
+    }
     const sr = steps && steps.getBoundingClientRect();
     if (sr && sr.bottom > -vh && sr.top < vh * 2) {
       if (stacked.matches) {
@@ -185,14 +198,16 @@
   const apply = () => {
     if (heroInner) heroInner.style.transform = cur.par ? `translate3d(0, ${cur.par.toFixed(2)}px, 0)` : '';
     if (steps) steps.style.setProperty('--p', cur.p.toFixed(4));
+    if (scene) scene.style.setProperty('--mow', cur.mow.toFixed(4));
   };
   const loop = (t) => {
     const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016);
     lastT = t;
     cur.par += (tgt.par - cur.par) * follow(dt, 11);
     cur.p += (tgt.p - cur.p) * follow(dt, 7);
-    const done = Math.abs(tgt.par - cur.par) < 0.05 && Math.abs(tgt.p - cur.p) < 0.0005;
-    if (done) { cur.par = tgt.par; cur.p = tgt.p; }
+    cur.mow += (tgt.mow - cur.mow) * follow(dt, 3.2);
+    const done = Math.abs(tgt.par - cur.par) < 0.05 && Math.abs(tgt.p - cur.p) < 0.0005 && Math.abs(tgt.mow - cur.mow) < 0.0005;
+    if (done) { cur.par = tgt.par; cur.p = tgt.p; cur.mow = tgt.mow; }
     apply();
     if (done) looping = false; else requestAnimationFrame(loop);
   };
@@ -202,26 +217,10 @@
   };
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
-  // Startzustand ohne Gleiten (z. B. nach Neuladen mitten auf der Seite)
+  // Startzustand ohne Gleiten (z. B. nach Neuladen mitten auf der Seite);
+  // nur die Mählinie fährt beim Laden sichtbar herein
   const settle = () => { measure(); cur.par = tgt.par; cur.p = tgt.p; apply(); };
-  ready.then(settle);
   settle();
+  ready.then(() => { settle(); onScroll(); });
 
-  /* ── Magnetische Buttons ────────────────────────────────────────────── */
-  // höchstens ein Update pro Bild; die CSS-Transition glättet die Bewegung,
-  // Druck-Feedback läuft getrennt über die Eigenschaft „scale“
-  if (fine.matches) {
-    $$('[data-magnetic]').forEach((el) => {
-      let rect = null, mx = 0, my = 0, queued = false;
-      const apply = () => { queued = false; el.style.transform = rect ? `translate(${mx.toFixed(1)}px, ${my.toFixed(1)}px)` : ''; };
-      el.addEventListener('pointerenter', () => { rect = el.getBoundingClientRect(); });
-      el.addEventListener('pointermove', (e) => {
-        if (!rect) rect = el.getBoundingClientRect();
-        mx = (e.clientX - (rect.left + rect.width / 2)) * 0.22;
-        my = (e.clientY - (rect.top + rect.height / 2)) * 0.32;
-        if (!queued) { queued = true; requestAnimationFrame(apply); }
-      });
-      el.addEventListener('pointerleave', () => { rect = null; if (!queued) { queued = true; requestAnimationFrame(apply); } });
-    });
-  }
 })();

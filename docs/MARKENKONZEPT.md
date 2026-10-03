@@ -102,11 +102,11 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 ## 5. UI-Designsystem
 
 - **Raster:** maximal 1360 px Inhaltsbreite, Seitenrand 16–64 px (fluid)
-- **Buttons:** Pill-Form. Beim Hover wischt eine zweite Farbe von unten herein, der Pfeil gleitet 4 px, und auf dem Desktop folgt der Button leicht dem Zeiger (magnetisch). Primär ist Lehm; sekundär Outline-Pills, auf Dunkel hell.
+- **Buttons:** Pill-Form, ruhig: Der Button bleibt an seinem Platz. Beim Hover blendet die Farbe weich eine Stufe dunkler (Lehm → dunkles Lehm, Outline → gefülltes Waldgrün), dazu ein weicher Schatten in der Button-Farbe; ein Pfeil rückt nur 3 px nach. Beim Klicken gibt der Button minimal nach (98 %). Tastatur-Fokus zeigt denselben Zustand plus Lehm-Kontur. Primär ist Lehm; sekundär Outline-Pills, auf Dunkel hell.
 - **Schnellanfrage:** helle Karte im Hero (22 px Radius). Sechs Bild-Kacheln zum Ankreuzen (mehrere möglich), ein Feld für Ort/PLZ und „Anfrage starten“. Die Auswahl landet im Anfrageformular, der Cursor steht im Namensfeld.
 - **Karten:** Leistungen als helle Karten (20 px Radius) im 3er-Raster: farbige Spot-Illustration oben, Titel mit kleiner Ziffer, ein Satz, runder Pfeil-Button „Jetzt anfragen“. Die ganze Karte ist klickbar und wählt die Leistung im Formular vor. Auf dem Smartphone liegen Bild und Text nebeneinander.
 - **Fakten-Band:** nachtgrüne Fläche mit drei großen Ziffern (6 · 1 · 0 €) und dem Hauptbutton
-- **Bogen:** Personen- und Grabpflege-Bilder im Rundbogen
+- **Bogen:** Personen- und Grabpflege-Bilder im Rundbogen (bis zu echten Fotos: Siebdruck-Platzhalter `portrait-platzhalter.svg` und `grabpflege-hoch.svg`)
 - **Formular:** 54 px Felder mit 14 px Radius, Auswahl-Chips als Pills (das Blatt aus dem Logo als Häkchen), Foto-Upload mit Vorschau
 - **Icons:** Linienstil, 24er-Raster, 1,7 px Strich
 - **Platzhalter:** gestrichelte Etiketten „Foto folgt“ – eindeutig, aber unaufdringlich
@@ -136,7 +136,7 @@ Langfristig trägt **echte Fotografie des Unternehmens** die Seite. Bis dahin ze
 - **Wenige Druckfarben:** Waldgrün, Moos, Blattgrün, dazu Papiertöne; Lehm nur für die Aktion (Schnittlinie, Pfeil, Zielform). Keine Verläufe.
 - **Gestaltete Raster statt Zufall:** Laub als Schuppenmuster, Erde als Punktraster, Kies als Körnung, Rasen als Mähstreifen in Perspektive.
 - **Passerversatz:** große Formen haben eine hellere Kante oben links, wie beim Druck mit zwei Sieben. Das ist die eigene Handschrift.
-- **Papierkörnung:** eine kleine Kachel (`assets/img/grain.png`) liegt per „multiply“ über allen Illustrationen.
+- **Papierkörnung:** eine kleine Kachel (`assets/img/grain.png`) liegt per „multiply“ über allen Illustrationen. Im Hero ist die Körnung dagegen direkt eingemalt (`grain-soft.png`, „soft-light“ im Hintergrund und in den stillen Ebenen der Szene): Eine Mischebene über dem ganzen Hero müsste der Browser in jedem Frame neu verrechnen, sobald darunter etwas wiegt, und das verlangsamte Klicks.
 - **Organische Konturen** werden geglättet (Löwenzahnblätter mit gerundeten Lappen statt Zickzack), Grundlinien bleiben gerade.
 - **Jedes Motiv erzählt den Vorher-nachher-Moment:** Hecke links zottig, rechts geschnitten; Rasen halb gemäht; Löwenzahn samt Wurzel gezogen; Strauch halb in Form; Hochbeet mit Rechen im Laub; Grabstätte ruhig, ohne Lehm und ohne Bewegung.
 - **Leichte Bewegung:** einzelne Triebe, Halme und ein Blatt wiegen sich in den Leistungskarten. Technisch liegt ein stilles Bild unten (`name-base.svg`) und eine dünne, transparente Bewegungsebene darüber (`name-motion.svg`, eigene Compositor-Ebene), damit nicht das ganze Muster in jedem Frame neu gezeichnet wird. Kacheln und Unterseite nutzen die komplette, stille Fassung (`name.svg`). Bei „reduzierter Bewegung“ steht alles still.
@@ -145,28 +145,27 @@ Erzeugt mit `tools/spots.mjs` (feste Zufallswerte, reproduzierbar). Echte Fotos 
 
 **Botanische Linien:** Feine Linienzeichnungen (1,1–1,4 px) in Waldgrün oder Blattgrün: Zweige, Olivenzweig, Gräser, Rosette mit Wurzel, Hecke. Erzeugt mit `tools/botanics.mjs` aus wenigen Grundformen und festen Zufallswerten. Dadurch wirken sie gezeichnet und bleiben trotzdem einheitlich.
 
-**Einsatz:** im Porträt-Bogen, in der Grabpflege und auf der Unterseite. Nie hinter Fließtext, nie dekorativ gestreut.
+**Einsatz:** derzeit nicht auf der Website (dort tragen die Siebdruck-Illustrationen); als Markenmaterial für Drucksachen wie Visitenkarte, Flyer oder Fahrzeug. Nie hinter Fließtext, nie dekorativ gestreut.
 
 ---
 
 ## 8. Bewegung
 
 **Signature: „Scrollen = Mähen.“**
-Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
-- beim Laden wachsen die Halme hoch, und die Wörter „HECKE. RASEN. BEETE.“ steigen aus dem Gras
-- die Halme wiegen sich im Wind und weichen dem Mauszeiger aus
-- beim Scrollen fährt eine unsichtbare Mählinie von links nach rechts: Die Halme werden gekürzt, Mähstreifen entstehen, Schnittgut fliegt, und die Headline steht vollständig frei
-- zwei Ebenen: dichtes Gras hinter der Schrift, einzelne Halme davor (Tiefe)
-- gezeichnet in einem Web Worker (OffscreenCanvas): der Haupt-Thread bleibt für Klicks, Hover und Scrollen frei; ohne Worker-Unterstützung läuft dieselbe Engine im Haupt-Thread
-- sparsam gerendert: hintere Ebene in einfacher Auflösung (wirkt wie Tiefenunschärfe), vordere nur im unteren Bereich und höchstens 1,5-fach; Halme einfarbig, der Verlauf liegt als eine Fläche darüber; Halmzahl gedeckelt (auf dem Smartphone etwa halb so viele)
-- ruhiger Wind: das Feld bewegt sich nur leicht; volle Bildrate, alle Übergänge bildratenunabhängig geglättet; nach 8 Sekunden ohne Interaktion flaut der Wind sanft ab und das Feld ruht, bei Maus, Touch oder Scrollen frischt er wieder auf; außerhalb des Sichtbereichs pausiert es ganz
+Unter Headline und Schnellanfrage liegt eine Szene im Siebdruck-Stil (inline SVG, erzeugt mit `tools/scene.mjs`):
+- die Riesentypo „HECKE. RASEN. BEETE.“ steht hinter einer gerade geschnittenen Hecke (Schuppenmuster, helle Schnittkante), deren Oberkante das untere Fünftel der Buchstaben verdeckt
+- davor ein Rasen in Perspektive: links gemäht (Mähstreifen, unten breiter als oben), rechts hohes Gras mit Halmbüscheln, getrennt durch eine helle Mähkante parallel zu den Streifen
+- beim Laden gleitet die Mählinie von links in die Szene; beim Scrollen fährt sie weiter nach rechts, bis fast der ganze Rasen gemäht ist (CSS-Variable `--mow`, weich nachgeführt)
+- Triebe auf der Hecke und Halmbüschel wiegen sich leicht. Je Reihe und Takt ist es eine Gruppe, die um ihre Fußlinie geschert wird: wenige Compositor-Ebenen, kein Neuzeichnen der Muster; außerhalb des Sichtbereichs pausiert die Bewegung
+- Tiefe durch Luftperspektive: hintere Büschel klein und blasser, vordere groß und dunkel, unregelmäßig verteilt, teils als Paar
+- die Headline „Ihr Garten? Erledigen wir.“ bekommt einen gezeichneten Lehm-Unterstrich mit leichtem Druckversatz, der sich nach dem Wort-Reveal einmal von links zeichnet
 
 **Weitere Effekte:**
 | Effekt | Wo |
 |---|---|
 | Marquee-Band, dessen Tempo und Richtung dem Scrollen folgen | unter dem Hero |
 | Kacheln mit Häkchen, Bild zoomt beim Hover; Absenden springt sanft zum Formular | Schnellanfrage |
-| Karten heben sich, Illustration zoomt, Pfeil-Button dreht und wird Lehm | Leistungen |
+| Kartenschatten blendet ein, Illustration zoomt leicht (3 %), Pfeil-Button wird Lehm – ohne Anheben oder Drehen | Leistungen |
 | rollende Ziffern wie ein Zählwerk (6 · 1 · 0 €) | Fakten-Band |
 | Wort-für-Wort-Reveal aus einer Maske | alle Display-Titel |
 | Bild-Reveal von unten | Über uns |
@@ -177,7 +176,7 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 | Druck-Feedback beim Klicken/Tippen (Buttons, Karten, Kacheln, Chips, FAQ, Kontaktleiste); Hover-Effekte nur mit Maus, Tastatur bekommt denselben Zustand per Fokus | überall |
 | Menü-Overlay: Vorhang in zwei Ebenen (Blattgrün, dann Nachtgrün), nummerierte Links gleiten nacheinander hoch, Trennlinien zeichnen sich, Gras-Silhouette am unteren Rand; aktueller Abschnitt in Blattgrün; ab Tablet Kontaktspalte daneben | Mobil/Tablet/Laptop |
 
-**Grenzen:** Die Grabpflege bekommt nur ein ruhiges Einblenden. Alle Effekte nutzen transform/opacity und einen gemeinsamen Takt. Das Einblenden läuft als CSS-Animation, damit Hover-Übergänge der Karten danach sofort und unverzögert reagieren. Bei **prefers-reduced-motion** gibt es keine dieser Bewegungen: Der Rasen steht als ruhiges Standbild (halb gemäht), alle Inhalte sind sofort sichtbar.
+**Grenzen:** Die Grabpflege bekommt nur ein ruhiges Einblenden. Alle Effekte nutzen transform/opacity und einen gemeinsamen Takt. Das Einblenden läuft als CSS-Animation, damit Hover-Übergänge der Karten danach sofort und unverzögert reagieren. Bei **prefers-reduced-motion** gibt es keine dieser Bewegungen: Die Szene steht als ruhiges Standbild (gut zur Hälfte gemäht), alle Inhalte sind sofort sichtbar.
 
 ---
 
@@ -224,7 +223,7 @@ Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus
 - **Desktop (ab 1240 px):** volle Navigation, Headline und Schnellanfrage nebeneinander, Leistungen 3 × 2, Ablauf in einer Reihe
 - **Laptop (1100–1239 px):** Navigation im Vollbild-Menü, sonst wie Desktop
 - **Tablet (768–1099 px):** Schnellanfrage unter der Headline, Leistungen 2 × 3, Ablauf untereinander (ab 1024 px wieder in einer Reihe)
-- **Smartphone (unter 768 px):** Riesentypo dreizeilig gestapelt, weniger Halme, Leistungskarten mit Bild links, Fakten als Zeilen, randloses Vorher/Nachher, Kontaktleiste unten
+- **Smartphone (unter 768 px):** Riesentypo dreizeilig gestapelt, niedrigere Hecke und Rasenfläche, Leistungskarten mit Bild links, Fakten als Zeilen, randloses Vorher/Nachher, Kontaktleiste unten
 
 ---
 
@@ -232,7 +231,7 @@ Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus
 
 - **Barrierefreiheit:** Kontraste ≥ 4,5 : 1 für Text, sichtbarer Fokus (Lehm-Kontur), Skip-Link, vollständige Tastaturbedienung (Drawer mit Fokusfalle und Esc, Vorher/Nachher als echter Regler, FAQ mit nativem `details`), beschriftete Formularfelder mit verknüpften Fehlermeldungen, Bedienelemente ≥ 44 px, Information nie nur über Farbe. Automatisierter Test mit axe-core (WCAG 2.1 AA + Best Practices): **0 Verstöße** auf Desktop und Mobil.
 - **DSGVO:** keine externen Anfragen beim Laden, keine Cookies, keine Tracker, Schriften lokal, abstrakte Einsatzkarte statt Google Maps. WhatsApp öffnet sich erst nach einem Klick. Ein Cookie-Banner ist deshalb nicht nötig. Impressum und Datenschutz liegen als Vorlage bei.
-- **Performance:** kein Framework, ca. 35 KB JavaScript unkomprimiert (ca. 12 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Illustrationen als schlanke SVG (gleichfarbige Formen in einem Pfad), Bilder lazy und asynchron dekodiert, keine Videos. Gemessen (Chromium, lokal): Layout-Verschiebung (CLS) 0; Haupt-Thread bei laufendem Rasen ca. 3 ms pro Sekunde; Scrollen konstant 60 fps, auch bei 4-fach gedrosselter CPU; Reaktionszeit auf Klicks (INP) unter 100 ms. Kartenschatten werden nur über die Deckkraft einer eigenen Ebene eingeblendet, das Menü bleibt im Layout und öffnet per Klassenwechsel. Die große Hero-Schrift startet per CSS bereits in ihrer eingepassten Größe.
+- **Performance:** kein Framework, ca. 35 KB JavaScript unkomprimiert (ca. 12 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Illustrationen als schlanke SVG (gleichfarbige Formen in einem Pfad), Bilder lazy und asynchron dekodiert, keine Videos. Gemessen (Chromium, lokal): Layout-Verschiebung (CLS) 0; Haupt-Thread bei laufender Hero-Szene ca. 0–2 ms pro Sekunde; Scrollen konstant 60 fps, auch bei 4-fach gedrosselter CPU; Reaktionszeit auf Klicks in der Schnellanfrage (INP) im Median ca. 32 ms am Desktop und ca. 64 ms bei 4-fach gedrosselter CPU auf dem Smartphone. Kartenschatten werden nur über die Deckkraft einer eigenen Ebene eingeblendet, das Menü bleibt im Layout und öffnet per Klassenwechsel. Die große Hero-Schrift startet per CSS bereits in ihrer eingepassten Größe.
 - **Ausrichtung:** Riesentypo im Hero und Wortmarke im Footer liegen auch auf sehr breiten Bildschirmen exakt im Inhaltsraster. Die Leistungskarten nutzen CSS-Subgrid, damit Titel, Text und Button in jeder Reihe auf einer Linie stehen.
 
 ---
