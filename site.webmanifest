@@ -1,0 +1,12 @@
+{
+  "name": "[FIRMENNAME] Gartenservice",
+  "short_name": "[FIRMENNAME]",
+  "icons": [
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "assets/brand/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ],
+  "theme_color": "#1E3A2B",
+  "background_color": "#F6F2EA",
+  "display": "browser",
+  "lang": "de"
+}
