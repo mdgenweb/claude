@@ -12,7 +12,7 @@
   <meta property="og:type" content="website">
   <meta property="og:locale" content="de_DE">
   <meta property="og:title" content="[FIRMENNAME] – Gartenservice in [ORT]">
-  <meta property="og:description" content="Hecke, Rasen, Beete: Wir kümmern uns darum. Zuverlässige Gartenpflege und respektvolle Grabpflege in [REGION].">
+  <meta property="og:description" content="Ihr Garten? Erledigen wir. Heckenschnitt, Rasenpflege, Unkraut und Sträucher – einmalig oder regelmäßig. Dazu respektvolle Grabpflege in [REGION].">
   <meta property="og:url" content="https://[DOMAIN]/">
   <meta property="og:image" content="https://[DOMAIN]/assets/img/og-image.jpg">
 
@@ -113,16 +113,16 @@
     <nav class="nav" aria-label="Hauptnavigation">
       <ul class="nav__list">
         <li><a href="#leistungen">Leistungen</a></li>
+        <li><a href="#ablauf">Ablauf</a></li>
+        <li><a href="#arbeitsbeispiele">Vorher/Nachher</a></li>
         <li><a href="#ueber-uns">Über uns</a></li>
-        <li><a href="#arbeitsbeispiele">Arbeitsbeispiele</a></li>
         <li><a href="#grabpflege">Grabpflege</a></li>
         <li><a href="#einsatzgebiet">Einsatzgebiet</a></li>
         <li><a href="#faq">FAQ</a></li>
-        <li><a href="#kontakt">Kontakt</a></li>
       </ul>
     </nav>
     <div class="site-header__actions">
-      <a class="pill pill--clay pill--sm site-header__cta" href="#kontakt" data-magnetic>Angebot anfragen</a>
+      <a class="pill pill--clay pill--sm site-header__cta" href="#kontakt" data-magnetic>Kostenlos anfragen</a>
       <a class="icon-btn site-header__call" href="tel:[TELEFON_LINK]" aria-label="Anrufen: [TELEFON]"><svg class="icon"><use href="#i-phone"/></svg></a>
       <button class="menu-btn" type="button" aria-expanded="false" aria-controls="drawer" aria-label="Menü öffnen" data-menu-open>
         <span class="menu-btn__lines" aria-hidden="true"></span><span class="menu-btn__label">Menü</span>
@@ -140,8 +140,9 @@
     <nav aria-label="Mobile Navigation">
       <ul class="drawer__list">
         <li><a href="#leistungen">Leistungen</a></li>
+        <li><a href="#ablauf">Ablauf</a></li>
+        <li><a href="#arbeitsbeispiele">Vorher/Nachher</a></li>
         <li><a href="#ueber-uns">Über uns</a></li>
-        <li><a href="#arbeitsbeispiele">Arbeitsbeispiele</a></li>
         <li><a href="#grabpflege">Grabpflege</a></li>
         <li><a href="#einsatzgebiet">Einsatzgebiet</a></li>
         <li><a href="#faq">FAQ</a></li>
@@ -165,35 +166,48 @@
   <div class="wrap hero__inner">
     <div class="hero__copy">
       <p class="eyebrow eyebrow--leaf" data-intro="1"><svg class="icon icon--sm"><use href="#i-pin"/></svg>Gartenservice in [ORT] und Umgebung</p>
-      <p class="hero__claim" data-intro="2"><span>Wir kümmern</span> <span>uns darum.</span></p>
-      <p class="hero__lead" data-intro="3">Heckenschnitt, Rasenpflege, Unkraut und Sträucher – einmalig oder regelmäßig. Zuverlässig, sauber und mit festem Ansprechpartner.</p>
-      <div class="hero__actions" data-intro="4">
-        <a class="pill pill--clay pill--lg" href="#kontakt" data-magnetic>Kostenlos anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-        <a class="pill pill--ghost-light pill--lg" href="#leistungen">Leistungen ansehen <svg class="icon"><use href="#i-arrow-down"/></svg></a>
+      <h1 class="display hero__title" id="hero-title" data-split>Ihr Garten? <span class="hero__accent">Erledigen wir.</span></h1>
+      <p class="hero__lead" data-intro="3">Hecke schneiden, Rasen mähen, Unkraut raus – einmalig oder regelmäßig. Sie sagen uns, was ansteht. Wir kümmern uns darum.</p>
+      <ul class="hero__checks" role="list" data-intro="4">
+        <li><svg class="icon"><use href="#i-check"/></svg>Anfrage kostenlos</li>
+        <li><svg class="icon"><use href="#i-check"/></svg>Fester Ansprechpartner</li>
+        <li><svg class="icon"><use href="#i-check"/></svg>Einmalig oder regelmäßig</li>
+      </ul>
+    </div>
+
+    <!-- Schnellanfrage: übernimmt Auswahl und Ort ins Anfrageformular (ohne JS: Sprung zu #kontakt) -->
+    <form class="quick" action="#kontakt" method="get" aria-labelledby="quick-title" data-quick data-intro="3">
+      <p class="quick__kicker"><svg class="icon icon--sm"><use href="#i-leaf-check"/></svg>Kostenlos &amp; unverbindlich</p>
+      <h2 class="quick__title" id="quick-title">Was dürfen wir für Sie erledigen?</h2>
+      <fieldset class="quick__chips">
+        <legend class="visually-hidden">Arbeiten auswählen (mehrere möglich)</legend>
+        <label class="qchip"><input type="checkbox" name="arbeit" value="Heckenschnitt"><span><img src="assets/img/spots/heckenschnitt.svg" alt="" width="480" height="360"><b>Hecke</b></span></label>
+        <label class="qchip"><input type="checkbox" name="arbeit" value="Rasenpflege"><span><img src="assets/img/spots/rasenpflege.svg" alt="" width="480" height="360"><b>Rasen</b></span></label>
+        <label class="qchip"><input type="checkbox" name="arbeit" value="Unkraut entfernen"><span><img src="assets/img/spots/unkraut.svg" alt="" width="480" height="360"><b>Unkraut</b></span></label>
+        <label class="qchip"><input type="checkbox" name="arbeit" value="Sträucher &amp; Gebüsche"><span><img src="assets/img/spots/straeucher.svg" alt="" width="480" height="360"><b>Sträucher</b></span></label>
+        <label class="qchip"><input type="checkbox" name="arbeit" value="Allgemeine Gartenpflege"><span><img src="assets/img/spots/gartenpflege.svg" alt="" width="480" height="360"><b>Garten&shy;pflege</b></span></label>
+        <label class="qchip"><input type="checkbox" name="arbeit" value="Grabpflege"><span><img src="assets/img/spots/grabpflege.svg" alt="" width="480" height="360"><b>Grab&shy;pflege</b></span></label>
+      </fieldset>
+      <div class="quick__row">
+        <div class="quick__field">
+          <label for="q-place">Wo? <span>Ort oder PLZ</span></label>
+          <input id="q-place" name="ort" type="text" autocomplete="postal-code" placeholder="z. B. [PLZ]">
+        </div>
+        <button class="pill pill--clay quick__submit" type="submit" data-magnetic>Anfrage starten <svg class="icon"><use href="#i-arrow"/></svg></button>
       </div>
-      <p class="hero__direct" data-intro="5">
+      <p class="quick__alt">
         <span>Lieber direkt?</span>
         <a href="tel:[TELEFON_LINK]"><svg class="icon"><use href="#i-phone"/></svg>[TELEFON]</a>
         <a href="https://wa.me/[WHATSAPP_NUMMER]?text=Hallo%2C%20ich%20interessiere%20mich%20f%C3%BCr%20Ihre%20Gartenpflege." target="_blank" rel="noopener"><svg class="icon"><use href="#i-chat"/></svg>WhatsApp</a>
       </p>
-    </div>
-
-    <a class="badge" href="#kontakt" aria-label="Kostenlos und unverbindlich anfragen" data-intro="5">
-      <svg class="badge__ring" viewBox="0 0 200 200" aria-hidden="true">
-        <defs><path id="badge-circle" d="M100 100m-78 0a78 78 0 1 1 156 0a78 78 0 1 1-156 0"/></defs>
-        <text><textPath href="#badge-circle">Kostenlos · unverbindlich · gerne mit Foto · </textPath></text>
-      </svg>
-      <svg class="badge__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
-    </a>
+    </form>
   </div>
 
-  <h1 class="hero__giant" id="hero-title" data-fit>
+  <p class="hero__giant" aria-hidden="true" data-fit>
     <span class="hero__word">Hecke.</span> <span class="hero__word">Rasen.</span> <span class="hero__word">Beete.</span>
-    <span class="visually-hidden"> Wir kümmern uns darum – Gartenservice in [ORT]</span>
-  </h1>
+  </p>
   <canvas class="grass grass--back" data-grass-layer="back" aria-hidden="true"></canvas>
   <canvas class="grass grass--front" data-grass-layer="front" aria-hidden="true"></canvas>
-  <p class="hero__scroll" aria-hidden="true"><span></span>Scrollen &amp; mähen</p>
 </section>
 
 <!-- ============================================================ MARQUEE -->
@@ -208,100 +222,120 @@
   </div>
 </div>
 
-<!-- ============================================================ STATEMENT + FAKTEN -->
-<section class="statement" aria-labelledby="statement-title">
+<!-- ============================================================ LEISTUNGEN -->
+<section class="section services" id="leistungen" aria-labelledby="services-title">
   <div class="wrap">
-    <h2 class="visually-hidden" id="statement-title">So arbeiten wir</h2>
-    <p class="statement__text" data-scrub>Sie sagen uns, was erledigt werden soll. Wir schauen uns die Arbeit an, besprechen den Umfang – und kümmern uns darum, dass alles wieder ordentlich aussieht.</p>
+    <div class="section-head">
+      <h2 class="display" id="services-title" data-split>Was dürfen wir für Sie tun?</h2>
+      <p class="section-head__lead" data-reveal>Sechs Leistungen, ein Ansprechpartner. Einmalig oder in festen Abständen – Sie entscheiden.</p>
+    </div>
+    <ul class="services__grid" role="list">
+        <li class="card" id="heckenschnitt" data-reveal>
+          <figure class="card__media"><img src="assets/img/spots/heckenschnitt.svg" alt="" width="480" height="360"></figure>
+          <div class="card__body">
+            <div class="card__head"><h3 class="card__title">Heckenschnitt &amp; Formschnitt</h3><span class="card__num" aria-hidden="true">01</span></div>
+            <p>Saubere Kanten, gepflegte Form und ein ordentliches Gesamtbild.</p>
+            <div class="card__foot">
+              <a class="card__link" href="#kontakt" data-service="Heckenschnitt">Jetzt anfragen<span class="visually-hidden">: Heckenschnitt</span><svg class="icon"><use href="#i-arrow"/></svg></a>
+              <a class="card__more" href="heckenschnitt/">Mehr erfahren</a>
+            </div>
+          </div>
+        </li>
+        <li class="card" id="rasenpflege" data-reveal>
+          <figure class="card__media"><img src="assets/img/spots/rasenpflege.svg" alt="" width="480" height="360"></figure>
+          <div class="card__body">
+            <div class="card__head"><h3 class="card__title">Rasen mähen &amp; Rasenpflege</h3><span class="card__num" aria-hidden="true">02</span></div>
+            <p>Regelmäßiges Mähen für einen gepflegten Garten – ohne zusätzlichen Aufwand für Sie.</p>
+            <div class="card__foot">
+              <a class="card__link" href="#kontakt" data-service="Rasenpflege">Jetzt anfragen<span class="visually-hidden">: Rasenpflege</span><svg class="icon"><use href="#i-arrow"/></svg></a>
+            </div>
+          </div>
+        </li>
+        <li class="card" id="unkraut" data-reveal>
+          <figure class="card__media"><img src="assets/img/spots/unkraut.svg" alt="" width="480" height="360"></figure>
+          <div class="card__body">
+            <div class="card__head"><h3 class="card__title">Unkraut entfernen</h3><span class="card__num" aria-hidden="true">03</span></div>
+            <p>Beete, Wege und Gartenflächen wieder ordentlich und gepflegt.</p>
+            <div class="card__foot">
+              <a class="card__link" href="#kontakt" data-service="Unkraut entfernen">Jetzt anfragen<span class="visually-hidden">: Unkraut entfernen</span><svg class="icon"><use href="#i-arrow"/></svg></a>
+            </div>
+          </div>
+        </li>
+        <li class="card" id="straeucher" data-reveal>
+          <figure class="card__media"><img src="assets/img/spots/straeucher.svg" alt="" width="480" height="360" loading="lazy"></figure>
+          <div class="card__body">
+            <div class="card__head"><h3 class="card__title">Sträucher &amp; Gebüsche</h3><span class="card__num" aria-hidden="true">04</span></div>
+            <p>Rückschnitt und Pflege für ein kontrolliertes, gesundes Erscheinungsbild.</p>
+            <div class="card__foot">
+              <a class="card__link" href="#kontakt" data-service="Sträucher &amp; Gebüsche">Jetzt anfragen<span class="visually-hidden">: Sträucher &amp; Gebüsche</span><svg class="icon"><use href="#i-arrow"/></svg></a>
+            </div>
+          </div>
+        </li>
+        <li class="card" id="gartenpflege" data-reveal>
+          <figure class="card__media"><img src="assets/img/spots/gartenpflege.svg" alt="" width="480" height="360" loading="lazy"></figure>
+          <div class="card__body">
+            <div class="card__head"><h3 class="card__title">Allgemeine Gartenpflege</h3><span class="card__num" aria-hidden="true">05</span></div>
+            <p>Die Arbeiten, die regelmäßig anfallen – zuverlässig erledigt. Auch Aufräumarbeiten.</p>
+            <div class="card__foot">
+              <a class="card__link" href="#kontakt" data-service="Allgemeine Gartenpflege">Jetzt anfragen<span class="visually-hidden">: Gartenpflege</span><svg class="icon"><use href="#i-arrow"/></svg></a>
+            </div>
+          </div>
+        </li>
+        <li class="card card--calm" data-reveal>
+          <figure class="card__media"><img src="assets/img/spots/grabpflege.svg" alt="" width="480" height="360" loading="lazy"></figure>
+          <div class="card__body">
+            <div class="card__head"><h3 class="card__title">Grabpflege</h3><span class="card__num" aria-hidden="true">06</span></div>
+            <p>Respektvolle Pflege der Grabstätte – auch wenn Sie nicht selbst vor Ort sein können.</p>
+            <div class="card__foot">
+              <a class="card__link" href="#grabpflege">Mehr erfahren<span class="visually-hidden">: Grabpflege</span><svg class="icon"><use href="#i-arrow"/></svg></a>
+            </div>
+          </div>
+        </li>
+    </ul>
 
     <!-- Nur überprüfbare Fakten, keine erfundenen Kennzahlen -->
-    <ul class="facts" role="list">
-      <li class="fact" data-reveal><span class="fact__num" data-roll="6">6</span><span class="fact__label">Leistungen rund um Garten und Grab</span></li>
-      <li class="fact" data-reveal><span class="fact__num" data-roll="1">1</span><span class="fact__label">fester Ansprechpartner – von der Anfrage bis zur fertigen Arbeit</span></li>
-      <li class="fact" data-reveal><span class="fact__num"><span data-roll="0">0</span>&nbsp;€</span><span class="fact__label">kostet Ihre Anfrage – unverbindlich, gerne mit Foto</span></li>
-    </ul>
-
-    <ul class="trust" role="list" aria-label="Worauf Sie sich verlassen können">
-      <li><svg class="icon"><use href="#i-person"/></svg>Persönlicher Ansprechpartner</li>
-      <li><svg class="icon"><use href="#i-leaf-check"/></svg>Saubere Arbeitsweise</li>
-      <li><svg class="icon"><use href="#i-calendar"/></svg>Flexible Terminabsprache</li>
-      <li><svg class="icon"><use href="#i-repeat"/></svg>Einmalig oder regelmäßig</li>
-      <li><svg class="icon"><use href="#i-eye"/></svg>Transparente Kommunikation</li>
-    </ul>
+    <div class="facts-band" data-reveal>
+      <ul class="facts" role="list">
+        <li class="fact"><span class="fact__num" data-roll="6">6</span><span class="fact__label">Leistungen rund um Garten und Grab</span></li>
+        <li class="fact"><span class="fact__num" data-roll="1">1</span><span class="fact__label">fester Ansprechpartner – von der Anfrage bis zur fertigen Arbeit</span></li>
+        <li class="fact"><span class="fact__num"><span data-roll="0">0</span>&nbsp;€</span><span class="fact__label">kostet Ihre Anfrage – unverbindlich, gerne mit Foto</span></li>
+      </ul>
+      <a class="pill pill--clay pill--lg facts-band__cta" href="#kontakt" data-magnetic>Kostenlos anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
+    </div>
   </div>
 </section>
 
-<!-- ============================================================ LEISTUNGEN (horizontal) -->
-<section class="services" id="leistungen" aria-labelledby="services-title" data-hscroll data-theme-dark>
-  <div class="services__sticky" data-hscroll-sticky>
-    <div class="wrap services__head">
-      <h2 class="display" id="services-title" data-split>Was wir <br>machen.</h2>
-      <div class="services__intro">
-        <p>Sie sagen, was ansteht. Wir erledigen es – einmalig oder in festen Abständen.</p>
-        <div class="services__nav">
-          <span class="services__count" aria-hidden="true"><b data-hscroll-count>01</b> / 06</span>
-          <span class="services__bar" aria-hidden="true"><span data-hscroll-bar></span></span>
-        </div>
-      </div>
+<!-- ============================================================ ABLAUF -->
+<section class="section process" id="ablauf" aria-labelledby="process-title" data-theme-dark>
+  <div class="wrap">
+    <div class="section-head section-head--row">
+      <h2 class="display" id="process-title" data-split>So einfach <br>geht&rsquo;s.</h2>
+      <a class="pill pill--clay pill--lg" href="#kontakt" data-magnetic data-reveal>Kostenlos anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
     </div>
-
-    <div class="services__viewport" data-hscroll-viewport>
-      <ul class="services__track" role="list" data-hscroll-track>
-        <li class="card" id="heckenschnitt">
-          <figure class="card__media"><img src="assets/img/illustrations/motiv-hecke-hell.svg" alt="" width="800" height="1000"><span class="ph-tag">Foto folgt</span></figure>
-          <div class="card__body">
-            <span class="card__num">01</span>
-            <h3 class="card__title">Heckenschnitt &amp; Formschnitt</h3>
-            <p>Saubere Kanten, gepflegte Form und ein ordentliches Gesamtbild.</p>
-            <a class="card__link" href="#kontakt" data-service="Heckenschnitt">Anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-          </div>
+    <div class="steps" data-steps>
+      <span class="steps__line" aria-hidden="true"><span></span></span>
+      <ol class="steps__list" role="list">
+        <li class="step" data-step>
+          <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
+          <span class="step__num" aria-hidden="true">01</span>
+          <div><h3 class="step__title">Anfrage senden</h3><p>Per Formular, WhatsApp oder Telefon. Gerne mit ein paar Fotos.</p></div>
         </li>
-        <li class="card" id="rasenpflege">
-          <figure class="card__media"><img src="assets/img/illustrations/motiv-rasen-hell.svg" alt="" width="800" height="1000"><span class="ph-tag">Foto folgt</span></figure>
-          <div class="card__body">
-            <span class="card__num">02</span>
-            <h3 class="card__title">Rasen mähen &amp; Rasenpflege</h3>
-            <p>Regelmäßiges Mähen für einen gepflegten Garten ohne zusätzlichen Aufwand.</p>
-            <a class="card__link" href="#kontakt" data-service="Rasenpflege">Anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-          </div>
+        <li class="step" data-step>
+          <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
+          <span class="step__num" aria-hidden="true">02</span>
+          <div><h3 class="step__title">Kurz besprechen</h3><p>Wir klären, was gemacht werden soll – bei Bedarf direkt vor Ort.</p></div>
         </li>
-        <li class="card" id="unkraut">
-          <figure class="card__media"><img src="assets/img/illustrations/motiv-unkraut-hell.svg" alt="" width="800" height="1000" loading="lazy"><span class="ph-tag">Foto folgt</span></figure>
-          <div class="card__body">
-            <span class="card__num">03</span>
-            <h3 class="card__title">Unkraut entfernen</h3>
-            <p>Beete, Wege und Gartenflächen wieder ordentlich und gepflegt.</p>
-            <a class="card__link" href="#kontakt" data-service="Unkraut entfernen">Anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-          </div>
+        <li class="step" data-step>
+          <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
+          <span class="step__num" aria-hidden="true">03</span>
+          <div><h3 class="step__title">Termin vereinbaren</h3><p>Sie erhalten ein klares Angebot und einen Termin, der Ihnen passt.</p></div>
         </li>
-        <li class="card" id="straeucher">
-          <figure class="card__media"><img src="assets/img/illustrations/motiv-straeucher-hell.svg" alt="" width="800" height="1000" loading="lazy"><span class="ph-tag">Foto folgt</span></figure>
-          <div class="card__body">
-            <span class="card__num">04</span>
-            <h3 class="card__title">Sträucher &amp; Gebüsche</h3>
-            <p>Rückschnitt und Pflege für ein kontrolliertes, gesundes Erscheinungsbild.</p>
-            <a class="card__link" href="#kontakt" data-service="Sträucher &amp; Gebüsche">Anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-          </div>
+        <li class="step" data-step>
+          <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
+          <span class="step__num" aria-hidden="true">04</span>
+          <div><h3 class="step__title">Erledigt.</h3><p>Wir kümmern uns um den Garten. Danach sieht alles wieder ordentlich aus.</p></div>
         </li>
-        <li class="card" id="gartenpflege">
-          <figure class="card__media"><img src="assets/img/illustrations/motiv-garten-hell.svg" alt="" width="800" height="1000" loading="lazy"><span class="ph-tag">Foto folgt</span></figure>
-          <div class="card__body">
-            <span class="card__num">05</span>
-            <h3 class="card__title">Allgemeine Gartenpflege</h3>
-            <p>Die Arbeiten, die regelmäßig anfallen – zuverlässig erledigt. Auch Aufräumarbeiten.</p>
-            <a class="card__link" href="#kontakt" data-service="Allgemeine Gartenpflege">Anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-          </div>
-        </li>
-        <li class="card card--calm">
-          <figure class="card__media"><img src="assets/img/illustrations/motiv-grab-hell.svg" alt="" width="800" height="1000" loading="lazy"><span class="ph-tag">Foto folgt</span></figure>
-          <div class="card__body">
-            <span class="card__num">06</span>
-            <h3 class="card__title">Grabpflege</h3>
-            <p>Respektvolle Pflege, auch wenn Sie nicht selbst vor Ort sein können.</p>
-            <a class="card__link" href="#grabpflege">Mehr erfahren <svg class="icon"><use href="#i-arrow"/></svg></a>
-          </div>
-        </li>
-      </ul>
+      </ol>
     </div>
   </div>
 </section>
@@ -316,10 +350,10 @@
 
     <div class="compare" data-compare data-reveal>
       <div class="compare__pane compare__pane--before">
-        <img src="assets/img/illustrations/hecke-vorher.svg" alt="Vorher: zugewachsene, ungeschnittene Hecke (Illustration)" width="1200" height="800" loading="lazy">
+        <img src="assets/img/spots/vorher.svg" alt="Vorher: zugewachsene Hecke und hoher Rasen (Illustration)" width="1200" height="800" loading="lazy">
       </div>
       <div class="compare__pane compare__pane--after">
-        <img src="assets/img/illustrations/hecke-nachher.svg" alt="Nachher: gerade geschnittene, gepflegte Hecke (Illustration)" width="1200" height="800" loading="lazy">
+        <img src="assets/img/spots/nachher.svg" alt="Nachher: gerade geschnittene Hecke und gemähter Rasen (Illustration)" width="1200" height="800" loading="lazy">
       </div>
       <span class="compare__tag compare__tag--before">Vorher</span>
       <span class="compare__tag compare__tag--after">Nachher</span>
@@ -369,40 +403,6 @@
   </div>
 </section>
 
-<!-- ============================================================ ABLAUF -->
-<section class="section process" aria-labelledby="process-title" data-theme-dark>
-  <div class="wrap process__grid">
-    <div class="process__head">
-      <h2 class="display" id="process-title" data-split>So läuft <br>es ab.</h2>
-      <p data-reveal>Vier Schritte. Die Anfrage ist kostenlos und unverbindlich.</p>
-      <a class="pill pill--clay" href="#kontakt" data-magnetic data-reveal>Kostenlos anfragen <svg class="icon"><use href="#i-arrow"/></svg></a>
-    </div>
-    <ol class="steps" role="list" data-steps>
-      <li class="steps__line" aria-hidden="true"><span data-steps-fill></span></li>
-      <li class="step" data-step>
-        <span class="step__num">01</span>
-        <div><h3 class="step__title">Anfrage senden</h3><p>Per Formular, WhatsApp oder Telefon. Gerne mit ein paar Fotos.</p></div>
-        <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
-      </li>
-      <li class="step" data-step>
-        <span class="step__num">02</span>
-        <div><h3 class="step__title">Arbeit kurz besprechen</h3><p>Wir klären, was gemacht werden soll – bei Bedarf direkt vor Ort.</p></div>
-        <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
-      </li>
-      <li class="step" data-step>
-        <span class="step__num">03</span>
-        <div><h3 class="step__title">Termin vereinbaren</h3><p>Sie erhalten ein klares Angebot und einen Termin, der Ihnen passt.</p></div>
-        <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
-      </li>
-      <li class="step" data-step>
-        <span class="step__num">04</span>
-        <div><h3 class="step__title">Wir kümmern uns um den Garten</h3><p>Sauber erledigt. Danach sieht alles wieder ordentlich aus.</p></div>
-        <svg class="step__leaf" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-leaf"/></svg>
-      </li>
-    </ol>
-  </div>
-</section>
-
 <!-- ============================================================ GRABPFLEGE (bewusst ruhig) -->
 <section class="section grave" id="grabpflege" aria-labelledby="grave-title">
   <div class="wrap grave__grid">
@@ -431,7 +431,7 @@
 
 <!-- ============================================================ KUNDENSTIMMEN (vorbereitet) -->
 <!-- Nur echte, freigegebene Bewertungen. Solange keine vorliegen: Abschnitt mit hidden ausblenden. -->
-<section class="section reviews" aria-labelledby="reviews-title" data-placeholder>
+<section class="section reviews" aria-labelledby="reviews-title" data-placeholder hidden>
   <div class="wrap">
     <div class="section-head section-head--row">
       <h2 class="display display--md" id="reviews-title" data-split>Kunden&shy;stimmen.</h2>
@@ -502,7 +502,7 @@
 <!-- ============================================================ ANFRAGE / ABSCHLUSS -->
 <section class="contact" id="kontakt" aria-labelledby="contact-title" data-theme-dark>
   <div class="wrap">
-    <h2 class="display display--xl contact__title" id="contact-title" data-split>Ihr Garten könnte wieder etwas Pflege gebrauchen?</h2>
+    <h2 class="display contact__title" id="contact-title" data-split>Ihr Garten könnte wieder etwas Pflege gebrauchen?</h2>
     <div class="contact__grid">
       <div class="contact__intro">
         <p class="contact__lead" data-reveal>Schicken Sie uns kurz, was erledigt werden soll. Gerne auch direkt mit Foto.</p>

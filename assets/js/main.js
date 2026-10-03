@@ -117,12 +117,30 @@
   });
 
   /* ── Leistung im Formular vorauswählen ──────────────────────────────── */
-  $$('[data-service]').forEach((a) => {
-    a.addEventListener('click', () => {
-      const box = $$('.chip input').find((i) => i.value === a.dataset.service);
-      if (box) { box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); }
+  const prefill = (works, place) => {
+    works.forEach((v) => {
+      const box = $$('.chips input').find((i) => i.value === v);
+      if (box && !box.checked) { box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); }
     });
-  });
+    const field = $('#f-place');
+    if (place && field && !field.value) field.value = place;
+  };
+  $$('[data-service]').forEach((a) => a.addEventListener('click', () => prefill([a.dataset.service])));
+
+  /* Schnellanfrage im Hero: Auswahl übernehmen, zum Formular springen */
+  const quick = $('[data-quick]');
+  const formEl = $('#anfrage');
+  if (quick && formEl) {
+    quick.addEventListener('submit', (e) => {
+      e.preventDefault();
+      prefill($$('input[name="arbeit"]:checked', quick).map((i) => i.value), $('#q-place', quick).value.trim());
+      formEl.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+      setTimeout(() => $('#f-name').focus({ preventScroll: true }), reduceMotion.matches ? 0 : 750);
+    });
+  }
+  /* Vorauswahl per Link, z. B. von Unterseiten: ?arbeit=Heckenschnitt#kontakt */
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('arbeit') || params.has('ort')) prefill(params.getAll('arbeit'), params.get('ort') || '');
 
   /* ── Formular ───────────────────────────────────────────────────────── */
   const form = $('[data-form]');
@@ -238,14 +256,14 @@
 
   /* ── Mobile Kontaktleiste ───────────────────────────────────────────── */
   const bar = $('[data-contact-bar]');
-  const heroActions = $('.hero__actions');
+  const heroCta = $('[data-quick]');
   const contact = $('#kontakt');
   const footer = $('.site-footer');
-  if (bar && heroActions && contact && footer && 'IntersectionObserver' in window) {
+  if (bar && heroCta && contact && footer && 'IntersectionObserver' in window) {
     const state = { hero: true, contact: false, footer: false };
     const update = () => bar.classList.toggle('is-visible', !state.hero && !state.contact && !state.footer);
     const watch = (el, key) => new IntersectionObserver(([en]) => { state[key] = en.isIntersecting; update(); }).observe(el);
-    watch(heroActions, 'hero');
+    watch(heroCta, 'hero');
     watch(contact, 'contact');
     watch(footer, 'footer');
   }

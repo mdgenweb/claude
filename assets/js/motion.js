@@ -1,7 +1,7 @@
 /* [FIRMENNAME] Gartenservice – Bewegung
-   Ladesequenz, Wort-Reveals, Marquee mit Scroll-Tempo, Text-Scrub, rollende
-   Zahlen, horizontale Leistungs-Galerie, wachsende Ablauf-Linie, magnetische
-   Buttons. Alles mit transform/opacity, ein gemeinsamer rAF-Takt fürs Scrollen.
+   Ladesequenz, Wort-Reveals, Marquee mit Scroll-Tempo, rollende Zahlen,
+   wachsende Ablauf-Linie, magnetische Buttons. Alles mit transform/opacity,
+   ein gemeinsamer rAF-Takt fürs Scrollen.
    prefers-reduced-motion: keine dieser Effekte, alles sofort sichtbar. */
 (() => {
   'use strict';
@@ -139,36 +139,13 @@
     }).observe(mq);
   }
 
-  /* ── Text-Scrub: Wörter werden beim Lesen kräftig ───────────────────── */
-  const scrubs = $$('[data-scrub]');
-  scrubs.forEach((el) => splitWords(el, 'sw', false));
-  const scrubWords = scrubs.flatMap((el) => $$('.sw', el));
-
-  /* ── Horizontale Leistungs-Galerie ──────────────────────────────────── */
-  const hs = $('[data-hscroll]');
-  const hsTrack = hs && $('[data-hscroll-track]', hs);
-  const hsView = hs && $('[data-hscroll-viewport]', hs);
-  const hsBar = hs && $('[data-hscroll-bar]', hs);
-  const hsCount = hs && $('[data-hscroll-count]', hs);
-  let hsDist = 0, hsOn = false;
-  const setupH = () => {
-    if (!hs) return;
-    hsOn = window.innerWidth >= 1024 && window.innerHeight >= 620;
-    hs.classList.toggle('is-pinned', hsOn);
-    hsTrack.style.transform = '';
-    hs.style.height = '';
-    if (!hsOn) return;
-    const pad = parseFloat(getComputedStyle(hsView).paddingLeft) || 0;
-    hsDist = Math.max(0, hsTrack.scrollWidth - (hsView.clientWidth - pad * 2));
-    hs.style.height = (window.innerHeight + hsDist) + 'px';
-  };
-
   /* ── Ablauf-Linie ───────────────────────────────────────────────────── */
   const steps = $('[data-steps]');
-  const stepFill = steps && $('[data-steps-fill]', steps);
   const stepItems = steps ? $$('[data-step]', steps) : [];
+  const stacked = window.matchMedia('(max-width: 1023px)'); // Ablauf untereinander
+  const wide = window.matchMedia('(min-width: 1100px)');
 
-  /* ── Hero-Parallaxe ─────────────────────────────────────────────────── */
+  /* ── Hero-Parallaxe (nur breit, ohne Ausblenden – die Schnellanfrage bleibt bedienbar) ── */
   const heroInner = $('.hero__inner');
 
   let ticking = false;
@@ -178,40 +155,27 @@
 
     if (heroInner) {
       const y = window.scrollY;
-      if (y < vh * 1.2) {
-        heroInner.style.transform = `translate3d(0, ${y * -0.18}px, 0)`;
-        heroInner.style.opacity = String(clamp(1 - y / (vh * 0.9)));
-      }
-    }
-
-    if (scrubWords.length) {
-      const tops = scrubWords.map((w) => w.getBoundingClientRect().top);
-      tops.forEach((top, i) => {
-        const o = clamp((vh * 0.8 - top) / (vh * 0.32), 0.16, 1);
-        scrubWords[i].style.opacity = o.toFixed(3);
-      });
-    }
-
-    if (hsOn) {
-      const r = hs.getBoundingClientRect();
-      const p = clamp(-r.top / Math.max(1, hsDist));
-      hsTrack.style.transform = `translate3d(${(-p * hsDist).toFixed(1)}px,0,0)`;
-      hsBar.style.transform = `scaleX(${(0.16 + p * 0.84).toFixed(3)})`;
-      hsCount.textContent = String(1 + Math.round(p * 5)).padStart(2, '0');
+      if (wide.matches && y < vh * 1.2) heroInner.style.transform = `translate3d(0, ${(y * -0.12).toFixed(1)}px, 0)`;
+      else if (!wide.matches) heroInner.style.transform = '';
     }
 
     if (steps) {
       const r = steps.getBoundingClientRect();
-      const p = clamp((vh * 0.62 - r.top) / Math.max(1, r.height));
-      stepFill.style.transform = `scaleY(${p.toFixed(3)})`;
-      stepItems.forEach((s) => s.classList.toggle('is-on', s.getBoundingClientRect().top < vh * 0.62));
+      if (stacked.matches) {
+        const p = clamp((vh * 0.62 - r.top) / Math.max(1, r.height));
+        steps.style.setProperty('--p', p.toFixed(3));
+        stepItems.forEach((s) => s.classList.toggle('is-on', s.getBoundingClientRect().top < vh * 0.62));
+      } else {
+        const p = clamp((vh * 0.88 - r.top) / (vh * 0.5));
+        steps.style.setProperty('--p', p.toFixed(3));
+        stepItems.forEach((s, i) => s.classList.toggle('is-on', p > i / 4 + 0.02));
+      }
     }
   };
   const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } };
   window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', () => { setupH(); onScroll(); });
-  ready.then(() => { setupH(); frame(); });
-  setupH();
+  window.addEventListener('resize', onScroll);
+  ready.then(frame);
   frame();
 
   /* ── Magnetische Buttons ────────────────────────────────────────────── */

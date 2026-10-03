@@ -2,8 +2,8 @@
 
 Gartenservice · Gartenpflege · Grabpflege · [ORT + EINSATZGEBIET]
 
-> **Version 2 – „Kraft & Ordnung“** (aktuell): Nike-inspiriert, kräftige Versalien, Nachtgrün, generativer Rasen-Hero, viel Bewegung.
-> Version 1 – „ruhig & editorial“ mit der Scroll-Ranke liegt im Git-Verlauf (Commit `cbaf5ca`).
+> **Version 3 – „Direkt & übersichtlich“** (aktuell): direkte Ansprache („Ihr Garten? Erledigen wir.“), Schnellanfrage im Hero, Leistungen als klares Raster mit farbigen Illustrationen, kompakter Ablauf. Die Bildwelt von V2 bleibt: kräftige Versalien, Nachtgrün, generativer Rasen-Hero.
+> Version 2 (fixierte Leistungs-Galerie, Text-Scrub) und Version 1 („ruhig & editorial“ mit Scroll-Ranke, Commit `cbaf5ca`) liegen im Git-Verlauf.
 
 ---
 
@@ -103,7 +103,9 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 
 - **Raster:** maximal 1360 px Inhaltsbreite, Seitenrand 16–64 px (fluid)
 - **Buttons:** Pill-Form. Beim Hover wischt eine zweite Farbe von unten herein, der Pfeil gleitet 4 px, und auf dem Desktop folgt der Button leicht dem Zeiger (magnetisch). Primär ist Lehm; sekundär Outline-Pills, auf Dunkel hell.
-- **Karten:** Leistungen als dunkle Karten (10 px Radius) mit heller Linienzeichnung, großer Ziffer und „Anfragen →“
+- **Schnellanfrage:** helle Karte im Hero (22 px Radius). Sechs Bild-Kacheln zum Ankreuzen (mehrere möglich), ein Feld für Ort/PLZ und „Anfrage starten“. Die Auswahl landet im Anfrageformular, der Cursor steht im Namensfeld.
+- **Karten:** Leistungen als helle Karten (20 px Radius) im 3er-Raster: farbige Spot-Illustration oben, Titel mit kleiner Ziffer, ein Satz, runder Pfeil-Button „Jetzt anfragen“. Die ganze Karte ist klickbar und wählt die Leistung im Formular vor. Auf dem Smartphone liegen Bild und Text nebeneinander.
+- **Fakten-Band:** nachtgrüne Fläche mit drei großen Ziffern (6 · 1 · 0 €) und dem Hauptbutton
 - **Bogen:** Personen- und Grabpflege-Bilder im Rundbogen
 - **Formular:** 54 px Felder mit 14 px Radius, Auswahl-Chips als Pills (das Blatt aus dem Logo als Häkchen), Foto-Upload mit Vorschau
 - **Icons:** Linienstil, 24er-Raster, 1,7 px Strich
@@ -128,11 +130,13 @@ Langfristig trägt **echte Fotografie des Unternehmens** die Seite. Bis dahin ze
 
 ---
 
-## 7. Botanische Illustrationen
+## 7. Illustrationen
 
-Feine Linienzeichnungen (1,1–1,4 px) in Waldgrün oder Blattgrün: Zweige, Olivenzweig, Gräser, Rosette mit Wurzel, Hecke. Erzeugt mit `tools/botanics.mjs` aus wenigen Grundformen und festen Zufallswerten. Dadurch wirken sie gezeichnet und bleiben trotzdem einheitlich.
+**Spot-Illustrationen (Leistungen, Vorher/Nachher):** flächig, wenige Markenfarben, klare Formen, je Leistung eine kleine Geschichte: Hecke mit abgehobenem Schnitt, Rasen halb gemäht, Unkraut samt Wurzel gezogen, Strauch halb in Form geschnitten, aufgeräumtes Beet mit Rechen, ruhige Grabstätte mit Olivenzweig. Lehm-Rot setzt nur kleine Akzente (Schnittlinie, Pfeil). Die Grabpflege bleibt gedämpft und ohne Lehm. Vorher und Nachher zeigen dieselbe Szene, damit der Vergleichsregler funktioniert. Erzeugt mit `tools/spots.mjs` (feste Zufallswerte, reproduzierbar). Echte Fotos können jede Illustration 1 : 1 ersetzen.
 
-**Einsatz:** in hellen Linien auf den dunklen Leistungskarten, im Porträt-Bogen, in der Grabpflege und als Vorher/Nachher-Illustration. Nie hinter Fließtext, nie dekorativ gestreut.
+**Botanische Linien:** Feine Linienzeichnungen (1,1–1,4 px) in Waldgrün oder Blattgrün: Zweige, Olivenzweig, Gräser, Rosette mit Wurzel, Hecke. Erzeugt mit `tools/botanics.mjs` aus wenigen Grundformen und festen Zufallswerten. Dadurch wirken sie gezeichnet und bleiben trotzdem einheitlich.
+
+**Einsatz:** im Porträt-Bogen, in der Grabpflege und auf der Unterseite. Nie hinter Fließtext, nie dekorativ gestreut.
 
 ---
 
@@ -150,14 +154,13 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 | Effekt | Wo |
 |---|---|
 | Marquee-Band, dessen Tempo und Richtung dem Scrollen folgen | unter dem Hero |
-| Text-Scrub: Wörter werden beim Lesen kräftig | Statement |
-| rollende Ziffern wie ein Zählwerk (6 · 1 · 0 €) | Fakten |
-| fixierte Galerie: vertikales Scrollen bewegt die Leistungskarten seitwärts (Desktop), Wischen mit Einrasten (Mobil) | Leistungen |
+| Kacheln mit Häkchen, Bild zoomt beim Hover; Absenden springt sanft zum Formular | Schnellanfrage |
+| Karten heben sich, Illustration zoomt, Pfeil-Button dreht und wird Lehm | Leistungen |
+| rollende Ziffern wie ein Zählwerk (6 · 1 · 0 €) | Fakten-Band |
 | Wort-für-Wort-Reveal aus einer Maske | alle Display-Titel |
 | Bild-Reveal von unten | Über uns |
-| wachsende Linie, Ziffern füllen sich, Blätter springen an | Ablauf |
+| Linie wächst seitwärts (mobil nach unten), Ziffern füllen sich, Blätter springen an | Ablauf |
 | Karte zeichnet sich, Puls um den Ort | Einsatzgebiet |
-| rotierendes Badge „Kostenlos · unverbindlich“ | Hero |
 | Header blendet beim Runterscrollen aus und passt sich hell/dunkel an | überall |
 | Vollbild-Menü mit gestaffelten Versalien | Mobil/Tablet |
 
@@ -169,24 +172,25 @@ Der Hero zeigt ein generatives Rasenfeld (Canvas 2D):
 
 | # | Sektion | Beantwortete Kundenfrage |
 |---|---|---|
-| 1 | Hero: „HECKE. RASEN. BEETE.“ + „Wir kümmern uns darum.“ | Was macht das Unternehmen? Wo? Was muss ich tun? |
+| 1 | Hero: „IHR GARTEN? ERLEDIGEN WIR.“ + drei Zusagen + Schnellanfrage, darunter „HECKE. RASEN. BEETE.“ im Gras | Was macht das Unternehmen? Wo? Was muss ich tun? |
 | 2 | Marquee mit allen Leistungen | Was gibt es alles? |
-| 3 | Statement, Fakten (6 Leistungen · 1 Ansprechpartner · 0 € Anfrage), Zusagen | Kann ich vertrauen? Was kostet eine Anfrage? |
-| 4 | Leistungen als Galerie (01–06) | Was genau übernehmen sie? |
+| 3 | „WAS DÜRFEN WIR FÜR SIE TUN?“ – Leistungen als Raster (01–06), Fakten-Band (6 Leistungen · 1 Ansprechpartner · 0 € Anfrage) | Was genau übernehmen sie? Was kostet eine Anfrage? |
+| 4 | „SO EINFACH GEHT'S.“ – Ablauf in 4 Schritten | Wie läuft die Anfrage ab? |
 | 5 | Vorher/Nachher | Wie sehen deren Arbeiten aus? |
 | 6 | Über uns | Wer kommt zu mir? |
-| 7 | Ablauf (4 Schritte) | Wie läuft die Anfrage ab? |
-| 8 | Grabpflege (ruhig) | Pflegen sie auch Gräber, und wie? |
-| 9 | Kundenstimmen (vorbereitet, nur echte) | Was sagen andere? |
-| 10 | Einsatzgebiet | Arbeiten die in meiner Gegend? |
-| 11 | FAQ | Restliche Einwände |
-| 12 | „IHR GARTEN KÖNNTE WIEDER ETWAS PFLEGE GEBRAUCHEN?“ + Formular | Kann ich unkompliziert Kontakt aufnehmen? |
+| 7 | Grabpflege (ruhig) | Pflegen sie auch Gräber, und wie? |
+| 8 | Kundenstimmen (vorbereitet, ausgeblendet bis echte Bewertungen vorliegen) | Was sagen andere? |
+| 9 | Einsatzgebiet | Arbeiten die in meiner Gegend? |
+| 10 | FAQ | Restliche Einwände |
+| 11 | „IHR GARTEN KÖNNTE WIEDER ETWAS PFLEGE GEBRAUCHEN?“ + Formular | Kann ich unkompliziert Kontakt aufnehmen? |
 
 Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus dem Briefing.
 
-**CTA-Strategie:** eine Hauptaktion, „Kostenlos anfragen“, als Lehm-Pill im Header, im Hero, im Ablauf, im Formular und in der mobilen Leiste. Dazu das rotierende Badge im Hero. Telefon und WhatsApp sind immer gleichwertig erreichbar. Jede Leistungskarte führt zur Anfrage und wählt die Leistung im Formular vor.
+**Direkte Ansprache:** Überschriften sprechen den Besucher an und stellen seine Frage („Ihr Garten?“, „Was dürfen wir für Sie tun?“). Pro Sektion eine Aussage, kurze Sätze, keine Füllabschnitte.
 
-**Mobil:** Claim, Text, Hauptbutton und Telefon/WhatsApp auf dem ersten Bildschirm, darunter die gestapelte Riesentypo im Gras. Die dunkle Kontaktleiste (Anrufen · WhatsApp · Anfrage) erscheint erst nach dem Hero.
+**CTA-Strategie:** eine Hauptaktion, „Kostenlos anfragen“, als Lehm-Pill im Header, im Fakten-Band, im Ablauf, im Formular und in der mobilen Leiste. Im Hero ersetzt die Schnellanfrage den Button: Wer dort Arbeiten ankreuzt, findet sie im Formular wieder. Telefon und WhatsApp sind immer gleichwertig erreichbar. Jede Leistungskarte führt zur Anfrage und wählt die Leistung vor. Unterseiten verlinken mit Vorauswahl (`/?arbeit=Heckenschnitt#kontakt`).
+
+**Mobil:** Headline, Text und die drei Zusagen auf dem ersten Bildschirm, die Schnellanfrage beginnt direkt darunter. Danach die gestapelte Riesentypo im Gras. Die dunkle Kontaktleiste (Anrufen · WhatsApp · Anfrage) erscheint erst, wenn die Schnellanfrage aus dem Bild ist.
 
 ---
 
@@ -204,10 +208,10 @@ Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus
 
 ## 11. Responsive
 
-- **Desktop (ab 1240 px):** volle Navigation, Riesentypo einzeilig, fixierte Leistungs-Galerie
-- **Laptop (1024–1239 px):** Navigation im Vollbild-Menü, Galerie weiterhin fixiert (ab 620 px Fensterhöhe)
-- **Tablet (768–1023 px):** einspaltige Sektionen, Galerie zum Wischen mit Einrasten
-- **Smartphone (unter 768 px):** Riesentypo dreizeilig gestapelt, weniger Halme, Fakten als Zeilen, randloses Vorher/Nachher, Kontaktleiste unten
+- **Desktop (ab 1240 px):** volle Navigation, Headline und Schnellanfrage nebeneinander, Leistungen 3 × 2, Ablauf in einer Reihe
+- **Laptop (1100–1239 px):** Navigation im Vollbild-Menü, sonst wie Desktop
+- **Tablet (768–1099 px):** Schnellanfrage unter der Headline, Leistungen 2 × 3, Ablauf untereinander (ab 1024 px wieder in einer Reihe)
+- **Smartphone (unter 768 px):** Riesentypo dreizeilig gestapelt, weniger Halme, Leistungskarten mit Bild links, Fakten als Zeilen, randloses Vorher/Nachher, Kontaktleiste unten
 
 ---
 
@@ -215,7 +219,7 @@ Die Fakten sind keine erfundenen Kennzahlen, sondern überprüfbare Aussagen aus
 
 - **Barrierefreiheit:** Kontraste ≥ 4,5 : 1 für Text, sichtbarer Fokus (Lehm-Kontur), Skip-Link, vollständige Tastaturbedienung (Drawer mit Fokusfalle und Esc, Vorher/Nachher als echter Regler, FAQ mit nativem `details`), beschriftete Formularfelder mit verknüpften Fehlermeldungen, Bedienelemente ≥ 44 px, Information nie nur über Farbe. Automatisierter Test mit axe-core (WCAG 2.1 AA + Best Practices): **0 Verstöße** auf Desktop und Mobil.
 - **DSGVO:** keine externen Anfragen beim Laden, keine Cookies, keine Tracker, Schriften lokal, abstrakte Einsatzkarte statt Google Maps. WhatsApp öffnet sich erst nach einem Klick. Ein Cookie-Banner ist deshalb nicht nötig. Impressum und Datenschutz liegen als Vorlage bei.
-- **Performance:** kein Framework, ca. 32 KB JavaScript unkomprimiert (ca. 11 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Bilder lazy, keine Videos. Der Rasen läuft auf Canvas 2D mit gebündelten Zeichenaufrufen und pausiert außerhalb des Sichtbereichs.
+- **Performance:** kein Framework, ca. 31 KB JavaScript unkomprimiert (ca. 11 KB gzip), ein Stylesheet, zwei Schriftdateien (zusammen ca. 108 KB), Bilder lazy, keine Videos. Der Rasen läuft auf Canvas 2D mit gebündelten Zeichenaufrufen und pausiert außerhalb des Sichtbereichs.
 
 ---
 
@@ -244,13 +248,13 @@ Diese Formulierungen sind aus dem Briefing abgeleitet. Sie dürfen nur online ge
 
 | Frage | Antwort |
 |---|---|
-| Individuelles Markenprojekt oder Template? | Eigene Logoform (Badge, Chips, Erfolgsmeldung, Favicon), ein generativer Rasen-Hero, der nur zu diesem Thema passt, eigene Illustrationssprache, eine reservierte Akzentfarbe. |
-| In fünf Sekunden klar, was angeboten wird? | Die H1 nennt drei konkrete Arbeiten, die Unterzeile Ort und Art der Pflege. |
-| Nächster Schritt sofort klar? | Ein einziger Lehm-Button mit „Kostenlos anfragen“, daneben Telefon und WhatsApp |
+| Individuelles Markenprojekt oder Template? | Eigene Logoform (Chips, Erfolgsmeldung, Favicon), ein generativer Rasen-Hero, der nur zu diesem Thema passt, eigene Illustrationen für jede Leistung, eine reservierte Akzentfarbe. |
+| In fünf Sekunden klar, was angeboten wird? | Die H1 spricht den Besucher direkt an, der Text darunter nennt die Arbeiten, die Schnellanfrage zeigt alle sechs Leistungen als Bild. |
+| Nächster Schritt sofort klar? | Im Hero ankreuzen und „Anfrage starten“, sonst überall derselbe Lehm-Button „Kostenlos anfragen“, daneben Telefon und WhatsApp |
 | Seriös genug für Zugang zum Grundstück? | Person sichtbar, Name, ruhige Gestaltung, keine Werbesprache, klare Abläufe, Impressum |
 | Grabpflege respektvoll? | Eigener heller, kühler Farbraum, leise Satz-Typografie statt Versalien, kein Lehm, nur ruhiges Einblenden, sachliche Liste, ehrliche Abgrenzung im FAQ |
 | Animationen sinnvoll? | Jede Bewegung erzählt etwas über Gartenarbeit (wachsen, mähen, zählen, verbinden). Die Grabpflege bleibt ruhig. Bei reduzierter Bewegung vollständig statisch. |
-| Überladen? | Pro Sektion eine Idee, viel Leinen-Fläche, Illustrationen nur dort, wo Bilder hingehören |
+| Überladen? | Pro Sektion eine Idee, keine leeren Platzhalter-Sektionen, Leistungen auf einen Blick im Raster statt in einer Galerie |
 | Konkrete Texte? | Verben und Gegenstände statt Adjektive. Keine Floskel aus der Verbotsliste. |
 | Mobil gleichwertig? | Eigene Reihenfolge und Komposition, Kontaktleiste, Linie im Ablauf, große Touch-Ziele |
 | Erfundene Behauptungen? | Keine. Zu bestätigende Aussagen stehen in Abschnitt 13, alle Fakten sind Platzhalter. |
