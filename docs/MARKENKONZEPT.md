@@ -76,7 +76,7 @@ Jedes Gestaltungselement verbindet etwas Gewachsenes mit einer klaren, präzisen
 | Leinen dunkel | `#EEE7DA` | Wechselflächen |
 | Kalkstein | `#E9E6DF` | ausschließlich Grabpflege – kühler, ruhiger |
 | **Anthrazit** | `#1B201D` | Text |
-| Anthrazit 2 / 3 | `#3A433D` / `#56605A` | Fließtext (9,4 : 1) / Meta (5,9 : 1) |
+| Anthrazit 2 / 3 | `#3A433D` / `#56605A` | Fließtext (9,2 : 1) / Meta (5,8 : 1) |
 | **Lehm** | `#A5502D` | ausschließlich primäre Anfrage-Aktionen (5,5 : 1 mit Weiß) |
 
 **Regel:** Lehm ist die einzige warme Farbe und erscheint nur auf Schaltflächen, die zur Anfrage führen. Dadurch erkennt das Auge die Handlungsaufforderung sofort, ohne dass die Seite laut wird. Die Grabpflege bekommt bewusst keinen Lehm-Akzent.

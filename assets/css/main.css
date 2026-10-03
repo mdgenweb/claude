@@ -45,8 +45,8 @@
   --c-sand: #E5DAC6;          /* Sand – warme Flächen */
   --c-stone: #E9E6DF;         /* Kalkstein – Grabpflege */
   --c-ink: #1B201D;           /* Anthrazit – Text */
-  --c-ink-2: #3A433D;         /* Fließtext sekundär (9,4:1 auf Leinen) */
-  --c-ink-3: #56605A;         /* Meta (5,9:1 auf Leinen) */
+  --c-ink-2: #3A433D;         /* Fließtext sekundär (9,2:1 auf Leinen) */
+  --c-ink-3: #56605A;         /* Meta (5,8:1 auf Leinen) */
   --c-clay: #A5502D;          /* Lehm – ausschließlich primäre Anfrage-Aktionen */
   --c-clay-2: #8A4123;
   --c-line: rgba(30, 58, 43, .14);
