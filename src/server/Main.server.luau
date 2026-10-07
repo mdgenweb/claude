@@ -1,0 +1,61 @@
+--!strict
+-- Server bootstrap: creates remotes, then initialises and starts every service in order.
+-- Services expose optional Init(registry) (wire-up, no yielding) and Start() (runtime).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared.Net.Remotes)
+
+Remotes.Init()
+
+local Services = script.Parent.Services
+
+local ORDER = {
+	"DataService",
+	"EconomyService",
+	"LevelService",
+	"QuestService",
+	"RewardService",
+	"GachaService",
+	"CodeService",
+	"MonetizationService",
+	"LeaderboardService",
+	"BallService",
+	"AbilityService",
+	"LobbyService",
+	"ArenaService",
+	"BattleReplicator",
+	"MatchService",
+	"QueueService",
+	"TradingService",
+	"StoreService",
+}
+
+local registry: { [string]: any } = {}
+for _, name in ORDER do
+	registry[name] = (require :: any)(Services:WaitForChild(name))
+end
+
+for _, name in ORDER do
+	local service = registry[name]
+	if type(service.Init) == "function" then
+		local ok, err = pcall(service.Init, registry)
+		if not ok then
+			warn(string.format("[Main] %s.Init failed: %s", name, tostring(err)))
+		end
+	end
+end
+
+for _, name in ORDER do
+	local service = registry[name]
+	if type(service.Start) == "function" then
+		task.spawn(function()
+			local ok, err = pcall(service.Start)
+			if not ok then
+				warn(string.format("[Main] %s.Start failed: %s", name, tostring(err)))
+			end
+		end)
+	end
+end
+
+print("[Orb Clash] server ready")
