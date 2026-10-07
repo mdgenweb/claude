@@ -85,6 +85,8 @@ local function buildStation(config: Lobby.StationConfig, index: number, parent: 
 	} do
 		P(model, { Name = "Lip", Size = spec[1], CFrame = cf * CFrame.new(spec[2]), Color = lipColor, CanCollide = false })
 	end
+	-- invisible barrier over the open front so nobody can walk into a fight
+	P(model, { Name = "FrontBarrier", Size = Vector3.new(2 * h, 2 * h, 0.2), CFrame = cf * CFrame.new(0, 0, k.FrontZ + 0.1), Color = "#000000", Transparency = 1, CastShadow = false })
 	-- back wall (black interior) with the idle "VS" screen
 	local back = P(model, { Name = "BackWall", Size = Vector3.new(2 * h, 2 * h, 0.5), CFrame = cf * CFrame.new(0, 0, k.BackZ - 0.25), Color = Lobby.Colors.ArenaInterior })
 	local vs = Instance.new("SurfaceGui")

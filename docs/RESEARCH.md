@@ -251,19 +251,21 @@ See `docs/ARCHITECTURE.md` for the full tree. In summary:
 10. **Practice bot** (our addition, clearly labelled). Lets solo testers play in Studio and fills empty servers. Rewards are reduced.
 11. **Roster**. Per the brief ("make them slightly different"), the 26 collectible **Orbs** are original designs. They cover the same archetypes as the original (wall hazards, projectiles, lasers, drain, traps, splitting, zones, rails), but every name, look and rule is different.
 
-## G. Implementation plan (milestones executed in this repo)
+## G. Implementation plan and status
+
+"Implemented" means the code exists, type-checks against the Roblox API, and (where marked) passes the headless specs. Visual tuning inside a running Roblox client is still required (see TESTING.md).
 
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Research and reconstruction spec (this file, ARCHITECTURE.md) | done |
-| 2 | Lobby and arena builders with the measured proportions | done |
-| 3 | 1v1 vertical slice: pads, Play, selection, aim, launch, sim, damage, hearts, rounds, victory | done |
-| 4 | Ability framework and prototype balls (contact, projectile/laser, arena hazard) | done |
-| 5 | Battle UI, camera, VFX and audio | done |
-| 6 | 2v2 on the same framework | done |
-| 7 | Inventory and session-locked persistence | done |
-| 8 | Coins, rewards, gacha, levels, quests, codes, group reward | done |
-| 9 | Secure trading | done |
-| 10 | Full roster (26 orbs, 9 explosions, 10 flyers) | done |
-| 11 | Lobby polish: leaderboards, event display, chevrons, props | done |
-| 12 | Mobile and console input, safe areas, exploit hardening, headless sim tests | done (Studio playtest still required, see TESTING.md) |
+| 2 | Lobby and arena builders with the measured proportions | implemented |
+| 3 | 1v1 vertical slice: pads, Play, selection, aim, launch, simulation, damage, hearts, rounds, victory | implemented and spec-tested (match.spec) |
+| 4 | Ability framework and prototype orbs (contact, projectile/laser, arena hazard) | implemented and spec-tested (battle.spec) |
+| 5 | Battle UI, camera, VFX and audio | implemented |
+| 6 | 2v2 on the same framework | implemented and spec-tested |
+| 7 | Inventory and session-locked persistence | implemented |
+| 8 | Coins, rewards, gacha, levels, quests, codes, group reward | implemented |
+| 9 | Secure trading | implemented |
+| 10 | Full roster (26 orbs, 10 explosions, 11 flyers) | implemented, balance-tested (25–66% win rates) |
+| 11 | Lobby polish: leaderboards, event display, chevrons, props | implemented |
+| 12 | Mobile and console input, safe areas, exploit hardening | implemented; device testing pending |

@@ -106,6 +106,12 @@ local function spawnBot(station: Station, pad: Pad, n: number)
 	pad.Bot = bot
 end
 
+local function updatePrompts(station: Station)
+	for _, pad in station.Pads do
+		pad.Prompt.Enabled = station.State ~= "InMatch" and station.State ~= "MatchFound" and pad.Occupant == nil and pad.Bot == nil
+	end
+end
+
 local function startMatch(station: Station)
 	local specs: { any } = {}
 	local practice = false
@@ -119,11 +125,13 @@ local function startMatch(station: Station)
 		end
 	end
 	MatchService.Create(station, specs, practice)
+	updatePrompts(station)
 	QueueService.BroadcastStation(station)
 end
 
 local function refreshStation(station: Station)
 	if station.State == "InMatch" then
+		updatePrompts(station)
 		return
 	end
 	local count = ArenaService.Occupants(station)
@@ -162,6 +170,7 @@ local function refreshStation(station: Station)
 		station.State = if count == 0 then "Idle" else "Waiting"
 		ArenaService.SetLabel(station, string.format("%d/%d PLAYERS", count, capacity))
 	end
+	updatePrompts(station)
 	QueueService.BroadcastStation(station)
 end
 

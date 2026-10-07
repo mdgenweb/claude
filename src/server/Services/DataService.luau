@@ -28,6 +28,7 @@ local store: ProfileStore.ProfileStore
 local sessions: { [Player]: ProfileStore.Session } = {}
 local dirtySync: { [Player]: boolean } = {}
 local loadWaiters: { [Player]: { thread } } = {}
+local loading: { [Player]: boolean } = {}
 
 local playerDataRemote: RemoteEvent
 
@@ -110,9 +111,14 @@ function DataService.IsMock(): boolean
 end
 
 local function onPlayerAdded(player: Player)
+	if loading[player] or sessions[player] then
+		return
+	end
+	loading[player] = true
 	local session = store:Load(keyFor(player), function()
 		return player.Parent == Players
 	end)
+	loading[player] = nil
 	if player.Parent ~= Players then
 		if session then
 			store:Save(session, true)
@@ -156,9 +162,12 @@ end
 
 function DataService.Start()
 	Players.PlayerAdded:Connect(onPlayerAdded)
-	for _, player in Players:GetPlayers() do
-		task.spawn(onPlayerAdded, player)
-	end
+	-- deferred so every other service's Start() has connected to Loaded first
+	task.defer(function()
+		for _, player in Players:GetPlayers() do
+			task.spawn(onPlayerAdded, player)
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player)
 		-- let other services finish their PlayerRemoving work (forfeits, trades) first
 		task.defer(release, player)

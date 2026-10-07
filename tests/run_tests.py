@@ -122,6 +122,7 @@ local function fakeRequire(node)
 end
 
 function MODULE(path) return fakeRequire(ensure(path)) end
+FAKE_GAME = fakeGame
 '''
 
 
