@@ -9,6 +9,7 @@ local Stats = game:GetService("Stats")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Admin = require(Shared.Config.Admin)
 local Economy = require(Shared.Config.Economy)
+local Progression = require(Shared.Sim.Progression)
 local Worlds = require(Shared.Definitions.Worlds)
 local Remotes = require(Shared.Net.Remotes)
 local Validate = require(Shared.Util.Validate)
@@ -48,9 +49,10 @@ local function handle(player: Player, action: any, arg: any): { [string]: any }
 	elseif action == "GrantWins" and Validate.Number(arg, 0, 1e30) then
 		registry.StatService.AddWins(player, arg, "Admin")
 	elseif action == "MaxLevel" then
+		-- Level is derived from Skill, so jump Skill to the start of the cap level
 		DataService.Update(player, function(p)
-			p.Level = Economy.LevelCap(p.Rebirths)
-			p.XP = 0
+			p.Skill = math.max(p.Skill, Economy.SkillForLevel(Economy.LevelCap(p.Rebirths)))
+			Progression.SyncLevel(p)
 			return true
 		end)
 	elseif action == "UnlockWorlds" then
@@ -60,6 +62,16 @@ local function handle(player: Player, action: any, arg: any): { [string]: any }
 			end
 			return true
 		end)
+	elseif action == "StartEvent" then
+		local events = registry.EventService
+		if events then
+			events.Begin(if Validate.Number(arg, 1, 1440) then arg else 30)
+		end
+	elseif action == "StopEvent" then
+		local events = registry.EventService
+		if events then
+			events.Stop()
+		end
 	elseif action == "ResetTutorial" then
 		DataService.Update(player, function(p)
 			p.Tutorial = { Step = 1, Progress = 0, Done = false }

@@ -26,6 +26,7 @@ local SCREENS = {
 	"WorldScreen",
 	"SettingsScreen",
 	"AdminScreen",
+	"EventBanner",
 }
 
 for _, name in SCREENS do

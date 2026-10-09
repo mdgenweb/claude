@@ -1,3 +1,7 @@
+> **This repository contains two Roblox games:**
+> * **Orb Clash** (repository root): a Ball VS Ball–style auto-battler. It is described below.
+> * **+1 Sky Glide** ([`skyglide/`](skyglide/README.md)): a +1 Stone Skipping–style simulator with an original glider core.
+
 # Orb Clash
 
 A Roblox auto-battler that recreates the structure, pacing and presentation of *Ball VS Ball* (by ATYS 3) with an **original roster of 26 "Orbs"** and original art, audio and names.

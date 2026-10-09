@@ -62,6 +62,7 @@ registry.DataService = Data
 registry.MapService = MapStub
 registry.NotifyService = NotifyStub
 local Monetization = load("MonetizationService")
+local Events = load("EventService")
 local Stat = load("StatService")
 local Tutorial = load("TutorialService")
 local FlightService = load("FlightService")
@@ -72,7 +73,7 @@ local Rebirth = load("RebirthService")
 local WorldService = load("WorldService")
 local Reward = load("RewardService")
 local Settings = load("SettingsService")
-for _, name in { "MonetizationService", "StatService", "TutorialService", "FlightService", "TrainingService", "ShopService", "PetService", "RebirthService", "WorldService", "RewardService", "SettingsService" } do
+for _, name in { "MonetizationService", "EventService", "StatService", "TutorialService", "FlightService", "TrainingService", "ShopService", "PetService", "RebirthService", "WorldService", "RewardService", "SettingsService" } do
 	local s = registry[name]
 	if s.Init then
 		s.Init(registry)
@@ -341,5 +342,16 @@ Tutorial.Event(fresh, "Throw")
 check(fp.Tutorial.Step == 2, "out-of-order events ignored")
 Tutorial.Event(fresh, "EnterThrowZone")
 check(fp.Tutorial.Step == 3, "zone step")
+
+-- 14. live events ------------------------------------------------------------------------------------
+local before = Stat.SkillMultiplier(player)
+local winsBefore2 = Stat.WinsMultiplier(player)
+check(Events.SpecialLuck() == 1 and not Events.IsActive(), "no event by default")
+Events.Begin(10)
+check(Events.IsActive() and Events.SpecialLuck() == 3, "event active")
+check(math.abs(Stat.SkillMultiplier(player) - before * 2) < 1e-6 and math.abs(Stat.WinsMultiplier(player) - winsBefore2 * 2) < 1e-6, "event doubles skill and wins")
+check(Remotes.Last("ServerInfo").Kind == "Event" and Remotes.Last("ServerInfo").Active == true, "event broadcast")
+Events.Stop()
+check(not Events.IsActive() and Stat.SkillMultiplier(player) == before, "event stopped")
 
 print(string.format("services.spec: %d checks, %d failures", checks, failures))

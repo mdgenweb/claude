@@ -33,11 +33,14 @@ local function passes(player: Player): { [string]: boolean }
 end
 
 function StatService.Context(player: Player): Progression.Context
+	local events = registry.EventService
 	return {
 		Passes = passes(player),
 		Friends = friendCounts[player] or 0,
 		Premium = player.MembershipType == Enum.MembershipType.Premium,
 		Now = os.time(),
+		EventSkill = if events then events.SkillMultiplier() else 1,
+		EventWins = if events then events.WinsMultiplier() else 1,
 	}
 end
 

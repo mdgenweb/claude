@@ -14,6 +14,7 @@ local StateController = {}
 StateController.Data = nil :: { [string]: any }?
 StateController.Relics = {} :: { [string]: { Sold: number, Stock: number } }
 StateController.Leaderboards = {} :: { [string]: { { Name: string, Value: number } } }
+StateController.Event = { Active = false, Name = "", EndsAt = 0 } :: { Active: boolean, Name: string, EndsAt: number }
 StateController.ReceivedAt = 0 -- os.clock() when Data arrived (for local timers)
 
 StateController.DataChanged = Signal.new() -- (data, previous)
@@ -54,6 +55,12 @@ function StateController.Start()
 			StateController.Relics = payload.Relics
 		elseif payload.Kind == "Leaderboards" and type(payload.Boards) == "table" then
 			StateController.Leaderboards = payload.Boards
+		elseif payload.Kind == "Event" then
+			StateController.Event = {
+				Active = payload.Active == true,
+				Name = if type(payload.Name) == "string" then payload.Name else "",
+				EndsAt = if type(payload.EndsAt) == "number" then payload.EndsAt else 0,
+			}
 		end
 		StateController.ServerInfoChanged:Fire(payload.Kind)
 	end)

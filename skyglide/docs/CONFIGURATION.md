@@ -11,6 +11,7 @@ Every tunable value lives in `src/shared/Config` (rules and numbers) or `src/sha
 | Admins | `Config/Admin.luau → UserIds` | Your user id(s). `StudioAll = true` gives everyone the admin panel in Studio only. |
 | Codes | `src/server/Data/Codes.luau` | Server-only list. It is never replicated to clients. |
 | Relic stock | `Definitions/Relics.luau → Stock` | The global limit. Sales are counted in the `SkyGlide_Global_v1` DataStore. |
+| Live events | `Config/Events.luau` | `Schedule` windows (unix seconds, UTC) for Sky Festival boosts. Admins can also start or stop one from the Admin panel. |
 | Audio | `Config/Audio.luau` | Defaults use built-in `rbxasset://sounds`. Swap in your own uploaded ids. |
 
 Enable *Game Settings → Security → Studio Access to API Services* to test persistence in Studio. Without it, DataService falls back to an in-memory mock and prints a warning.

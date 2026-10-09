@@ -33,6 +33,8 @@ export type Context = {
 	Friends: number,
 	Premium: boolean,
 	Now: number,
+	EventSkill: number?, -- live event multipliers (1 when no event)
+	EventWins: number?,
 }
 
 function Progression.FriendBoost(friends: number): number
@@ -70,6 +72,7 @@ export type Breakdown = {
 	Potion: number,
 	Friends: number,
 	Premium: number,
+	Event: number,
 	Total: number,
 }
 
@@ -82,6 +85,7 @@ function Progression.SkillBreakdown(p: ProfileLike, ctx: Context): Breakdown
 	local potion = Progression.BoostActive(p, "Skill", ctx.Now)
 	local friends = 1 + Progression.FriendBoost(ctx.Friends)
 	local premium = if ctx.Premium then 1 + Economy.PremiumSkillBonus else 1
+	local event = ctx.EventSkill or 1
 	return {
 		Rebirth = rebirth,
 		Pets = pets,
@@ -89,7 +93,8 @@ function Progression.SkillBreakdown(p: ProfileLike, ctx: Context): Breakdown
 		Potion = potion,
 		Friends = friends,
 		Premium = premium,
-		Total = rebirth * pets * pass * potion * friends * premium,
+		Event = event,
+		Total = rebirth * pets * pass * potion * friends * premium * event,
 	}
 end
 
@@ -103,7 +108,7 @@ function Progression.WinsMultiplier(p: ProfileLike, ctx: Context): number
 	local trailBoost = if trail then trail.WinsBoost else 0
 	local pass = if ctx.Passes.DoubleWins then 2 else 1
 	local potion = Progression.BoostActive(p, "Wins", ctx.Now)
-	return (1 + petWins) * (1 + trailBoost) * pass * potion
+	return (1 + petWins) * (1 + trailBoost) * pass * potion * (ctx.EventWins or 1)
 end
 
 function Progression.Luck(p: ProfileLike, ctx: Context): number
