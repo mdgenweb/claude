@@ -17,7 +17,7 @@ local Bus = {
 	GustWindow = Signal.new(), -- (open: boolean, ringIndex: number) next ring is tappable
 	RingPassed = Signal.new(), -- (ringIndex: number, tappedPerfect: boolean, worldPosition: Vector3)
 	RingResult = Signal.new(), -- ({ Id, Index, Perfect, Amount }) authoritative payout
-	FlightLanded = Signal.new(), -- (payload) owner payload from the server (Distance, Zone, Wins, XP, ...)
+	FlightLanded = Signal.new(), -- (payload) owner payload from the server (Distance, Zone, Wins, Skill, Special, UnlockedWorld, ...)
 	FlightEnded = Signal.new(), -- (plan, isLocal) visuals finished (after splash)
 
 	-- Training

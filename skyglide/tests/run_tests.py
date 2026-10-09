@@ -134,9 +134,15 @@ def bundle(spec_path):
         '  ["%s"] = %s' % (key, long_string(src)) for key, src in modules.items()
     )
     harness = HARNESS.replace("__SOURCES__", "{\n" + entries + "\n}")
+    spec = spec_path.read_text()
+    first = spec.split("\n", 1)[0]
+    if first.startswith("--!prelude-before "):
+        # full Roblox API mock that must exist before the harness (world/factory builds)
+        mock = (ROOT / "tests" / first.split(" ", 1)[1].strip()).read_text()
+        return mock + "\n" + harness + "\n-- spec ---------------------------------------------------\n" + spec
     prelude = ROOT / "tests" / "_prelude.luau"
     pre = prelude.read_text() if prelude.exists() else ""
-    return harness + "\n-- prelude ------------------------------------------------\n" + pre + "\n-- spec ---------------------------------------------------\n" + spec_path.read_text()
+    return harness + "\n-- prelude ------------------------------------------------\n" + pre + "\n-- spec ---------------------------------------------------\n" + spec
 
 
 def main():

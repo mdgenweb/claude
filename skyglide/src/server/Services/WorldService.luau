@@ -90,6 +90,10 @@ function WorldService.Start()
 	Guard.OnInvoke(Remotes.Function("RequestEnterWorld"), 1, 3, enterWorld)
 	local function hook(player: Player)
 		player.CharacterAdded:Connect(function(character)
+			-- a respawn mid-flight cancels that flight (no payout for a throw you can't watch)
+			if registry.FlightService then
+				registry.FlightService.Cancel(player)
+			end
 			local profile = DataService.WaitFor(player, 30)
 			local worldId = if profile then profile.World else 1
 			if not character:FindFirstChild("HumanoidRootPart") then
