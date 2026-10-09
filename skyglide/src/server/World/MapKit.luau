@@ -1,11 +1,14 @@
 --!strict
--- Primitive builders for the procedural map (server side): parts, discs, balls, wedges, floor
--- decals, surface/billboard text and proximity prompts. Every part is anchored. Decoration is
--- non-colliding, non-queryable and non-touchable, and only solid structure casts shadows unless
--- asked. Text uses built-in fonts and emoji only (no uploaded assets).
+-- Primitive builders for the procedural map (server side): parts, boxes, discs, balls, wedges,
+-- floor decals, checker walls, surface/billboard text, proximity prompts, lights, particles and
+-- animated beam rings. Every part is anchored. Decoration is non-colliding, non-queryable and
+-- non-touchable, and only solid structure casts shadows unless asked. Text uses built-in fonts and
+-- emoji only, and textures are built-in rbxasset:// files (no uploaded assets).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Themes = require(ReplicatedStorage:WaitForChild("Shared").Visual.Themes)
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Themes = require(Shared.Visual.Themes)
+local Worlds = require(Shared.Definitions.Worlds)
 
 local MapKit = {}
 
@@ -23,6 +26,7 @@ export type Palette = {
 	Trunk: Color3,
 	Leaves: Color3,
 	Rock: Color3, -- derived from the prop family
+	Stone: Color3, -- light stone for pedestals, pillars and stands
 }
 
 export type PartOpts = {
@@ -41,6 +45,31 @@ export type TextOpts = {
 	StrokeThickness: number?,
 	XAlign: Enum.TextXAlignment?,
 	Transparency: number?,
+	Rich: boolean?,
+}
+
+export type WallOpts = {
+	Thickness: number,
+	BlockLength: number, -- target checker block length along the wall
+	Rows: number, -- checker rows over the wall height
+	Below: number?, -- extra solid depth under the base line (hides gaps)
+	ExtendStart: number?, -- base wall extends past `a` by this much (corners)
+	ExtendEnd: number?,
+	Cap: boolean?, -- grass cap on top
+	CapOverhang: number?,
+	Drips: Random?, -- when set, grass blocks "drip" down the inner face at random columns
+	Solid: boolean?,
+	Parity: number?, -- 0/1 flips the checker
+}
+
+-- Everything one world build shares (MapBuilder creates it, the section builders read it).
+export type Ctx = {
+	World: Worlds.World,
+	Theme: Themes.Theme,
+	Pal: Palette,
+	Origin: Vector3, -- Map.Origin(world.Id); every layout coordinate is relative to it
+	Model: Model, -- World_<id>
+	Rng: Random, -- seeded per world: the same world always builds the same way
 }
 
 local BLACK = Color3.new(0, 0, 0)
@@ -53,9 +82,11 @@ MapKit.Fonts = {
 	Body = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold),
 }
 MapKit.StrokeColor = Color3.fromHex("#0B0F24")
+MapKit.White = WHITE
+MapKit.Black = BLACK
 
-local SPARK_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds"
-local SMOKE_TEXTURE = "rbxasset://textures/particles/smoke_main.dds"
+MapKit.SparkTexture = "rbxasset://textures/particles/sparkles_main.dds"
+MapKit.SmokeTexture = "rbxasset://textures/particles/smoke_main.dds"
 
 local ROCK: { [string]: string } = {
 	Palm = "#A7ADB5",
@@ -64,8 +95,49 @@ local ROCK: { [string]: string } = {
 	Ice = "#B9C7D9",
 }
 
+local STONE: { [string]: string } = {
+	Palm = "#F3EFE6",
+	Volcano = "#4A4040",
+	Pirate = "#EADCC0",
+	Ice = "#F4FAFF",
+}
+
+-- World-local layout coordinates -> world space.
+function MapKit.At(ctx: Ctx, x: number, y: number, z: number): Vector3
+	return ctx.Origin + Vector3.new(x, y, z)
+end
+
+function MapKit.CF(ctx: Ctx, x: number, y: number, z: number): CFrame
+	return CFrame.new(ctx.Origin + Vector3.new(x, y, z))
+end
+
+function MapKit.Folder(parent: Instance, name: string): Folder
+	local folder = Instance.new("Folder")
+	folder.Name = name
+	folder.Parent = parent
+	return folder
+end
+
+function MapKit.Group(parent: Instance, name: string): Model
+	local model = Instance.new("Model")
+	model.Name = name
+	model.Parent = parent
+	return model
+end
+
+-- "#RRGGBB" -> Color3 with a fallback for malformed strings (definitions are data).
+function MapKit.Hex(hex: string?, fallback: Color3?): Color3
+	if type(hex) == "string" then
+		local ok, color = pcall(Color3.fromHex, hex)
+		if ok then
+			return color
+		end
+	end
+	return fallback or WHITE
+end
+
 function MapKit.Palette(theme: Themes.Theme): Palette
-	local h = Color3.fromHex
+	local h = MapKit.Hex
 	return {
 		FloorA = h(theme.FloorA),
 		FloorB = h(theme.FloorB),
@@ -80,6 +152,7 @@ function MapKit.Palette(theme: Themes.Theme): Palette
 		Trunk = h(theme.Trunk),
 		Leaves = h(theme.Leaves),
 		Rock = h(ROCK[theme.Props] or ROCK.Palm),
+		Stone = h(STONE[theme.Props] or STONE.Palm),
 	}
 end
 
@@ -89,6 +162,16 @@ end
 
 function MapKit.Tint(c: Color3, amount: number): Color3
 	return c:Lerp(WHITE, amount)
+end
+
+-- Perceived brightness 0..1.
+function MapKit.Luminance(c: Color3): number
+	return 0.299 * c.R + 0.587 * c.G + 0.114 * c.B
+end
+
+-- Readable outline for text of colour `c`: dark for light text, white for dark text.
+function MapKit.StrokeFor(c: Color3): Color3
+	return if MapKit.Luminance(c) > 0.45 then MapKit.StrokeColor else WHITE
 end
 
 function MapKit.Material(name: string): Enum.Material
@@ -104,7 +187,7 @@ end
 
 local function finish(p: BasePart, parent: Instance, size: Vector3, cf: CFrame, color: Color3, opts: PartOpts?)
 	p.Anchored = true
-	p.Size = size
+	p.Size = Vector3.new(math.max(size.X, 0.05), math.max(size.Y, 0.05), math.max(size.Z, 0.05))
 	p.CFrame = cf
 	p.Color = color
 	p.TopSurface = Enum.SurfaceType.Smooth
@@ -145,6 +228,13 @@ function MapKit.Part(parent: Instance, size: Vector3, cf: CFrame, color: Color3,
 	return p
 end
 
+-- Axis-aligned block spanning two opposite corners (world coordinates).
+function MapKit.Box(parent: Instance, a: Vector3, b: Vector3, color: Color3, opts: PartOpts?): Part
+	local lo = a:Min(b)
+	local hi = a:Max(b)
+	return MapKit.Part(parent, hi - lo, CFrame.new((lo + hi) / 2), color, opts)
+end
+
 -- Wedge: full height at local +Z, sloping down to local -Z.
 function MapKit.Wedge(parent: Instance, size: Vector3, cf: CFrame, color: Color3, opts: PartOpts?): WedgePart
 	local p = Instance.new("WedgePart")
@@ -160,11 +250,34 @@ function MapKit.Disc(parent: Instance, diameter: number, height: number, cf: CFr
 	return p
 end
 
+-- Cylinder whose flat faces point along `cf`'s look vector (portals, wheels, signs).
+function MapKit.FacingDisc(parent: Instance, diameter: number, thickness: number, cf: CFrame, color: Color3, opts: PartOpts?): Part
+	local p = Instance.new("Part")
+	p.Shape = Enum.PartType.Cylinder
+	finish(p, parent, Vector3.new(thickness, diameter, diameter), cf * CFrame.Angles(0, math.pi / 2, 0), color, opts)
+	return p
+end
+
 function MapKit.Ball(parent: Instance, diameter: number, cf: CFrame, color: Color3, opts: PartOpts?): Part
 	local p = Instance.new("Part")
 	p.Shape = Enum.PartType.Ball
 	finish(p, parent, Vector3.new(diameter, diameter, diameter), cf, color, opts)
 	return p
+end
+
+-- Block running from `from` to `to` (trunks, rails, lava falls); `width` x `depth` cross-section.
+function MapKit.Beam(parent: Instance, from: Vector3, to: Vector3, width: number, depth: number, color: Color3, opts: PartOpts?): Part
+	local length = (to - from).Magnitude
+	local mid = (from + to) / 2
+	local dir = to - from
+	local cf: CFrame
+	if length < 1e-4 then
+		cf = CFrame.new(mid)
+	else
+		local up = if math.abs(dir.Unit.Y) > 0.99 then Vector3.xAxis else Vector3.yAxis
+		cf = CFrame.lookAt(mid, to, up)
+	end
+	return MapKit.Part(parent, Vector3.new(width, depth, length), cf, color, opts)
 end
 
 -- CFrame whose Front face (local -Z) points along `dir`, so a Front SurfaceGui faces that way.
@@ -182,6 +295,70 @@ function MapKit.FloorDecal(parent: Instance, center: Vector3, up: Vector3, width
 		Transparency = 1,
 		Name = "Decal",
 	})
+end
+
+-- Checker wall whose inner face runs along the line a -> b (both at the wall's base height),
+-- facing `inward`. One solid base slab plus alternate-colour blocks that stand 0.6 studs proud of
+-- the inner face, so it reads as voxel blocks with a handful of parts.
+function MapKit.CheckerWall(parent: Instance, a: Vector3, b: Vector3, inward: Vector3, height: number, colorA: Color3, colorB: Color3, top: Color3, o: WallOpts)
+	local along = b - a
+	local length = along.Magnitude
+	if length < 0.5 or height <= 0 then
+		return
+	end
+	local dir = along.Unit
+	local up = Vector3.yAxis
+	local n = inward.Unit
+	local thickness = o.Thickness
+	local below = o.Below or 0
+	local e0 = o.ExtendStart or 0
+	local e1 = o.ExtendEnd or 0
+	local solid = if o.Solid == nil then true else o.Solid
+	-- base slab
+	local baseStart = a - dir * e0
+	local baseEnd = b + dir * e1
+	local baseLen = length + e0 + e1
+	local mid = (baseStart + baseEnd) / 2 - n * (thickness / 2) + up * ((height - below) / 2)
+	MapKit.Part(parent, Vector3.new(baseLen, height + below, thickness), CFrame.lookAt(mid, mid + n), colorA, {
+		Solid = solid,
+		Shadow = true,
+		Name = "Wall",
+	})
+	-- checker blocks on the inner face
+	local columns = math.max(1, math.floor(length / o.BlockLength + 0.5))
+	local rows = math.max(1, o.Rows)
+	local bl = length / columns
+	local rh = height / rows
+	local parity = o.Parity or 0
+	for c = 0, columns - 1 do
+		for r = 0, rows - 1 do
+			if (c + r + parity) % 2 == 1 then
+				local center = a + dir * (bl * (c + 0.5)) + up * (rh * (r + 0.5))
+				MapKit.Part(parent, Vector3.new(bl, rh, 1.2), CFrame.lookAt(center, center + n), colorB, { Name = "Block" })
+			end
+		end
+	end
+	if o.Cap then
+		local over = o.CapOverhang or 1
+		local capMid = (baseStart + baseEnd) / 2 + n * (over / 2) - n * (thickness / 2) + up * (height + 0.75)
+		MapKit.Part(parent, Vector3.new(baseLen, 2.5, thickness + over), CFrame.lookAt(capMid, capMid + n), top, {
+			Solid = solid,
+			Shadow = true,
+			Name = "Cap",
+		})
+		local rng = o.Drips
+		if rng then
+			for c = 0, columns - 1 do
+				if rng:NextNumber() < 0.35 then
+					local drop = rh * rng:NextNumber(0.25, 0.55)
+					local center = a + dir * (bl * (c + 0.5)) + up * (height - drop / 2) + n * 0.5
+					MapKit.Part(parent, Vector3.new(bl * rng:NextNumber(0.4, 0.9), drop, 1.4), CFrame.lookAt(center, center + n), top, {
+						Name = "Drip",
+					})
+				end
+			end
+		end
+	end
 end
 
 -- SurfaceGui sized in pixels per stud (crisp at any part size), unlit so colours stay bright.
@@ -225,7 +402,7 @@ function MapKit.Text(parent: Instance, name: string, text: string, y: number, he
 	label.TextColor3 = color
 	label.TextScaled = true
 	label.TextWrapped = true
-	label.RichText = false
+	label.RichText = opts ~= nil and opts.Rich == true
 	label.FontFace = (opts and opts.Font) or MapKit.Fonts.Display
 	label.TextXAlignment = (opts and opts.XAlign) or Enum.TextXAlignment.Center
 	label.TextTransparency = (opts and opts.Transparency) or 0
@@ -238,6 +415,38 @@ function MapKit.Text(parent: Instance, name: string, text: string, y: number, he
 	label.Parent = parent
 	return label
 end
+
+function MapKit.Corner(gui: GuiObject, scale: number)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(scale, 0)
+	corner.Parent = gui
+end
+
+-- Horizontal colour gradient over a GuiObject (rainbow titles, sign panels).
+function MapKit.Gradient(gui: GuiObject, colors: { Color3 }): UIGradient
+	local keys = {}
+	local count = #colors
+	for i, c in colors do
+		local t = if count > 1 then (i - 1) / (count - 1) else 0
+		table.insert(keys, ColorSequenceKeypoint.new(t, c))
+	end
+	if count == 1 then
+		table.insert(keys, ColorSequenceKeypoint.new(1, colors[1]))
+	end
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(keys)
+	gradient.Parent = gui
+	return gradient
+end
+
+MapKit.Rainbow = {
+	Color3.fromHex("#FF4F4F"),
+	Color3.fromHex("#FFB13D"),
+	Color3.fromHex("#FFF05A"),
+	Color3.fromHex("#5BE05B"),
+	Color3.fromHex("#3FA9FF"),
+	Color3.fromHex("#B65CFF"),
+}
 
 -- Interaction prompt shared by pedestals, eggs and portals (E / gamepad X, instant).
 function MapKit.Prompt(parent: Instance, name: string, objectText: string, actionText: string, distance: number): ProximityPrompt
@@ -269,7 +478,7 @@ end
 function MapKit.Sparkles(part: BasePart, color: Color3, rate: number, speed: number): ParticleEmitter
 	local pe = Instance.new("ParticleEmitter")
 	pe.Name = "Sparkles"
-	pe.Texture = SPARK_TEXTURE
+	pe.Texture = MapKit.SparkTexture
 	pe.Color = ColorSequence.new(color, WHITE)
 	pe.LightEmission = 1
 	pe.LightInfluence = 0
@@ -296,7 +505,7 @@ end
 function MapKit.Smoke(part: BasePart, color: Color3, size: number, rate: number): ParticleEmitter
 	local pe = Instance.new("ParticleEmitter")
 	pe.Name = "Smoke"
-	pe.Texture = SMOKE_TEXTURE
+	pe.Texture = MapKit.SmokeTexture
 	pe.Color = ColorSequence.new(color)
 	pe.LightEmission = 0
 	pe.LightInfluence = 1
@@ -317,6 +526,46 @@ function MapKit.Smoke(part: BasePart, color: Color3, size: number, rate: number)
 	pe.RotSpeed = NumberRange.new(-20, 20)
 	pe.Parent = part
 	return pe
+end
+
+local function ringAttachment(part: BasePart, name: string, x: number): Attachment
+	local att = Instance.new("Attachment")
+	att.Name = name
+	-- attachment X axis (the beam's curve direction) = the part's up vector
+	att.CFrame = CFrame.fromMatrix(Vector3.new(x, 0, 0), Vector3.yAxis, -Vector3.xAxis)
+	att.Parent = part
+	return att
+end
+
+-- Animated glowing ring in `part`'s local XY plane, centred on the part: two semicircular beams
+-- whose sparkle texture scrolls around the circle natively (no scripts). Positive `speed` runs
+-- clockwise seen from the part's front.
+function MapKit.BeamRing(part: BasePart, radius: number, width: number, color: Color3, speed: number, transparency: number?)
+	local left = ringAttachment(part, "RingL" .. radius, -radius)
+	local right = ringAttachment(part, "RingR" .. radius, radius)
+	local k = radius * 4 / 3 -- cubic Bezier control distance for a semicircle
+	local function beam(a0: Attachment, a1: Attachment, c0: number, c1: number)
+		local b = Instance.new("Beam")
+		b.Attachment0 = a0
+		b.Attachment1 = a1
+		b.CurveSize0 = c0
+		b.CurveSize1 = c1
+		b.Segments = 24
+		b.Width0 = width
+		b.Width1 = width
+		b.FaceCamera = true
+		b.LightEmission = 1
+		b.LightInfluence = 0
+		b.Color = ColorSequence.new(color)
+		b.Transparency = NumberSequence.new(transparency or 0.1)
+		b.Texture = MapKit.SparkTexture
+		b.TextureMode = Enum.TextureMode.Wrap
+		b.TextureLength = math.max(2, width * 1.5)
+		b.TextureSpeed = speed
+		b.Parent = part
+	end
+	beam(left, right, k, -k) -- over the top
+	beam(right, left, -k, k) -- back underneath
 end
 
 return MapKit

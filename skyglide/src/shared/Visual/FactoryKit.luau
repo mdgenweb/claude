@@ -2,8 +2,9 @@
 -- Shared part-building kit for the Visual factories (GliderFactory, PetFactory, EggFactory).
 -- Every model is built around an invisible "Root" part at the model origin. Parts get display-only
 -- physics flags (no collision, queries, touches or shadows; massless; smooth surfaces) and
--- Finish() either anchors every part or welds every part to Root. Triangles are built from two
--- WedgeParts, so shapes need no meshes and no uploaded assets. Pure Instance code: server + client.
+-- Finish() either anchors every part or welds every part to Root. Triangles are built from one or
+-- two WedgeParts, so shapes need no meshes and no uploaded assets. Pure Instance code: server + client.
+-- Cached() keeps one template per key and hands out clones, so repeated builds stay cheap.
 local FactoryKit = {}
 
 export type Builder = {
@@ -138,40 +139,53 @@ end
 
 -- Flat disc (cylinder) centred on `center` with its faces pointing along `axis`.
 function FactoryKit.Disc(b: Builder, center: Vector3, axis: Vector3, diameter: number, thickness: number, color: Color3, material: Enum.Material?): BasePart
-	return FactoryKit.Part(b, "Cylinder", Vector3.new(thickness, diameter, diameter), along(center, center + axis) * CFrame.Angles(0, math.pi / 2, 0), color, material)
+	return FactoryKit.Part(b, "Cylinder", Vector3.new(thickness, diameter, diameter), along(center - axis, center + axis) * CFrame.Angles(0, math.pi / 2, 0), color, material)
 end
 
 -- Solid triangle p1-p2-p3 with the given thickness (centred on the triangle's plane), built from
--- up to two WedgePart halves split at the foot of the altitude onto the longest edge. Right
--- triangles therefore cost a single wedge.
+-- up to two WedgePart halves split at the foot of the altitude onto a base edge. A base edge whose
+-- foot lands on one of its ends (a right angle) is preferred, so right triangles cost one wedge;
+-- otherwise the longest edge is used (its foot always lies inside it).
+local triVerts: { Vector3 } = table.create(3)
 function FactoryKit.Tri(b: Builder, p1: Vector3, p2: Vector3, p3: Vector3, thickness: number, color: Color3, material: Enum.Material?)
-	local a, c, d = p1, p2, p3
-	local ab, ac, bc = c - a, d - a, d - c
-	local abd, acd, bcd = ab:Dot(ab), ac:Dot(ac), bc:Dot(bc)
-	if abd > acd and abd > bcd then
-		d, a = a, d
-	elseif acd > bcd and acd > abd then
-		a, c = c, a
+	triVerts[1], triVerts[2], triVerts[3] = p1, p2, p3
+	local bestI, bestT, bestLen = 0, 0, -1
+	for i = 1, 3 do
+		local a, c, d = triVerts[i], triVerts[i % 3 + 1], triVerts[(i + 1) % 3 + 1]
+		local cd = d - c
+		local len2 = cd:Dot(cd)
+		if len2 > 1e-10 then
+			local t = (a - c):Dot(cd) / len2
+			if math.abs(t) < 1e-3 or math.abs(t - 1) < 1e-3 then
+				bestI, bestT = i, math.clamp(math.floor(t + 0.5), 0, 1)
+				break
+			elseif len2 > bestLen then
+				bestI, bestT, bestLen = i, t, len2
+			end
+		end
 	end
-	ab, ac, bc = c - a, d - a, d - c
-	local normal = ac:Cross(ab)
-	if normal.Magnitude < 1e-7 or bc.Magnitude < 1e-6 then
+	if bestI == 0 then
 		return
 	end
-	local right = normal.Unit
-	local up = bc:Cross(right).Unit
-	local back = bc.Unit
-	local height = math.abs(ab:Dot(up))
+	local a, c, d = triVerts[bestI], triVerts[bestI % 3 + 1], triVerts[(bestI + 1) % 3 + 1]
+	local cd = d - c
+	local back = cd.Unit
+	local foot = c + cd * bestT
+	local rise = a - foot
+	rise -= back * rise:Dot(back) -- exact right angle even when the foot was snapped to an end
+	local height = rise.Magnitude
 	if height < DEGENERATE then
 		return
 	end
-	local d1 = math.abs(ab:Dot(back))
-	local d2 = math.abs(ac:Dot(back))
+	local up = rise / height
+	local d1 = cd.Magnitude * bestT
+	local d2 = cd.Magnitude - d1
 	if d1 > DEGENERATE then
-		FactoryKit.Part(b, "Wedge", Vector3.new(thickness, height, d1), CFrame.fromMatrix((a + c) / 2, right, up, back), color, material)
+		-- c is the low front corner, foot the right angle, a the high back corner
+		FactoryKit.Part(b, "Wedge", Vector3.new(thickness, height, d1), CFrame.fromMatrix((a + c) / 2, up:Cross(back), up, back), color, material)
 	end
 	if d2 > DEGENERATE then
-		FactoryKit.Part(b, "Wedge", Vector3.new(thickness, height, d2), CFrame.fromMatrix((a + d) / 2, -right, up, -back), color, material)
+		FactoryKit.Part(b, "Wedge", Vector3.new(thickness, height, d2), CFrame.fromMatrix((a + d) / 2, up:Cross(-back), up, -back), color, material)
 	end
 end
 
@@ -190,6 +204,24 @@ function FactoryKit.Spike(b: Builder, base: Vector3, tip: Vector3, radius: numbe
 	FactoryKit.Tri(b, base - a2 * radius, base + a2 * radius, tip, t, color, material)
 end
 
+-- Convex polygon (points in order) as a triangle fan from the first point.
+function FactoryKit.Poly(b: Builder, points: { Vector3 }, thickness: number, color: Color3, material: Enum.Material?)
+	for i = 2, #points - 1 do
+		FactoryKit.Tri(b, points[1], points[i], points[i + 1], thickness, color, material)
+	end
+end
+
+-- Flat square turned 45 degrees ("diamond") lying in the plane whose normal is `normal`.
+function FactoryKit.Diamond(b: Builder, center: Vector3, normal: Vector3, width: number, thickness: number, color: Color3, material: Enum.Material?): BasePart
+	local cf = along(center - normal, center + normal) * CFrame.Angles(math.pi / 2, 0, 0) * CFrame.Angles(0, math.pi / 4, 0)
+	return FactoryKit.Part(b, "Block", Vector3.new(width, thickness, width), cf, color, material)
+end
+
+-- Glowing accents use Neon; everything else stays smooth plastic.
+function FactoryKit.Mat(glow: boolean?): Enum.Material
+	return if glow then Enum.Material.Neon else DEFAULT_MATERIAL
+end
+
 function FactoryKit.Light(b: Builder, color: Color3, brightness: number, range: number): PointLight
 	local light = Instance.new("PointLight")
 	light.Name = "Glow"
@@ -199,6 +231,39 @@ function FactoryKit.Light(b: Builder, color: Color3, brightness: number, range: 
 	light.Shadows = false
 	light.Parent = b.Root
 	return light
+end
+
+-- Gentle sparkle particles around Root (built-in texture, no uploads). Viewports ignore them.
+function FactoryKit.Sparkles(b: Builder, color: Color3, rate: number, size: number): ParticleEmitter
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "Sparkles"
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 1
+	emitter.LightInfluence = 0
+	emitter.Rate = rate
+	emitter.Lifetime = NumberRange.new(0.6, 1.1)
+	emitter.Speed = NumberRange.new(0.2, 0.8)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.3, size),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Transparency = NumberSequence.new(0.1, 1)
+	emitter.Parent = b.Root
+	return emitter
+end
+
+-- Number of visible parts (Root excluded); used by the Validate() helpers.
+function FactoryKit.PartCount(model: Model): number
+	local n = 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Name ~= "Root" then
+			n += 1
+		end
+	end
+	return n
 end
 
 -- Anchor everything, or leave everything unanchored and welded to Root.
