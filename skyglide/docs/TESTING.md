@@ -62,6 +62,40 @@ Drives the **real** server services with stubbed Roblox APIs:
 * **Monetization:** Studio test grants for passes and products, the one-time starter pack and relic.
 * **Tutorial:** only server events advance it, in order.
 
+### `world.spec.luau`
+
+Uses `tests/_rbxmock.luau`, a Roblox API mock with real vector and CFrame math and a generic Instance tree. It:
+
+* builds all four worlds;
+* checks the map naming contract the client depends on (`DESIGN.md` §5): every pad, pedestal, relic, egg, portal, leaderboard and zone sign, each with its labels and prompts;
+* checks that pad positions match the server's spatial checks;
+* checks the per-world part budget (about 2.0–2.4K parts each);
+* runs the glider, pet and egg factory self-tests, including held gliders being unanchored and welded.
+
+### `client.spec.luau`
+
+Boots the **real client** the way `Main.client.luau` does: all 13 screens and 7 controllers, against a real World 1 map. `tests/_clientmock.luau` supplies:
+
+* event signals on every instance;
+* tweens;
+* a virtual-clock task scheduler;
+* input, the camera and players;
+* remote stubs that record every intent.
+
+It then plays a whole session:
+
+1. The first data packet and live events arrive.
+2. The Gifts menu auto-opens because the daily reward is ready.
+3. Every menu opens and closes, and data updates while menus are open.
+4. The player trains on a pad, including the max-level refusal.
+5. The player enters the Throw Zone and charges and releases a throw.
+6. A full server flight plays with a gust tap per ring (at most one `RequestGust` per ring), followed by ring payouts and a landing.
+7. A Jet Stream special throw and a cancelled flight.
+8. A queued 3-pet hatch reveal and a gift reveal, dismissed with gamepad A.
+9. Toasts, max level and the Rebirth screen, another player's pet followers, and a world change.
+
+Any error inside a handler, tween, render step or scheduled task fails the spec.
+
 ### Static checks
 
 ```bash
@@ -92,7 +126,7 @@ Use *Test → Clients and Servers* with 2 players, and enable API access for per
 
 ## Known limits of this verification
 
-Logic is verified headlessly (above), and the code type-checks in strict mode. It has **not** been run in a Roblox client from this environment, so these still need an in-Studio pass:
+Logic, map building and a full client session are verified headlessly (above), and the code type-checks in strict mode. The mock accepts any property name, so a misspelled Roblox property would not be caught there; a code review pass covered that. It has **not** been run in a Roblox client from this environment, so these still need an in-Studio pass:
 
 * Visual polish: map proportions, UI spacing, VFX intensity.
 * Camera feel.

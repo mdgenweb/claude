@@ -11872,6 +11872,213 @@ return Net
           </Item>
           <Item class="ModuleScript" referent="89">
             <Properties>
+              <string name="Name">PetFollowController</string>
+              <string name="Source"><![CDATA[--!strict
+-- Renders equipped pets following every player in the local player's world. The server mirrors
+-- each player's equipped pet ids into the Player attribute "Pets" (comma-separated); models are
+-- built locally with PetFactory (anchored, client-only) and moved with PivotTo. Pets near the
+-- camera update every frame, far ones at ~10 Hz, players beyond 200 studs are skipped, and the
+-- total is capped so busy servers stay smooth.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local PetFactory = require(Shared.Visual.PetFactory)
+local Pets = require(Shared.Definitions.Pets)
+
+local Bus = require(script.Parent.Bus)
+
+local PetFollowController = {}
+
+local MAX_PETS = 40
+local MAX_DISTANCE = 200
+local NEAR_DISTANCE = 70
+local PET_SIZE = 2.2
+
+type Follower = { Model: Model, Id: string, Position: Vector3, Facing: Vector3 }
+type Entry = { Player: Player, Ids: { string }, Followers: { Follower } }
+
+local entries: { [Player]: Entry } = {}
+local folder: Folder
+local localPlayer = Players.LocalPlayer
+local farAccumulator = 0
+local localWorld = 0
+
+local function parseIds(value: any): { string }
+	local ids = {}
+	if type(value) == "string" then
+		for id in string.gmatch(value, "[^,]+") do
+			if Pets.Get(id) then
+				table.insert(ids, id)
+			end
+		end
+	end
+	return ids
+end
+
+local function clearFollowers(entry: Entry)
+	for _, f in entry.Followers do
+		f.Model:Destroy()
+	end
+	entry.Followers = {}
+end
+
+local function totalFollowers(): number
+	local n = 0
+	for _, entry in entries do
+		n += #entry.Followers
+	end
+	return n
+end
+
+local function rootOf(player: Player): BasePart?
+	local character = player.Character
+	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+	return if root and root:IsA("BasePart") then root else nil
+end
+
+local function sameWorld(player: Player): boolean
+	local world = player:GetAttribute("World")
+	return world == nil or localWorld == 0 or world == localWorld
+end
+
+local function rebuild(entry: Entry)
+	clearFollowers(entry)
+	if not sameWorld(entry.Player) then
+		return
+	end
+	local root = rootOf(entry.Player)
+	local start = if root then root.Position else Vector3.zero
+	for _, id in entry.Ids do
+		if totalFollowers() >= MAX_PETS then
+			break
+		end
+		local model = PetFactory.ForId(id, PET_SIZE)
+		model.Name = "Pet_" .. id
+		model.Parent = folder
+		table.insert(entry.Followers, { Model = model, Id = id, Position = start, Facing = Vector3.new(0, 0, -1) })
+	end
+end
+
+local function track(player: Player)
+	if entries[player] then
+		return
+	end
+	local entry: Entry = { Player = player, Ids = parseIds(player:GetAttribute("Pets")), Followers = {} }
+	entries[player] = entry
+	player:GetAttributeChangedSignal("Pets"):Connect(function()
+		entry.Ids = parseIds(player:GetAttribute("Pets"))
+		rebuild(entry)
+	end)
+	player:GetAttributeChangedSignal("World"):Connect(function()
+		rebuild(entry)
+	end)
+	player.CharacterAdded:Connect(function()
+		task.defer(rebuild, entry)
+	end)
+	rebuild(entry)
+end
+
+local function untrack(player: Player)
+	local entry = entries[player]
+	if entry then
+		clearFollowers(entry)
+		entries[player] = nil
+	end
+end
+
+-- Slot offset (in the owner's local space) for pet `i` of `n`: an arc behind the character.
+local function slotOffset(i: number, n: number): Vector3
+	local spread = math.min(1, (n - 1) / 2) * 0.9
+	local t = if n <= 1 then 0 else (i - 1) / (n - 1) * 2 - 1
+	local angle = t * spread
+	local radius = 5 + (if n > 3 then 1 else 0)
+	return Vector3.new(math.sin(angle) * radius, 0, math.cos(angle) * radius)
+end
+
+local function step(dt: number)
+	local camera = Workspace.CurrentCamera
+	local camPos = if camera then camera.CFrame.Position else Vector3.zero
+	farAccumulator += dt
+	local updateFar = farAccumulator >= 0.1
+	if updateFar then
+		farAccumulator = 0
+	end
+	local t = os.clock()
+	for _, entry in entries do
+		local root = rootOf(entry.Player)
+		if root == nil or #entry.Followers == 0 then
+			continue
+		end
+		local distance = (root.Position - camPos).Magnitude
+		local visible = distance <= MAX_DISTANCE
+		local wanted: Instance? = if visible then folder else nil
+		for _, f in entry.Followers do
+			if f.Model.Parent ~= wanted then
+				f.Model.Parent = wanted
+			end
+		end
+		if not visible or (distance > NEAR_DISTANCE and not updateFar) then
+			continue
+		end
+		local elapsed = if distance > NEAR_DISTANCE then 0.1 else dt
+		local alpha = 1 - math.exp(-elapsed * 8)
+		local velocity = root.AssemblyLinearVelocity
+		local moving = Vector3.new(velocity.X, 0, velocity.Z).Magnitude > 2
+		local n = #entry.Followers
+		for i, f in entry.Followers do
+			local target = root.CFrame:PointToWorldSpace(slotOffset(i, n))
+			target = Vector3.new(target.X, root.Position.Y - 1.6, target.Z)
+			f.Position = f.Position:Lerp(target, alpha)
+			if (f.Position - target).Magnitude > 40 then
+				f.Position = target -- teleported owner: snap
+			end
+			local face = if moving then Vector3.new(velocity.X, 0, velocity.Z).Unit else root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			if face.Magnitude > 0.01 then
+				f.Facing = f.Facing:Lerp(face.Unit, alpha)
+			end
+			local bob = if moving then math.abs(math.sin(t * 9 + i)) * 0.9 else math.sin(t * 2.5 + i) * 0.25 + 0.25
+			local pos = f.Position + Vector3.new(0, PET_SIZE * 0.5 + bob, 0)
+			local look = if f.Facing.Magnitude > 0.01 then f.Facing else Vector3.new(0, 0, -1)
+			f.Model:PivotTo(CFrame.lookAt(pos, pos + look))
+		end
+	end
+end
+
+function PetFollowController.Start()
+	folder = Instance.new("Folder")
+	folder.Name = "PetFollowers"
+	folder.Parent = Workspace
+	localWorld = (localPlayer:GetAttribute("World") :: number?) or 0
+	for _, player in Players:GetPlayers() do
+		track(player)
+	end
+	Players.PlayerAdded:Connect(track)
+	Players.PlayerRemoving:Connect(untrack)
+	local function onWorld(worldId: number)
+		localWorld = worldId
+		for _, entry in entries do
+			rebuild(entry)
+		end
+	end
+	Bus.WorldChanged:Connect(onWorld)
+	localPlayer:GetAttributeChangedSignal("World"):Connect(function()
+		local w = localPlayer:GetAttribute("World")
+		if type(w) == "number" then
+			onWorld(w)
+		end
+	end)
+	RunService.RenderStepped:Connect(step)
+end
+
+return PetFollowController
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="90">
+            <Properties>
               <string name="Name">StateController</string>
               <string name="Source"><![CDATA[--!strict
 -- Client mirror of server-owned state. Read-only: every change comes from the server.
@@ -11948,7 +12155,7 @@ return StateController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="90">
+          <Item class="ModuleScript" referent="91">
             <Properties>
               <string name="Name">ThrowController</string>
               <string name="Source"><![CDATA[--!strict
@@ -12370,7 +12577,7 @@ return ThrowController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="91">
+          <Item class="ModuleScript" referent="92">
             <Properties>
               <string name="Name">TrainingController</string>
               <string name="Source"><![CDATA[--!strict
@@ -12845,7 +13052,7 @@ return TrainingController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="92">
+          <Item class="ModuleScript" referent="93">
             <Properties>
               <string name="Name">TutorialController</string>
               <string name="Source"><![CDATA[--!strict
@@ -13235,7 +13442,7 @@ return TutorialController
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="93">
+          <Item class="ModuleScript" referent="94">
             <Properties>
               <string name="Name">UIController</string>
               <string name="Source"><![CDATA[--!strict
@@ -13489,8 +13696,394 @@ return UIController
 ]]></string>
             </Properties>
           </Item>
+          <Item class="ModuleScript" referent="95">
+            <Properties>
+              <string name="Name">WorldController</string>
+              <string name="Source"><![CDATA[--!strict
+-- Client side of the world: per-world lighting (Visual/Themes, no asset ids), live labels and
+-- prompt texts on pads / pedestals / relic / eggs / portals from the local player's data, the
+-- ProximityPrompt actions (each one only sends an intent or opens a menu), and the spinning
+-- glider/egg displays. Everything here is cosmetic or an intent; the server re-checks all of it.
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared.Net.Remotes)
+local Themes = require(Shared.Visual.Themes)
+local Worlds = require(Shared.Definitions.Worlds)
+local Zones = require(Shared.Definitions.Zones)
+local Training = require(Shared.Definitions.Training)
+local Gliders = require(Shared.Definitions.Gliders)
+local Relics = require(Shared.Definitions.Relics)
+local Eggs = require(Shared.Definitions.Eggs)
+local Monetization = require(Shared.Config.Monetization)
+local Format = require(Shared.Util.Format)
+
+local StateController = require(script.Parent.StateController)
+local UIController = require(script.Parent.UIController)
+local Bus = require(script.Parent.Bus)
+local Net = require(script.Parent.Net)
+
+local WorldController = {}
+
+local hex = Color3.fromHex
+local GREEN = hex("#5BE05B")
+local RED = hex("#FF4F5E")
+local GOLD = hex("#FFD447")
+local WHITE = Color3.new(1, 1, 1)
+local BLUE = hex("#7FD8FF")
+
+local currentWorld = 0
+type Effects = { Atmosphere: Atmosphere, Color: ColorCorrectionEffect, Bloom: BloomEffect }
+local effects: Effects? = nil
+local worldsFolder: Instance? = nil
+local spinners: { Model } = {}
+local spinBase: { [Model]: CFrame } = {}
+
+-- Lighting ----------------------------------------------------------------------------------------
+
+local function ensureEffects(): Effects
+	local existing = effects
+	if existing then
+		return existing
+	end
+	for _, child in Lighting:GetChildren() do
+		if child:IsA("Atmosphere") or child:IsA("Sky") then
+			child:Destroy()
+		end
+	end
+	local atmosphere = Instance.new("Atmosphere")
+	atmosphere.Name = "SkyGlideAtmosphere"
+	atmosphere.Parent = Lighting
+	local colorCorrection = Instance.new("ColorCorrectionEffect")
+	colorCorrection.Name = "SkyGlideColor"
+	colorCorrection.Parent = Lighting
+	local bloom = Instance.new("BloomEffect")
+	bloom.Name = "SkyGlideBloom"
+	bloom.Intensity = 0.55
+	bloom.Size = 22
+	bloom.Threshold = 1.6
+	bloom.Parent = Lighting
+	local created: Effects = { Atmosphere = atmosphere, Color = colorCorrection, Bloom = bloom }
+	effects = created
+	return created
+end
+
+local function applyLighting(worldId: number)
+	local world = Worlds.Get(worldId)
+	local theme = if world then Themes[world.Theme] else nil
+	if not theme then
+		return
+	end
+	local fx = ensureEffects()
+	local atmosphere = fx.Atmosphere
+	local colorCorrection = fx.Color
+	Lighting.ClockTime = theme.ClockTime
+	Lighting.Ambient = hex(theme.Ambient)
+	Lighting.OutdoorAmbient = hex(theme.Ambient):Lerp(WHITE, 0.35)
+	Lighting.FogColor = hex(theme.Fog)
+	Lighting.FogStart = 900
+	Lighting.FogEnd = 9000
+	atmosphere.Color = hex(theme.Sky.Horizon)
+	atmosphere.Decay = hex(theme.Sky.Top)
+	atmosphere.Density = if theme.Props == "Volcano" then 0.36 else 0.26
+	atmosphere.Offset = 0.1
+	atmosphere.Haze = if theme.Props == "Volcano" then 2.2 else 1.1
+	atmosphere.Glare = 0.25
+	colorCorrection.Saturation = 0.14
+	colorCorrection.Contrast = 0.06
+	colorCorrection.Brightness = 0.02
+	colorCorrection.TintColor = if theme.Props == "Volcano"
+		then hex("#FFE6D2")
+		elseif theme.Props == "Ice" then hex("#E8F6FF")
+		else WHITE
+end
+
+local function setWorld(worldId: number)
+	if worldId == currentWorld then
+		return
+	end
+	currentWorld = worldId
+	applyLighting(worldId)
+	Bus.WorldChanged:Fire(worldId)
+end
+
+-- Labels --------------------------------------------------------------------------------------------
+
+local function labelText(holder: Instance?, name: string): TextLabel?
+	if holder == nil then
+		return nil
+	end
+	local gui = holder:FindFirstChild("Label")
+	local text = if gui then gui:FindFirstChild(name, true) else nil
+	return if text and text:IsA("TextLabel") then text else nil
+end
+
+local function setLabel(holder: Instance?, name: string, text: string, color: Color3?)
+	local label = labelText(holder, name)
+	if label then
+		label.Text = text
+		if color then
+			label.TextColor3 = color
+		end
+	end
+end
+
+local function setPrompt(holder: Instance?, name: string, action: string)
+	local prompt = if holder then holder:FindFirstChild(name) else nil
+	if prompt and prompt:IsA("ProximityPrompt") then
+		prompt.ActionText = action
+	end
+end
+
+local function worldModel(worldId: number): Instance?
+	local folder = worldsFolder
+	return if folder then folder:FindFirstChild("World_" .. worldId) else nil
+end
+
+local function child(root: Instance?, ...: string): Instance?
+	local node = root
+	for _, name in { ... } do
+		if node == nil then
+			return nil
+		end
+		node = node:FindFirstChild(name)
+	end
+	return node
+end
+
+local function refreshLabels()
+	local data = StateController.Data
+	if data == nil or worldsFolder == nil then
+		return
+	end
+	local rebirths = if type(data.Rebirths) == "number" then data.Rebirths else 0
+	local wins = if type(data.Wins) == "number" then data.Wins else 0
+	local gliders = if type(data.Gliders) == "table" then data.Gliders else {}
+	local relics = if type(data.Relics) == "table" then data.Relics else {}
+	local worlds = if type(data.Worlds) == "table" then data.Worlds else {}
+	local zones = if type(data.Zones) == "table" then data.Zones else {}
+	local equippedRelic = if type(data.Relic) == "string" then data.Relic else ""
+
+	for _, world in Worlds.List do
+		local model = worldModel(world.Id)
+		if model == nil then
+			continue
+		end
+		-- training pads
+		for _, pad in Training.ForWorld(world.Id) do
+			local part = child(model, "Pads", "Pad_" .. pad.Id)
+			local unlocked = if pad.PassKey then StateController.HasPass(pad.PassKey) else rebirths >= pad.Rebirths
+			setLabel(part, "Status", if unlocked then "UNLOCKED" else "LOCKED", if unlocked then GREEN else RED)
+			if pad.PassKey and unlocked then
+				setLabel(part, "Gate", "OWNED", GREEN)
+			end
+		end
+		-- glider pedestals
+		for _, glider in Gliders.ForWorld(world.Id) do
+			local base = child(model, "Pedestals", "Pedestal_" .. glider.Id, "Base")
+			if base == nil then
+				continue
+			end
+			if data.Glider == glider.Id and equippedRelic == "" then
+				setLabel(base, "Status", "EQUIPPED", GREEN)
+				setPrompt(base, "BuyPrompt", "Equipped")
+			elseif gliders[glider.Id] then
+				setLabel(base, "Status", "OWNED", BLUE)
+				setPrompt(base, "BuyPrompt", "Equip")
+			elseif wins >= glider.Price then
+				setLabel(base, "Status", "UNLOCKED", GREEN)
+				setPrompt(base, "BuyPrompt", "Buy")
+			else
+				setLabel(base, "Status", "LOCKED", RED)
+				setPrompt(base, "BuyPrompt", "Buy")
+			end
+			setLabel(base, "Price", if gliders[glider.Id] then "OWNED" elseif glider.Price <= 0 then "FREE" else Format.Short(glider.Price) .. " Wins", GOLD)
+		end
+		-- relic
+		for _, relic in Relics.List do
+			local base = child(model, "Pedestals", "Relic_" .. relic.Id, "Base")
+			if base == nil then
+				continue
+			end
+			local info = StateController.Relics[relic.Id]
+			local left = if info then math.max(0, info.Stock - info.Sold) else relic.Stock
+			setLabel(base, "Stock", string.format("STOCK: %s/%s", Format.Commas(left), Format.Commas(relic.Stock)), if left > 0 then WHITE else RED)
+			local product = Monetization.Product(relic.ProductKey)
+			if relics[relic.Id] then
+				setLabel(base, "Price", if equippedRelic == relic.Id then "EQUIPPED" else "OWNED", GREEN)
+				setPrompt(base, "BuyPrompt", if equippedRelic == relic.Id then "Equipped" else "Equip")
+			else
+				setLabel(base, "Price", if left <= 0 then "SOLD OUT" else "ONLY R$" .. tostring(if product then product.Robux else 0), if left <= 0 then RED else GREEN)
+				setPrompt(base, "BuyPrompt", "Buy")
+			end
+		end
+		-- eggs
+		for _, egg in Eggs.ForWorld(world.Id) do
+			local base = child(model, "Eggs", "Egg_" .. egg.Id, "Base")
+			if base and not egg.ProductKey then
+				setLabel(base, "Price", Format.Short(egg.Price) .. " Wins", if wins >= egg.Price then GOLD else RED)
+			end
+		end
+		-- portals
+		for _, target in Worlds.List do
+			local frame = child(model, "Portals", "Portal_" .. target.Id, "Frame")
+			if frame == nil or target.Id < world.Id then
+				continue
+			end
+			if worlds[tostring(target.Id)] then
+				setLabel(frame, "Requirement", "UNLOCKED - step in!", GREEN)
+			else
+				local parts = {}
+				if target.UnlockZone and not zones[target.UnlockZone] then
+					local zone = Zones.Get(target.UnlockZone)
+					table.insert(parts, "🏁 Reach " .. (if zone then zone.Name else "the river end"))
+				end
+				if rebirths < target.UnlockRebirths then
+					table.insert(parts, string.format("🌀 %d/%d Rebirths", rebirths, target.UnlockRebirths))
+				end
+				setLabel(frame, "Requirement", if #parts == 0 then "READY TO UNLOCK!" else table.concat(parts, "  +  "), if #parts == 0 then GOLD else WHITE)
+			end
+		end
+	end
+end
+
+-- Prompts -------------------------------------------------------------------------------------------
+
+local function onPrompt(prompt: ProximityPrompt)
+	local holder = prompt.Parent
+	local model = if holder then holder.Parent else nil
+	if model == nil then
+		return
+	end
+	local data = StateController.Data
+	if prompt.Name == "BuyPrompt" then
+		local gliderId = string.match(model.Name, "^Pedestal_(.+)$")
+		local relicId = string.match(model.Name, "^Relic_(.+)$")
+		if gliderId and Gliders.Get(gliderId) then
+			local owned = data and type(data.Gliders) == "table" and data.Gliders[gliderId]
+			if owned then
+				task.spawn(Net.Invoke, "RequestEquipThrowable", false, gliderId)
+			else
+				task.spawn(Net.Invoke, "RequestBuyThrowable", false, gliderId)
+			end
+		elseif relicId then
+			local relic = Relics.Get(relicId)
+			if relic == nil then
+				return
+			end
+			local owned = data and type(data.Relics) == "table" and data.Relics[relicId]
+			if owned then
+				task.spawn(Net.Invoke, "RequestEquipThrowable", false, "relic:" .. relicId)
+			else
+				task.spawn(Net.Invoke, "RequestPurchase", false, "Product", relic.ProductKey)
+			end
+		end
+	elseif prompt.Name == "HatchPrompt" then
+		local eggId = string.match(model.Name, "^Egg_(.+)$")
+		if eggId and Eggs.Get(eggId) then
+			UIController.Open("Egg", eggId)
+		end
+	elseif prompt.Name == "PortalPrompt" then
+		local id = tonumber(string.match(model.Name, "^Portal_(%d+)$"))
+		if id and Worlds.Get(id) then
+			UIController.Open("World", id)
+		end
+	end
+end
+
+-- Spinning displays ---------------------------------------------------------------------------------
+
+local function track(model: Instance)
+	if model:IsA("Model") and model:GetAttribute("Spin") == true and not spinBase[model] then
+		spinBase[model] = model:GetPivot()
+		table.insert(spinners, model)
+	end
+end
+
+local function scan(root: Instance)
+	for _, d in root:GetDescendants() do
+		track(d)
+	end
+	root.DescendantAdded:Connect(function(d)
+		task.defer(track, d)
+	end)
+end
+
+local function stepSpinners()
+	local camera = Workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local camPos = camera.CFrame.Position
+	local t = os.clock()
+	for i = #spinners, 1, -1 do
+		local model = spinners[i]
+		if model.Parent == nil then
+			table.remove(spinners, i)
+			spinBase[model] = nil
+			continue
+		end
+		local base = spinBase[model]
+		if (base.Position - camPos).Magnitude < 150 then
+			local phase = i * 0.7
+			model:PivotTo(base * CFrame.new(0, math.sin(t * 2 + phase) * 0.35, 0) * CFrame.Angles(0, t * 0.9 + phase, 0))
+		end
+	end
+end
+
+-- Start ---------------------------------------------------------------------------------------------
+
+function WorldController.Start()
+	Remotes.Event("WorldChanged").OnClientEvent:Connect(function(worldId: any)
+		if type(worldId) == "number" then
+			setWorld(worldId)
+		end
+	end)
+	local function fromData(data: { [string]: any }?)
+		if data and type(data.World) == "number" then
+			setWorld(data.World)
+		end
+		refreshLabels()
+	end
+	StateController.DataChanged:Connect(fromData)
+	StateController.ServerInfoChanged:Connect(function(kind)
+		if kind == "Relics" then
+			refreshLabels()
+		end
+	end)
+	fromData(StateController.Data)
+	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
+		if player == Players.LocalPlayer then
+			onPrompt(prompt)
+		end
+	end)
+	task.spawn(function()
+		local folder = Workspace:WaitForChild("Worlds", 60)
+		if folder == nil then
+			warn("[WorldController] Workspace.Worlds never appeared")
+			return
+		end
+		worldsFolder = folder
+		scan(folder)
+		folder.ChildAdded:Connect(function()
+			task.defer(refreshLabels)
+		end)
+		refreshLabels()
+	end)
+	RunService.RenderStepped:Connect(stepSpinners)
+end
+
+return WorldController
+]]></string>
+            </Properties>
+          </Item>
         </Item>
-        <Item class="LocalScript" referent="94">
+        <Item class="LocalScript" referent="96">
           <Properties>
             <string name="Name">Main</string>
             <string name="Source"><![CDATA[--!strict
@@ -13562,15 +14155,15 @@ end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="Folder" referent="95">
+        <Item class="Folder" referent="97">
           <Properties>
             <string name="Name">UI</string>
           </Properties>
-          <Item class="Folder" referent="96">
+          <Item class="Folder" referent="98">
             <Properties>
               <string name="Name">Components</string>
             </Properties>
-            <Item class="ModuleScript" referent="97">
+            <Item class="ModuleScript" referent="99">
               <Properties>
                 <string name="Name">Button</string>
                 <string name="Source"><![CDATA[--!strict
@@ -13778,7 +14371,7 @@ return Button
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="98">
+            <Item class="ModuleScript" referent="100">
               <Properties>
                 <string name="Name">HudFlightOverlay</string>
                 <string name="Source"><![CDATA[--!strict
@@ -14256,7 +14849,7 @@ return HudFlightOverlay
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="99">
+            <Item class="ModuleScript" referent="101">
               <Properties>
                 <string name="Name">HudFlightState</string>
                 <string name="Source"><![CDATA[--!strict
@@ -14313,7 +14906,7 @@ return HudFlightState
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="100">
+            <Item class="ModuleScript" referent="102">
               <Properties>
                 <string name="Name">HudLandingCard</string>
                 <string name="Source"><![CDATA[--!strict
@@ -14680,7 +15273,7 @@ return HudLandingCard
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="101">
+            <Item class="ModuleScript" referent="103">
               <Properties>
                 <string name="Name">HudLevelBar</string>
                 <string name="Source"><![CDATA[--!strict
@@ -14948,7 +15541,7 @@ return HudLevelBar
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="102">
+            <Item class="ModuleScript" referent="104">
               <Properties>
                 <string name="Name">HudStatPill</string>
                 <string name="Source"><![CDATA[--!strict
@@ -15057,7 +15650,7 @@ return HudStatPill
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="103">
+            <Item class="ModuleScript" referent="105">
               <Properties>
                 <string name="Name">HudThrowPanel</string>
                 <string name="Source"><![CDATA[--!strict
@@ -15390,7 +15983,7 @@ return HudThrowPanel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="104">
+            <Item class="ModuleScript" referent="106">
               <Properties>
                 <string name="Name">HudTile</string>
                 <string name="Source"><![CDATA[--!strict
@@ -15614,7 +16207,198 @@ return HudTile
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="105">
+            <Item class="ModuleScript" referent="107">
+              <Properties>
+                <string name="Name">ItemSlot</string>
+                <string name="Source"><![CDATA[--!strict
+-- Square inventory slot: rarity-coloured border and glow, a lazily built 3D ViewportFrame preview,
+-- a name strip, a small stat line, and corner badges (equipped check, lock, quantity).
+-- Slots are reused across refreshes (screens key them by uid/id), so previews are built once.
+local TweenService = game:GetService("TweenService")
+
+local UI = script.Parent.Parent
+local Theme = require(UI.Theme)
+local Create = require(UI.Create)
+local Viewport = require(script.Parent.Viewport)
+local AudioController = require(UI.Parent.Controllers.AudioController)
+
+export type SlotProps = {
+	Parent: Instance,
+	Name: string?,
+	LayoutOrder: number?,
+	Rarity: string,
+	Build: () -> Model, -- preview model factory (called once, lazily)
+	Title: string?,
+	Stat: string?,
+	OnClick: (() -> ())?,
+	Spin: number?,
+}
+
+export type Slot = {
+	Instance: TextButton,
+	SetTitle: (Slot, string) -> (),
+	SetStat: (Slot, string) -> (),
+	SetRarity: (Slot, string) -> (),
+	SetCorner: (Slot, string?) -> (), -- top-left badge text (e.g. "✅")
+	SetTag: (Slot, string?) -> (), -- top-right badge text (e.g. "🔒", "x3")
+	SetSelected: (Slot, boolean) -> (),
+	SetDimmed: (Slot, boolean) -> (),
+	Destroy: (Slot) -> (),
+}
+
+local ItemSlot = {}
+
+local POP = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+function ItemSlot.new(props: SlotProps): Slot
+	local rarityColor = Theme.Rarity(props.Rarity)
+	local root: TextButton = Create("TextButton", {
+		Name = props.Name or "Slot",
+		Text = "",
+		AutoButtonColor = false,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.fromScale(1, 1),
+		LayoutOrder = props.LayoutOrder or 0,
+		Selectable = true,
+	})
+	Create.Corner(14, root)
+	local gradient = Create.Gradient(root, Theme.RarityLight(props.Rarity):Lerp(Theme.Colors.Card, 0.55), Theme.Colors.CardDeep, 90)
+	local stroke = Create.Stroke(root, rarityColor, 3, 0, true)
+	local scale = Instance.new("UIScale")
+	scale.Parent = root
+
+	local preview: Frame = Create("Frame", {
+		Name = "Preview",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(6, 6),
+		Size = UDim2.new(1, -12, 1, -50),
+		Parent = root,
+	})
+	local title = Create.Text({
+		Name = "Title",
+		Text = props.Title or "",
+		Size = UDim2.new(1, -10, 0, 22),
+		Position = UDim2.new(0, 5, 1, -44),
+		Font = Theme.Fonts.Display,
+		TextSize = 20,
+		Scaled = true,
+		Stroke = 1.8,
+		Parent = root,
+	})
+	local stat = Create.Text({
+		Name = "Stat",
+		Text = props.Stat or "",
+		Size = UDim2.new(1, -10, 0, 20),
+		Position = UDim2.new(0, 5, 1, -22),
+		Font = Theme.Fonts.Body,
+		TextSize = 18,
+		Scaled = true,
+		Color = Theme.Colors.Skill,
+		Stroke = 1.4,
+		Parent = root,
+	})
+	local corner = Create.Text({
+		Name = "Corner",
+		Text = "",
+		Size = UDim2.fromOffset(30, 30),
+		Position = UDim2.fromOffset(4, 4),
+		TextSize = 26,
+		Scaled = true,
+		Stroke = 1.5,
+		ZIndex = 3,
+		Parent = root,
+	})
+	local tag = Create.Text({
+		Name = "Tag",
+		Text = "",
+		Size = UDim2.fromOffset(44, 28),
+		Position = UDim2.new(1, -4, 0, 4),
+		AnchorPoint = Vector2.new(1, 0),
+		Font = Theme.Fonts.Display,
+		TextSize = 22,
+		Scaled = true,
+		Stroke = 1.8,
+		ZIndex = 3,
+		Parent = root,
+	})
+
+	local built = false
+	local function ensurePreview()
+		if built then
+			return
+		end
+		built = true
+		local ok, model = pcall(props.Build)
+		if ok and model then
+			Viewport.Model(preview, model, { Spin = props.Spin or 0.6, Yaw = math.pi, Pitch = math.rad(-10), Zoom = 1.1 })
+		end
+	end
+	-- build the preview the first time the slot is actually on screen
+	if root.AbsoluteSize.X > 0 then
+		ensurePreview()
+	else
+		local conn: RBXScriptConnection? = nil
+		conn = root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			if root.AbsoluteSize.X > 0 then
+				ensurePreview()
+				if conn then
+					conn:Disconnect()
+				end
+			end
+		end)
+	end
+
+	local self = { Instance = root } :: any
+
+	function self.SetTitle(_: any, text: string)
+		title.Text = text
+	end
+	function self.SetStat(_: any, text: string)
+		stat.Text = text
+	end
+	function self.SetRarity(_: any, rarity: string)
+		stroke.Color = Theme.Rarity(rarity)
+		gradient.Color = ColorSequence.new(Theme.RarityLight(rarity):Lerp(Theme.Colors.Card, 0.55), Theme.Colors.CardDeep)
+	end
+	function self.SetCorner(_: any, text: string?)
+		corner.Text = text or ""
+	end
+	function self.SetTag(_: any, text: string?)
+		tag.Text = text or ""
+	end
+	function self.SetSelected(_: any, selected: boolean)
+		stroke.Thickness = if selected then 6 else 3
+		stroke.Color = if selected then Color3.new(1, 1, 1) else rarityColor
+	end
+	function self.SetDimmed(_: any, dimmed: boolean)
+		root.BackgroundTransparency = if dimmed then 0.5 else 0
+		title.TextTransparency = if dimmed then 0.4 else 0
+	end
+	function self.Destroy(_: any)
+		root:Destroy()
+	end
+
+	root.MouseEnter:Connect(function()
+		TweenService:Create(scale, POP, { Scale = 1.05 }):Play()
+	end)
+	root.MouseLeave:Connect(function()
+		TweenService:Create(scale, POP, { Scale = 1 }):Play()
+	end)
+	root.Activated:Connect(function()
+		AudioController.Play("Click")
+		if props.OnClick then
+			props.OnClick()
+		end
+	end)
+	root.Parent = props.Parent
+	return self :: Slot
+end
+
+return ItemSlot
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="108">
               <Properties>
                 <string name="Name">MenuCard</string>
                 <string name="Source"><![CDATA[--!strict
@@ -15860,7 +16644,7 @@ return MenuCard
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="106">
+            <Item class="ModuleScript" referent="109">
               <Properties>
                 <string name="Name">MenuGrid</string>
                 <string name="Source"><![CDATA[--!strict
@@ -15925,7 +16709,7 @@ return MenuGrid
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="107">
+            <Item class="ModuleScript" referent="110">
               <Properties>
                 <string name="Name">MenuShell</string>
                 <string name="Source"><![CDATA[--!strict
@@ -16137,7 +16921,7 @@ return MenuShell
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="108">
+            <Item class="ModuleScript" referent="111">
               <Properties>
                 <string name="Name">MenuTabs</string>
                 <string name="Source"><![CDATA[--!strict
@@ -16254,7 +17038,7 @@ return MenuTabs
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="109">
+            <Item class="ModuleScript" referent="112">
               <Properties>
                 <string name="Name">MenuToggle</string>
                 <string name="Source"><![CDATA[--!strict
@@ -16379,7 +17163,7 @@ return MenuToggle
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="110">
+            <Item class="ModuleScript" referent="113">
               <Properties>
                 <string name="Name">Panel</string>
                 <string name="Source"><![CDATA[--!strict
@@ -16545,7 +17329,7 @@ return Panel
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="111">
+            <Item class="ModuleScript" referent="114">
               <Properties>
                 <string name="Name">Viewport</string>
                 <string name="Source"><![CDATA[--!strict
@@ -16630,7 +17414,7 @@ return Viewport
               </Properties>
             </Item>
           </Item>
-          <Item class="ModuleScript" referent="112">
+          <Item class="ModuleScript" referent="115">
             <Properties>
               <string name="Name">Create</string>
               <string name="Source"><![CDATA[--!strict
@@ -16814,11 +17598,875 @@ return Create
 ]]></string>
             </Properties>
           </Item>
-          <Item class="Folder" referent="113">
+          <Item class="Folder" referent="116">
             <Properties>
               <string name="Name">Screens</string>
             </Properties>
-            <Item class="ModuleScript" referent="114">
+            <Item class="ModuleScript" referent="117">
+              <Properties>
+                <string name="Name">AdminScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Admin / diagnostics menu ("Admin"). Only reachable for allow-listed admins (Data.IsAdmin; the
+-- HUD only shows its tile then). Every action is an AdminRequest that the server re-checks
+-- against Config/Admin, so a normal player can never use it even by firing the remote directly.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Format = require(Shared.Util.Format)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local Button = require(Components.Button)
+local MenuShell = require(Components.MenuShell)
+
+local AdminScreen = {}
+
+local PANEL = Vector2.new(1160, 680)
+
+type Action = { Text: string, Style: string, Action: string, Arg: any? }
+
+local SECTIONS: { { Title: string, Actions: { Action } } } = {
+	{
+		Title = "GRANTS",
+		Actions = {
+			{ Text = "+1M Skill", Style = "Gold", Action = "GrantSkill", Arg = 1e6 },
+			{ Text = "+1B Skill", Style = "Gold", Action = "GrantSkill", Arg = 1e9 },
+			{ Text = "+1M Wins", Style = "Green", Action = "GrantWins", Arg = 1e6 },
+			{ Text = "+1B Wins", Style = "Green", Action = "GrantWins", Arg = 1e9 },
+		},
+	},
+	{
+		Title = "PROGRESS",
+		Actions = {
+			{ Text = "Max Level", Style = "Blue", Action = "MaxLevel" },
+			{ Text = "Unlock Worlds", Style = "Purple", Action = "UnlockWorlds" },
+			{ Text = "Reset Tutorial", Style = "Orange", Action = "ResetTutorial" },
+		},
+	},
+	{
+		Title = "LIVE EVENT",
+		Actions = {
+			{ Text = "Start (30 min)", Style = "Pink", Action = "StartEvent", Arg = 30 },
+			{ Text = "Stop Event", Style = "Red", Action = "StopEvent" },
+		},
+	},
+}
+
+local shell: MenuShell.Shell
+local statsLabel: TextLabel
+local eventLabel: TextLabel
+local refreshButton: Button.Button
+
+local function refreshStats()
+	local result = Net.Invoke("AdminRequest", true, "Stats")
+	if result.ok and type(result.stats) == "table" then
+		local s = result.stats
+		statsLabel.Text = string.format(
+			"Players: %s\nActive flights: %s\nServer memory: %s MB\nHeartbeat: %s fps\nData store: %s",
+			tostring(s.Players),
+			tostring(s.Flights),
+			tostring(s.MemoryMB),
+			tostring(s.Heartbeat),
+			if s.MockData then "IN-MEMORY MOCK (no API access)" else "DataStore"
+		)
+	else
+		statsLabel.Text = "Not allowed."
+	end
+	local event = StateController.Event
+	if event.Active then
+		eventLabel.Text = string.format("%s active · ends in %s", event.Name, Format.Clock(event.EndsAt - Workspace:GetServerTimeNow()))
+	else
+		eventLabel.Text = "No live event running."
+	end
+end
+
+function AdminScreen.Init()
+	shell = MenuShell.new({
+		Name = "Admin",
+		Title = "Admin / Diagnostics",
+		Icon = "🛠️",
+		Size = PANEL,
+		Accent = Theme.Colors.Danger,
+		OnOpen = function()
+			local data = StateController.Data
+			if not (data and data.IsAdmin) then
+				task.defer(UIController.Close, "Admin")
+				return
+			end
+			task.spawn(refreshStats)
+		end,
+		FirstSelection = function()
+			return refreshButton.Instance
+		end,
+	})
+	local content = shell.Content
+
+	local statsCard: Frame = Create("Frame", {
+		Name = "Stats",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		Size = UDim2.new(0.4, -8, 1, 0),
+		Parent = content,
+	})
+	Create.Corner(14, statsCard)
+	Create.Stroke(statsCard, Theme.Colors.PanelEdge, 2, 0.4, true)
+	Create.Text({
+		Text = "SERVER",
+		Size = UDim2.new(1, -24, 0, 36),
+		Position = UDim2.fromOffset(12, 10),
+		Font = Theme.Fonts.Display,
+		TextSize = 30,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Stroke = 2.5,
+		Parent = statsCard,
+	})
+	statsLabel = Create.Text({
+		Text = "...",
+		Size = UDim2.new(1, -24, 0, 220),
+		Position = UDim2.fromOffset(12, 56),
+		Font = Theme.Fonts.Body,
+		TextSize = 24,
+		XAlign = Enum.TextXAlignment.Left,
+		YAlign = Enum.TextYAlignment.Top,
+		Wrapped = true,
+		Stroke = 1.2,
+		Parent = statsCard,
+	})
+	eventLabel = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 60),
+		Position = UDim2.fromOffset(12, 290),
+		Font = Theme.Fonts.Body,
+		TextSize = 22,
+		Color = Theme.Colors.Rebirth,
+		XAlign = Enum.TextXAlignment.Left,
+		YAlign = Enum.TextYAlignment.Top,
+		Wrapped = true,
+		Stroke = 1.2,
+		Parent = statsCard,
+	})
+	refreshButton = Button.new({
+		Parent = statsCard,
+		Name = "Refresh",
+		Size = UDim2.new(1, -24, 0, 62),
+		Position = UDim2.new(0, 12, 1, -12),
+		AnchorPoint = Vector2.new(0, 1),
+		Style = "Blue",
+		Text = "Refresh",
+		TextSize = 26,
+		OnClick = function()
+			task.spawn(refreshStats)
+		end,
+	})
+
+	local actions: Frame = Create("Frame", {
+		Name = "Actions",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(0.6, -8, 1, 0),
+		Position = UDim2.new(0.4, 8, 0, 0),
+		Parent = content,
+	})
+	Create.List(actions, Enum.FillDirection.Vertical, 12)
+	for i, section in SECTIONS do
+		local box: Frame = Create("Frame", {
+			Name = section.Title,
+			BackgroundColor3 = Theme.Colors.Card,
+			Size = UDim2.new(1, 0, 0, 160),
+			LayoutOrder = i,
+			Parent = actions,
+		})
+		Create.Corner(14, box)
+		Create.Stroke(box, Theme.Colors.PanelBorder, 2, 0, true)
+		Create.Text({
+			Text = section.Title,
+			Size = UDim2.new(1, -24, 0, 32),
+			Position = UDim2.fromOffset(12, 8),
+			Font = Theme.Fonts.Display,
+			TextSize = 28,
+			Scaled = true,
+			XAlign = Enum.TextXAlignment.Left,
+			Stroke = 2,
+			Parent = box,
+		})
+		local row: Frame = Create("Frame", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(12, 56),
+			Size = UDim2.new(1, -24, 0, 70),
+			Parent = box,
+		})
+		local layout = Instance.new("UIGridLayout")
+		layout.CellSize = UDim2.new(1 / #section.Actions, -10, 0, 66)
+		layout.CellPadding = UDim2.fromOffset(10, 0)
+		layout.Parent = row
+		for j, action in section.Actions do
+			Button.new({
+				Parent = row,
+				Name = action.Action .. j,
+				Size = UDim2.fromOffset(100, 66),
+				LayoutOrder = j,
+				Style = action.Style,
+				Text = action.Text,
+				TextSize = 22,
+				OnClick = function()
+					task.spawn(function()
+						local result = Net.Invoke("AdminRequest", false, action.Action, action.Arg)
+						if result.ok then
+							UIController.Toast("Admin: " .. action.Text, "Success")
+						end
+						refreshStats()
+					end)
+				end,
+			})
+		end
+	end
+
+	UIController.Register("Admin", shell)
+end
+
+return AdminScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="118">
+              <Properties>
+                <string name="Name">EggScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Egg menu ("Egg") + hatch reveal. UIController.Open("Egg", eggId) shows the egg, its price and
+-- the live odds (Eggs.Odds with the player's Luck), with Hatch 1 / Hatch 3 (Triple Hatch pass) or a
+-- Robux button for premium eggs. Hatching is decided on the server; the HatchResult event drives a
+-- reveal in the Overlay layer: egg wobble -> crack flash -> pet with a rarity glow. Results that
+-- arrive while a reveal is playing are queued. Gifts (payload.Egg == "") skip the egg stage.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Eggs = require(Shared.Definitions.Eggs)
+local Pets = require(Shared.Definitions.Pets)
+local Monetization = require(Shared.Config.Monetization)
+local Rarity = require(Shared.Config.Rarity)
+local Remotes = require(Shared.Net.Remotes)
+local Format = require(Shared.Util.Format)
+local PetFactory = require(Shared.Visual.PetFactory)
+local EggFactory = require(Shared.Visual.EggFactory)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local AudioController = require(Client.Controllers.AudioController)
+local Bus = require(Client.Controllers.Bus)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local Button = require(Components.Button)
+local MenuShell = require(Components.MenuShell)
+local Viewport = require(Components.Viewport)
+
+local EggScreen = {}
+
+local IS_STUDIO = RunService:IsStudio()
+local PANEL = Vector2.new(1120, 700)
+local LEFT_W = 380
+
+local shell: MenuShell.Shell
+local currentEgg: Eggs.Egg? = nil
+local eggPreview: Frame
+local eggName: TextLabel
+local eggPrice: TextLabel
+local hatchOne: Button.Button
+local hatchThree: Button.Button
+local luckLabel: TextLabel
+local oddsHolder: Frame
+local oddsLists: { [string]: { Frame: ScrollingFrame, Chances: { [string]: TextLabel } } } = {}
+local previewEggId: string? = nil
+
+local function shortChance(p: number): string
+	local pct = p * 100
+	if pct >= 10 then
+		return string.format("%.1f%%", pct)
+	elseif pct >= 0.1 then
+		return string.format("%.2f%%", pct)
+	end
+	return string.format("%.3f%%", pct)
+end
+
+local function luck(): number
+	local derived = StateController.Derived()
+	return if type(derived.Luck) == "number" then derived.Luck else 1
+end
+
+local function oddsFor(egg: Eggs.Egg)
+	local cached = oddsLists[egg.Id]
+	if cached then
+		return cached
+	end
+	local list: ScrollingFrame = Create("ScrollingFrame", {
+		Name = "Odds_" .. egg.Id,
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 8,
+		ScrollBarImageColor3 = Theme.Colors.PanelEdge,
+		Visible = false,
+		Selectable = false,
+		Parent = oddsHolder,
+	})
+	Create.List(list, Enum.FillDirection.Vertical, 8)
+	Create.Padding(list, 6, 6)
+	local chances: { [string]: TextLabel } = {}
+	for i, entry in egg.Pets do
+		local pet = Pets.Get(entry.Pet)
+		if not pet then
+			continue
+		end
+		local row: Frame = Create("Frame", {
+			Name = entry.Pet,
+			BackgroundColor3 = Theme.Colors.Card,
+			Size = UDim2.new(1, -16, 0, 96),
+			LayoutOrder = i,
+			Parent = list,
+		})
+		Create.Corner(12, row)
+		Create.Stroke(row, Theme.Rarity(pet.Rarity), 3, 0, true)
+		local preview: Frame = Create("Frame", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(90, 90),
+			Position = UDim2.fromOffset(4, 3),
+			Parent = row,
+		})
+		local petId = entry.Pet
+		task.defer(function()
+			Viewport.Model(preview, PetFactory.ForId(petId, 2), { Spin = 0.5, Yaw = math.pi, Pitch = math.rad(-8) })
+		end)
+		Create.Text({
+			Text = pet.Name,
+			Size = UDim2.new(1, -260, 0, 34),
+			Position = UDim2.fromOffset(102, 10),
+			Font = Theme.Fonts.Display,
+			TextSize = 30,
+			Scaled = true,
+			XAlign = Enum.TextXAlignment.Left,
+			Stroke = 2,
+			Parent = row,
+		})
+		Create.Text({
+			Text = string.format("%s  ·  x%s Skill", string.upper(pet.Rarity), Format.Short(1 + pet.SkillBoost)),
+			Size = UDim2.new(1, -260, 0, 28),
+			Position = UDim2.fromOffset(102, 52),
+			Font = Theme.Fonts.Body,
+			TextSize = 24,
+			Scaled = true,
+			Color = Theme.Rarity(pet.Rarity),
+			XAlign = Enum.TextXAlignment.Left,
+			Stroke = 1.6,
+			Parent = row,
+		})
+		chances[entry.Pet] = Create.Text({
+			Text = "",
+			Size = UDim2.fromOffset(140, 44),
+			Position = UDim2.new(1, -16, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Font = Theme.Fonts.Numbers,
+			TextSize = 36,
+			Scaled = true,
+			Color = Theme.Colors.Skill,
+			XAlign = Enum.TextXAlignment.Right,
+			Stroke = 2.4,
+			Parent = row,
+		})
+	end
+	local entry = { Frame = list, Chances = chances }
+	oddsLists[egg.Id] = entry
+	return entry
+end
+
+local function priceAction(egg: Eggs.Egg): (string, string, boolean)
+	local product = if egg.ProductKey then Monetization.Product(egg.ProductKey) else nil
+	if product then
+		if product.Id == 0 and not IS_STUDIO then
+			return "SOON", "Disabled", false
+		end
+		return string.format("BUY %s %d", Theme.Icons.Robux, product.Robux), "Green", true
+	end
+	return "HATCH 1", "Green", true
+end
+
+local function refresh()
+	local egg = currentEgg
+	local data = StateController.Data
+	if egg == nil or data == nil then
+		return
+	end
+	local l = luck()
+	local odds = oddsFor(egg)
+	for _, other in oddsLists do
+		other.Frame.Visible = other == odds
+	end
+	for _, entry in Eggs.Odds(egg, l) do
+		local label = odds.Chances[entry.Pet]
+		if label then
+			label.Text = shortChance(entry.Chance)
+		end
+	end
+	luckLabel.Text = if l > 1 then string.format("%s LUCK x%s ACTIVE", Theme.Icons.Luck, Format.Short(l)) else ""
+	eggName.Text = egg.Name
+	if egg.ProductKey then
+		local product = Monetization.Product(egg.ProductKey)
+		eggPrice.Text = if product then string.format("%s %d per egg", Theme.Icons.Robux, product.Robux) else ""
+		local text, style, enabled = priceAction(egg)
+		hatchOne:SetText(text)
+		hatchOne:SetStyle(style)
+		hatchOne:SetEnabled(enabled)
+		hatchThree.Instance.Visible = false
+	else
+		local wins = if type(data.Wins) == "number" then data.Wins else 0
+		eggPrice.Text = string.format("%s %s Wins", Theme.Icons.Wins, Format.Short(egg.Price))
+		eggPrice.TextColor3 = if wins >= egg.Price then Theme.Colors.Text else Theme.Colors.Danger
+		hatchOne:SetText("HATCH 1")
+		hatchOne:SetStyle("Green")
+		hatchOne:SetEnabled(true)
+		hatchThree.Instance.Visible = true
+		if StateController.HasPass("TripleHatch") then
+			hatchThree:SetText("HATCH 3")
+			hatchThree:SetStyle("Purple")
+		else
+			hatchThree:SetText(Theme.Icons.Lock .. " HATCH 3")
+			hatchThree:SetStyle("Grey")
+		end
+		hatchThree:SetEnabled(true)
+	end
+	if previewEggId ~= egg.Id then
+		eggPreview:ClearAllChildren()
+		previewEggId = egg.Id
+		Viewport.Model(eggPreview, EggFactory.ForId(egg.Id, 6), { Spin = 0.7, Yaw = math.pi, Pitch = math.rad(-6) })
+	end
+end
+
+local function hatch(count: number)
+	local egg = currentEgg
+	if egg == nil then
+		return
+	end
+	if egg.ProductKey then
+		task.spawn(Net.Invoke, "RequestPurchase", false, "Product", egg.ProductKey)
+		return
+	end
+	if count == 3 and not StateController.HasPass("TripleHatch") then
+		task.spawn(Net.Invoke, "RequestPurchase", false, "Pass", "TripleHatch")
+		return
+	end
+	task.spawn(Net.Invoke, "RequestHatchEgg", false, egg.Id, count)
+end
+
+-- Hatch reveal ------------------------------------------------------------------------------------
+
+type HatchPayload = { Egg: string, Pets: { { Uid: string, Id: string } }, Source: string? }
+
+local overlay: TextButton
+local stage: Frame
+local subtitle: TextLabel
+local hint: TextLabel
+local queue: { HatchPayload } = {}
+local playing = false
+local dismissable = false
+local dismissSignal: BindableEvent
+
+local function clearStage()
+	for _, child in stage:GetChildren() do
+		if not child:IsA("UIListLayout") then
+			child:Destroy()
+		end
+	end
+end
+
+local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, width: number)
+	local card: Frame = Create("Frame", {
+		Name = "Reveal",
+		BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(width, 520),
+		Parent = stage,
+	})
+	local glow: Frame = Create("Frame", {
+		Name = "Glow",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.42),
+		Size = UDim2.fromOffset(width * 0.95, width * 0.95),
+		BackgroundColor3 = Theme.Rarity(pet.Rarity),
+		BackgroundTransparency = 1,
+		Parent = card,
+	})
+	Create.Round(glow)
+	local rays: Frame = Create("Frame", {
+		Name = "Rays",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.42),
+		Size = UDim2.fromOffset(width * 1.05, width * 1.05),
+		BackgroundTransparency = 1,
+		Parent = card,
+	})
+	for i = 0, 5 do
+		local ray: Frame = Create("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(1, 0, 0, 26),
+			Rotation = i * 30,
+			BackgroundColor3 = Theme.RarityLight(pet.Rarity),
+			BackgroundTransparency = 1,
+			Parent = rays,
+		})
+		Create.Corner(13, ray)
+	end
+	local view: Frame = Create("Frame", {
+		Name = "View",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.42),
+		Size = UDim2.fromOffset(width * 0.85, width * 0.85),
+		BackgroundTransparency = 1,
+		Parent = card,
+	})
+	local name = Create.Text({
+		Text = pet.Name,
+		Size = UDim2.new(1, 0, 0, 52),
+		Position = UDim2.new(0, 0, 1, -118),
+		Font = Theme.Fonts.Display,
+		TextSize = 46,
+		Scaled = true,
+		Stroke = 3.5,
+		Parent = card,
+	})
+	local info = Create.Text({
+		Text = string.format("%s  ·  x%s Skill", string.upper(pet.Rarity), Format.Short(1 + pet.SkillBoost)),
+		Size = UDim2.new(1, 0, 0, 40),
+		Position = UDim2.new(0, 0, 1, -62),
+		Font = Theme.Fonts.Display,
+		TextSize = 34,
+		Scaled = true,
+		Color = Theme.Rarity(pet.Rarity),
+		Stroke = 3,
+		Parent = card,
+	})
+	name.TextTransparency = 1
+	info.TextTransparency = 1
+	return {
+		Card = card,
+		View = view,
+		Glow = glow,
+		Rays = rays,
+		Name = name,
+		Info = info,
+		PetId = petId,
+		Pet = pet,
+		EggId = payload.Egg,
+	}
+end
+
+local function play(payload: HatchPayload)
+	playing = true
+	dismissable = false
+	clearStage()
+	overlay.Visible = true
+	overlay.BackgroundTransparency = 1
+	TweenService:Create(overlay, TweenInfo.new(0.25), { BackgroundTransparency = 0.35 }):Play()
+	local egg = Eggs.Get(payload.Egg)
+	subtitle.Text = if egg then egg.Name else (payload.Source or "Reward")
+	hint.Text = ""
+
+	local count = math.max(1, #payload.Pets)
+	local width = if count >= 3 then 340 else 420
+	local cards = {}
+	local bestOrder = 0
+	for _, result in payload.Pets do
+		local pet = Pets.Get(result.Id)
+		if pet then
+			table.insert(cards, revealCard(payload, pet, result.Id, width))
+			bestOrder = math.max(bestOrder, Rarity.Order(pet.Rarity))
+		end
+	end
+
+	-- egg wobble (skipped for gifts / starter packs)
+	if egg then
+		for _, c in cards do
+			Viewport.Model(c.View, EggFactory.ForId(egg.Id, 6), { Yaw = math.pi, Pitch = math.rad(-6) })
+		end
+		for i = 1, 3 do
+			AudioController.Play("EggShake")
+			for _, c in cards do
+				local angle = if i % 2 == 0 then -14 - i * 3 else 14 + i * 3
+				TweenService:Create(c.View, TweenInfo.new(0.14, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 1, true), { Rotation = angle }):Play()
+			end
+			task.wait(0.34)
+		end
+		AudioController.Play("EggCrack")
+	end
+
+	-- crack flash -> pets
+	local flash: Frame = Create("Frame", {
+		Name = "Flash",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 50,
+		Parent = overlay,
+	})
+	TweenService:Create(flash, TweenInfo.new(0.45), { BackgroundTransparency = 1 }):Play()
+	task.delay(0.5, function()
+		flash:Destroy()
+	end)
+	for _, c in cards do
+		c.View:ClearAllChildren()
+		c.View.Rotation = 0
+		Viewport.Model(c.View, PetFactory.ForId(c.PetId, 3), { Spin = 0.9, Yaw = math.pi, Pitch = math.rad(-8) })
+		local scale = Instance.new("UIScale")
+		scale.Scale = 0.3
+		scale.Parent = c.View
+		TweenService:Create(scale, TweenInfo.new(0.45, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+		TweenService:Create(c.Glow, TweenInfo.new(0.4), { BackgroundTransparency = 0.55 }):Play()
+		for _, ray in c.Rays:GetChildren() do
+			if ray:IsA("Frame") then
+				TweenService:Create(ray, TweenInfo.new(0.4), { BackgroundTransparency = if Rarity.Order(c.Pet.Rarity) >= 4 then 0.45 else 0.75 }):Play()
+			end
+		end
+		TweenService:Create(c.Rays, TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), { Rotation = 360 }):Play()
+		TweenService:Create(c.Name, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+		TweenService:Create(c.Info, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+	end
+	if bestOrder >= Rarity.Order("Legendary") then
+		AudioController.Play("RareHatch")
+	else
+		AudioController.Play("Reward")
+	end
+	task.wait(0.6)
+	hint.Text = if UserInputService.GamepadEnabled then "Press A to continue" else "Tap to continue"
+	dismissable = true
+	dismissSignal.Event:Wait()
+	TweenService:Create(overlay, TweenInfo.new(0.2), { BackgroundTransparency = 1 }):Play()
+	task.wait(0.2)
+	clearStage()
+	overlay.Visible = false
+	playing = false
+	local nextPayload = table.remove(queue, 1)
+	if nextPayload then
+		play(nextPayload)
+	end
+end
+
+local function enqueue(payload: HatchPayload)
+	if playing then
+		table.insert(queue, payload)
+	else
+		task.spawn(play, payload)
+	end
+end
+
+local function buildOverlay()
+	overlay = Create("TextButton", {
+		Name = "HatchReveal",
+		Text = "",
+		AutoButtonColor = false,
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Visible = false,
+		Parent = UIController.Layer("Overlay"),
+	})
+	dismissSignal = Instance.new("BindableEvent")
+	overlay.Activated:Connect(function()
+		if dismissable then
+			dismissable = false
+			dismissSignal:Fire()
+		end
+	end)
+	UserInputService.InputBegan:Connect(function(input)
+		if overlay.Visible and dismissable and (input.KeyCode == Enum.KeyCode.ButtonA or input.KeyCode == Enum.KeyCode.ButtonB or input.KeyCode == Enum.KeyCode.Space) then
+			dismissable = false
+			dismissSignal:Fire()
+		end
+	end)
+	subtitle = Create.Text({
+		Text = "",
+		Size = UDim2.fromOffset(900, 60),
+		Position = UDim2.new(0.5, 0, 0, 70),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Font = Theme.Fonts.Display,
+		TextSize = 54,
+		Scaled = true,
+		Stroke = 4,
+		Parent = overlay,
+	})
+	stage = Create("Frame", {
+		Name = "Stage",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = UDim2.fromOffset(1200, 540),
+		Parent = overlay,
+	})
+	Create.List(stage, Enum.FillDirection.Horizontal, 24, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+	hint = Create.Text({
+		Text = "",
+		Size = UDim2.fromOffset(600, 40),
+		Position = UDim2.new(0.5, 0, 1, -60),
+		AnchorPoint = Vector2.new(0.5, 1),
+		Font = Theme.Fonts.Display,
+		TextSize = 32,
+		Scaled = true,
+		Color = Theme.Colors.TextDim,
+		Stroke = 2.5,
+		Parent = overlay,
+	})
+end
+
+function EggScreen.Init()
+	shell = MenuShell.new({
+		Name = "Egg",
+		Title = "Egg",
+		Icon = Theme.Icons.Egg,
+		Size = PANEL,
+		Accent = Theme.Colors.Skill,
+		OnOpen = function(eggId: any)
+			if type(eggId) == "string" and Eggs.Get(eggId) then
+				currentEgg = Eggs.Get(eggId)
+			end
+			if currentEgg then
+				shell.Panel:SetTitle(Theme.Icons.Egg .. " " .. string.upper(currentEgg.Name))
+			end
+			refresh()
+		end,
+		FirstSelection = function()
+			return hatchOne.Instance
+		end,
+	})
+	local content = shell.Content
+	local left: Frame = Create("Frame", {
+		Name = "Left",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		Size = UDim2.new(0, LEFT_W, 1, 0),
+		Parent = content,
+	})
+	Create.Corner(16, left)
+	Create.Stroke(left, Theme.Colors.PanelEdge, 2, 0.4, true)
+	eggPreview = Create("Frame", {
+		Name = "Preview",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(30, 8),
+		Size = UDim2.new(1, -60, 0, 250),
+		Parent = left,
+	})
+	eggName = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 42),
+		Position = UDim2.fromOffset(12, 262),
+		Font = Theme.Fonts.Display,
+		TextSize = 38,
+		Scaled = true,
+		Stroke = 3,
+		Parent = left,
+	})
+	eggPrice = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 36),
+		Position = UDim2.fromOffset(12, 308),
+		Font = Theme.Fonts.Display,
+		TextSize = 32,
+		Scaled = true,
+		Stroke = 2.5,
+		Parent = left,
+	})
+	luckLabel = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 28),
+		Position = UDim2.fromOffset(12, 350),
+		Font = Theme.Fonts.Display,
+		TextSize = 24,
+		Scaled = true,
+		Color = Theme.Colors.Success,
+		Stroke = 2,
+		Parent = left,
+	})
+	hatchOne = Button.new({
+		Parent = left,
+		Name = "HatchOne",
+		Size = UDim2.new(1, -24, 0, 70),
+		Position = UDim2.new(0, 12, 1, -94),
+		AnchorPoint = Vector2.new(0, 1),
+		Style = "Green",
+		Text = "HATCH 1",
+		TextSize = 30,
+		OnClick = function()
+			hatch(1)
+		end,
+	})
+	hatchThree = Button.new({
+		Parent = left,
+		Name = "HatchThree",
+		Size = UDim2.new(1, -24, 0, 70),
+		Position = UDim2.new(0, 12, 1, -12),
+		AnchorPoint = Vector2.new(0, 1),
+		Style = "Purple",
+		Text = "HATCH 3",
+		TextSize = 30,
+		OnClick = function()
+			hatch(3)
+		end,
+	})
+	local right: Frame = Create("Frame", {
+		Name = "Right",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(LEFT_W + 16, 0),
+		Size = UDim2.new(1, -(LEFT_W + 16), 1, 0),
+		Parent = content,
+	})
+	Create.Text({
+		Text = "CHANCES",
+		Size = UDim2.new(1, 0, 0, 36),
+		Font = Theme.Fonts.Display,
+		TextSize = 32,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Stroke = 2.5,
+		Parent = right,
+	})
+	oddsHolder = Create("Frame", {
+		Name = "Odds",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, 44),
+		Size = UDim2.new(1, 0, 1, -44),
+		Parent = right,
+	})
+
+	buildOverlay()
+	UIController.Register("Egg", shell)
+	StateController.DataChanged:Connect(function()
+		if shell:IsOpen() then
+			refresh()
+		end
+	end)
+	Remotes.Event("HatchResult").OnClientEvent:Connect(function(payload: any)
+		if type(payload) ~= "table" or type(payload.Pets) ~= "table" then
+			return
+		end
+		Bus.HatchResult:Fire(payload)
+		enqueue({
+			Egg = if type(payload.Egg) == "string" then payload.Egg else "",
+			Pets = payload.Pets,
+			Source = if type(payload.Source) == "string" then payload.Source else nil,
+		})
+	end)
+end
+
+return EggScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="119">
               <Properties>
                 <string name="Name">EventBanner</string>
                 <string name="Source"><![CDATA[--!strict
@@ -16913,7 +18561,329 @@ return EventBanner
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="115">
+            <Item class="ModuleScript" referent="120">
+              <Properties>
+                <string name="Name">GiftsScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Gifts menu ("Gifts"): the 7-day daily reward strip on top and the 12 playtime gifts below.
+-- Timers are server-measured (Data.Session.Playtime) and ticked locally between syncs; CLAIM only
+-- sends RequestClaimGift / RequestClaimDaily intents, the server re-checks the timer and pays.
+-- Auto-opens once per session when the daily reward is ready.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Rewards = require(Shared.Definitions.Rewards)
+local Boosts = require(Shared.Definitions.Boosts)
+local Pets = require(Shared.Definitions.Pets)
+local Zones = require(Shared.Definitions.Zones)
+local Format = require(Shared.Util.Format)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local Button = require(Components.Button)
+local MenuShell = require(Components.MenuShell)
+local MenuCard = require(Components.MenuCard)
+local MenuGrid = require(Components.MenuGrid)
+
+local GiftsScreen = {}
+
+local hex = Color3.fromHex
+
+local PANEL = Vector2.new(1240, 740)
+local WIDTH = PANEL.X - 36
+local HEIGHT = PANEL.Y - 78 - 16
+local DAILY_H = 196
+
+local shell: MenuShell.Shell
+local giftCards: { MenuCard.Card } = {}
+local dayFrames: { { Frame: Frame, Stroke: UIStroke, State: TextLabel } } = {}
+local dailyButton: Button.Button
+local streakLabel: TextLabel
+local autoOpened = false
+
+-- Emoji + short text for a reward entry in the player's current world.
+local function describe(reward: Rewards.Reward, data: { [string]: any }?): (string, string)
+	if reward.Kind == "Wins" then
+		local world = if data and type(data.World) == "number" then data.World else 1
+		local zones = Zones.ForWorld(world)
+		local scale = if zones[1] then zones[1].Wins else 1
+		return Theme.Icons.Wins, "+" .. Format.Short((reward.Amount or 0) * scale) .. " Wins"
+	elseif reward.Kind == "Skill" then
+		return Theme.Icons.Skill, string.format("Skill x%d reps", reward.Reps or 0)
+	elseif reward.Kind == "Potion" then
+		local boost = Boosts.Get(reward.Id or "")
+		return Theme.Icons.Potion, string.format("%dx %s", reward.Count or 1, if boost then boost.Name else "Potion")
+	elseif reward.Kind == "Pet" then
+		local pet = Pets.Get(reward.Id or "")
+		return Theme.Icons.Pets, if pet then pet.Name else "Pet"
+	end
+	return Theme.Icons.Gifts, "Gift"
+end
+
+local function claimedSet(data: { [string]: any }): { [number]: boolean }
+	local set = {}
+	local session = data.Session
+	if type(session) == "table" and type(session.GiftsClaimed) == "table" then
+		for _, i in session.GiftsClaimed do
+			if type(i) == "number" then
+				set[i] = true
+			end
+		end
+	end
+	return set
+end
+
+local function playtime(data: { [string]: any }): number
+	local session = data.Session
+	local base = if type(session) == "table" and type(session.Playtime) == "number" then session.Playtime else 0
+	return base + StateController.Since()
+end
+
+-- Index (1..7) of the day the next daily claim pays, and whether it is claimable now.
+local function dailyState(data: { [string]: any }): (number, boolean, number)
+	local daily = if type(data.Daily) == "table" then data.Daily else { Day = 0, Streak = 0 }
+	local derived = StateController.Derived()
+	local now = (if type(derived.ServerTime) == "number" then derived.ServerTime else os.time()) + StateController.Since()
+	local today = now // 86400
+	local ready = data.DailyReady == true
+	local streak: number = daily.Streak or 0
+	if ready then
+		local nextStreak = if daily.Day == today - 1 then streak + 1 else 1
+		return (nextStreak - 1) % #Rewards.Daily + 1, true, nextStreak
+	end
+	return (math.max(1, streak) - 1) % #Rewards.Daily + 1, false, streak
+end
+
+local function refresh()
+	local data = StateController.Data
+	if data == nil then
+		return
+	end
+	-- daily strip
+	local index, ready, streak = dailyState(data)
+	streakLabel.Text = string.format("DAILY REWARDS  ·  %d day streak", if ready then math.max(0, streak - 1) else streak)
+	for i, day in dayFrames do
+		local isNext = i == index
+		if ready then
+			day.State.Text = if i < index then "✅" elseif isNext then "TODAY" else ""
+		else
+			day.State.Text = if i <= index then "✅" else ""
+		end
+		day.Stroke.Color = if isNext and ready then Theme.Colors.Skill else Theme.Colors.PanelBorder
+		day.Stroke.Thickness = if isNext and ready then 4 else 2
+		day.Frame.BackgroundTransparency = if (not ready and i <= index) or (ready and i < index) then 0.35 else 0
+	end
+	dailyButton:SetText(if ready then "CLAIM" else "COME BACK TOMORROW")
+	dailyButton:SetStyle(if ready then "Green" else "Grey")
+	dailyButton:SetEnabled(ready)
+
+	-- playtime gifts
+	local claimed = claimedSet(data)
+	local played = playtime(data)
+	for i, gift in Rewards.Gifts do
+		local card = giftCards[i]
+		local _, text = describe(gift.Reward, data)
+		card:SetTitle(text)
+		local remaining = gift.Minutes * 60 - played
+		if claimed[i] then
+			card:SetSubtitle("Claimed")
+			card:SetAction("CLAIMED", "Grey", false)
+			card:SetBadge("✅", Theme.Colors.Success)
+		elseif remaining <= 0 then
+			card:SetSubtitle("Ready!")
+			card:SetAction("CLAIM", "Green", true)
+			card:SetBadge("READY", Theme.Colors.Danger)
+		else
+			card:SetSubtitle(Format.Clock(remaining))
+			card:SetAction(string.format("%d MIN", gift.Minutes), "Disabled", false)
+			card:SetBadge(nil)
+		end
+	end
+end
+
+local function buildDaily(parent: Frame)
+	local strip: Frame = Create("Frame", {
+		Name = "Daily",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		BackgroundTransparency = 0.2,
+		Size = UDim2.new(1, 0, 0, DAILY_H),
+		Parent = parent,
+	})
+	Create.Corner(16, strip)
+	Create.Stroke(strip, Theme.Colors.PanelEdge, 2, 0.4, true)
+	streakLabel = Create.Text({
+		Text = "DAILY REWARDS",
+		Size = UDim2.new(1, -260, 0, 34),
+		Position = UDim2.fromOffset(18, 8),
+		Font = Theme.Fonts.Display,
+		TextSize = 30,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Stroke = 2.5,
+		Parent = strip,
+	})
+	dailyButton = Button.new({
+		Parent = strip,
+		Name = "ClaimDaily",
+		Size = UDim2.fromOffset(240, 62),
+		Position = UDim2.new(1, -14, 0, 8),
+		AnchorPoint = Vector2.new(1, 0),
+		Style = "Green",
+		Text = "CLAIM",
+		TextSize = 26,
+		OnClick = function()
+			Net.Invoke("RequestClaimDaily", false)
+		end,
+	})
+	local row: Frame = Create("Frame", {
+		Name = "Days",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(14, 78),
+		Size = UDim2.new(1, -28, 0, DAILY_H - 90),
+		Parent = strip,
+	})
+	Create.List(row, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center)
+	local count = #Rewards.Daily
+	local w = math.floor((WIDTH - 28 - 10 * (count - 1)) / count)
+	for i, reward in Rewards.Daily do
+		local icon, text = describe(reward, nil)
+		local day: Frame = Create("Frame", {
+			Name = "Day" .. i,
+			BackgroundColor3 = Theme.Colors.Card,
+			Size = UDim2.new(0, w, 1, 0),
+			LayoutOrder = i,
+			Parent = row,
+		})
+		Create.Corner(12, day)
+		local stroke = Create.Stroke(day, Theme.Colors.PanelBorder, 2, 0, true)
+		Create.Text({
+			Text = "DAY " .. i,
+			Size = UDim2.new(1, -8, 0, 22),
+			Position = UDim2.fromOffset(4, 4),
+			Font = Theme.Fonts.Display,
+			TextSize = 20,
+			Scaled = true,
+			Color = Theme.Colors.TextDim,
+			Stroke = 1.5,
+			Parent = day,
+		})
+		Create.Text({
+			Text = icon,
+			Size = UDim2.new(1, 0, 0, 34),
+			Position = UDim2.fromOffset(0, 26),
+			TextSize = 30,
+			Scaled = true,
+			Parent = day,
+		})
+		Create.Text({
+			Text = text,
+			Size = UDim2.new(1, -8, 0, 22),
+			Position = UDim2.new(0, 4, 1, -26),
+			Font = Theme.Fonts.Body,
+			TextSize = 18,
+			Scaled = true,
+			Stroke = 1.5,
+			Parent = day,
+		})
+		local state = Create.Text({
+			Name = "State",
+			Text = "",
+			Size = UDim2.fromOffset(70, 22),
+			Position = UDim2.new(1, -4, 0, 4),
+			AnchorPoint = Vector2.new(1, 0),
+			Font = Theme.Fonts.Display,
+			TextSize = 18,
+			Scaled = true,
+			Color = Theme.Colors.Skill,
+			Stroke = 1.5,
+			Parent = day,
+		})
+		table.insert(dayFrames, { Frame = day, Stroke = stroke, State = state })
+	end
+end
+
+local function buildGifts(parent: Frame)
+	local columns = 6
+	local grid = MenuGrid.new({
+		Parent = parent,
+		Name = "GiftsGrid",
+		Position = UDim2.fromOffset(0, DAILY_H + 12),
+		Size = UDim2.new(1, 0, 1, -(DAILY_H + 12)),
+		Cell = Vector2.new(MenuGrid.CellWidth(WIDTH, columns), 196),
+	})
+	for i, gift in Rewards.Gifts do
+		local icon = describe(gift.Reward, nil)
+		local card = MenuCard.new({
+			Parent = grid,
+			Name = "Gift" .. i,
+			LayoutOrder = i,
+			Accent = hex(if gift.Reward.Kind == "Pet" then "#FF8FC8" elseif gift.Reward.Kind == "Potion" then "#C98CFF" elseif gift.Reward.Kind == "Wins" then "#FFC53D" else "#5FB8FF"),
+			Rainbow = i == #Rewards.Gifts,
+			Icon = icon,
+			Title = "",
+			Subtitle = "",
+			ButtonText = "",
+			OnClick = function()
+				Net.Invoke("RequestClaimGift", false, i)
+			end,
+		})
+		giftCards[i] = card
+	end
+end
+
+function GiftsScreen.Init()
+	shell = MenuShell.new({
+		Name = "Gifts",
+		Title = "Gifts",
+		Icon = Theme.Icons.Gifts,
+		Size = PANEL,
+		Accent = hex("#FF5FB0"),
+		OnOpen = function()
+			refresh()
+		end,
+		FirstSelection = function()
+			return dailyButton.Instance
+		end,
+	})
+	buildDaily(shell.Content)
+	buildGifts(shell.Content)
+	UIController.Register("Gifts", shell)
+
+	StateController.DataChanged:Connect(function(data)
+		if shell:IsOpen() then
+			refresh()
+		end
+		if not autoOpened and data and data.DailyReady == true then
+			autoOpened = true
+			task.delay(3, function()
+				if not UIController.AnyMenuOpen() then
+					UIController.Open("Gifts")
+				end
+			end)
+		end
+	end)
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc >= 0.5 and shell:IsOpen() then
+			acc = 0
+			refresh()
+		end
+	end)
+	local _ = HEIGHT
+end
+
+return GiftsScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="121">
               <Properties>
                 <string name="Name">HUD</string>
                 <string name="Source"><![CDATA[--!strict
@@ -17648,7 +19618,317 @@ return HUD
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="116">
+            <Item class="ModuleScript" referent="122">
+              <Properties>
+                <string name="Name">InventoryScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Inventory menu ("Inventory"): tab "Gliders" lists owned gliders (strongest first) and owned
+-- relics with Equip; tab "Potions" lists potion counts with Use plus the active boost timers.
+-- Equip/Use are RequestEquipThrowable / RequestUseBoost intents.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Gliders = require(Shared.Definitions.Gliders)
+local Relics = require(Shared.Definitions.Relics)
+local Boosts = require(Shared.Definitions.Boosts)
+local Format = require(Shared.Util.Format)
+local GliderFactory = require(Shared.Visual.GliderFactory)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local Button = require(Components.Button)
+local MenuShell = require(Components.MenuShell)
+local MenuTabs = require(Components.MenuTabs)
+local MenuCard = require(Components.MenuCard)
+local MenuGrid = require(Components.MenuGrid)
+local ItemSlot = require(Components.ItemSlot)
+
+local InventoryScreen = {}
+
+local PANEL = Vector2.new(1240, 740)
+local WIDTH = PANEL.X - 36
+local TAB_H = 64
+
+local shell: MenuShell.Shell
+local tabs: MenuTabs.Tabs
+local pages: { [string]: GuiObject } = {}
+local gliderGrid: ScrollingFrame
+local gliderSlots: { [string]: ItemSlot.Slot } = {}
+local selectedGlider: string? = nil
+local equipButton: Button.Button
+local gliderInfo: TextLabel
+local potionCards: { [string]: MenuCard.Card } = {}
+
+local function serverNow(): number
+	local derived = StateController.Derived()
+	return (if type(derived.ServerTime) == "number" then derived.ServerTime else os.time()) + StateController.Since()
+end
+
+local function equippedId(data: { [string]: any }): string
+	if type(data.Relic) == "string" and data.Relic ~= "" then
+		return "relic:" .. data.Relic
+	end
+	return if type(data.Glider) == "string" then data.Glider else Gliders.Default
+end
+
+local function refreshGliders(data: { [string]: any })
+	local owned = if type(data.Gliders) == "table" then data.Gliders else {}
+	local relics = if type(data.Relics) == "table" then data.Relics else {}
+	local equipped = equippedId(data)
+	local entries: { { Id: string, Name: string, Rarity: string, Stat: string, Power: number } } = {}
+	for _, relic in Relics.List do
+		if relics[relic.Id] then
+			table.insert(entries, { Id = "relic:" .. relic.Id, Name = relic.Name, Rarity = "Mythic", Stat = "+125% vs best", Power = math.huge })
+		end
+	end
+	for _, glider in Gliders.List do
+		if owned[glider.Id] then
+			table.insert(entries, { Id = glider.Id, Name = glider.Name, Rarity = glider.Rarity, Stat = "+" .. Format.Short(glider.SkillPerRing) .. " Skill", Power = glider.SkillPerRing })
+		end
+	end
+	table.sort(entries, function(a, b)
+		return a.Power > b.Power
+	end)
+	local alive: { [string]: boolean } = {}
+	for i, entry in entries do
+		alive[entry.Id] = true
+		local slot = gliderSlots[entry.Id]
+		if not slot then
+			local id = entry.Id
+			slot = ItemSlot.new({
+				Parent = gliderGrid,
+				Name = id,
+				Rarity = entry.Rarity,
+				Build = function()
+					local model = GliderFactory.ForId(id, 3, true)
+					-- show the glider from slightly above so the wings read
+					model:PivotTo(model:GetPivot() * CFrame.Angles(math.rad(25), 0, 0))
+					return model
+				end,
+				Title = entry.Name,
+				Stat = entry.Stat,
+				OnClick = function()
+					selectedGlider = id
+					local current = StateController.Data
+					if current then
+						refreshGliders(current)
+					end
+				end,
+			})
+			gliderSlots[entry.Id] = slot
+		end
+		local s = slot :: ItemSlot.Slot
+		s.Instance.LayoutOrder = i
+		s:SetCorner(if entry.Id == equipped then Theme.Icons.Check else nil)
+		s:SetSelected(entry.Id == selectedGlider)
+	end
+	for id, slot in gliderSlots do
+		if not alive[id] then
+			slot:Destroy()
+			gliderSlots[id] = nil
+		end
+	end
+	if selectedGlider == nil or not alive[selectedGlider] then
+		selectedGlider = equipped
+	end
+	local sel = selectedGlider :: string
+	local relicId = string.match(sel, "^relic:(.+)$")
+	if relicId then
+		local relic = Relics.Get(relicId)
+		local best = Gliders.BestOwned(owned)
+		gliderInfo.Text = string.format("%s %s  ·  always 125%% better than your best glider (%s: +%s Skill per ring)", Theme.Icons.Relic, if relic then relic.Name else "Relic", best.Name, Format.Short(best.SkillPerRing))
+	else
+		local glider = Gliders.Get(sel)
+		gliderInfo.Text = if glider then string.format("%s %s  ·  +%s Skill for every thermal ring (%s)", Theme.Icons.Glider, glider.Name, Format.Short(glider.SkillPerRing), glider.Rarity) else ""
+	end
+	local isEquipped = sel == equipped
+	equipButton:SetText(if isEquipped then "EQUIPPED" else "EQUIP")
+	equipButton:SetStyle(if isEquipped then "Grey" else "Green")
+	equipButton:SetEnabled(not isEquipped)
+end
+
+local function refreshPotions(data: { [string]: any })
+	local potions = if type(data.Potions) == "table" then data.Potions else {}
+	local active = if type(data.Boosts) == "table" then data.Boosts else {}
+	local now = serverNow()
+	for _, boost in Boosts.List do
+		local card = potionCards[boost.Id]
+		local count = potions[boost.Id] or 0
+		local expiry = active[boost.Id]
+		local remaining = if type(expiry) == "number" then expiry - now else 0
+		card:SetSubtitle(string.format("You have %d", count))
+		if remaining > 0 then
+			card:SetBadge("ACTIVE " .. Format.Clock(remaining), Theme.Colors.Success)
+		else
+			card:SetBadge(nil)
+		end
+		card:SetAction(if count > 0 then "USE" else "NONE LEFT", if count > 0 then "Green" else "Disabled", count > 0)
+	end
+end
+
+local function refresh()
+	local data = StateController.Data
+	if data == nil then
+		return
+	end
+	if tabs.Selected == "Gliders" then
+		refreshGliders(data)
+	else
+		refreshPotions(data)
+	end
+end
+
+local function showPage(key: string)
+	for k, page in pages do
+		page.Visible = k == key
+	end
+	refresh()
+end
+
+function InventoryScreen.Init()
+	shell = MenuShell.new({
+		Name = "Inventory",
+		Title = "Inventory",
+		Icon = Theme.Icons.Inventory,
+		Size = PANEL,
+		Accent = Color3.fromHex("#5FB8FF"),
+		OnOpen = function(tab: any)
+			if tab == "Potions" or tab == "Gliders" then
+				tabs:Select(tab, true)
+				showPage(tab)
+			else
+				refresh()
+			end
+		end,
+		OnShoulder = function(direction: number)
+			tabs:Cycle(direction)
+		end,
+		FirstSelection = function()
+			return tabs.Buttons[tabs.Selected].Instance
+		end,
+	})
+	local content = shell.Content
+	tabs = MenuTabs.new({
+		Parent = content,
+		Tabs = {
+			{ Key = "Gliders", Text = "Gliders", Icon = Theme.Icons.Glider, Style = "Blue" },
+			{ Key = "Potions", Text = "Potions", Icon = Theme.Icons.Potion, Style = "Green" },
+		},
+		Size = UDim2.new(1, 0, 0, TAB_H),
+		TabWidth = 240,
+		OnChanged = showPage,
+	})
+
+	-- Gliders page
+	local glidersPage: Frame = Create("Frame", {
+		Name = "Gliders",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, TAB_H + 12),
+		Size = UDim2.new(1, 0, 1, -(TAB_H + 12)),
+		Parent = content,
+	})
+	pages.Gliders = glidersPage
+	gliderGrid = MenuGrid.new({
+		Parent = glidersPage,
+		Name = "Grid",
+		Size = UDim2.new(1, 0, 1, -86),
+		Cell = Vector2.new(MenuGrid.CellWidth(WIDTH, 6), 176),
+	})
+	local footer: Frame = Create("Frame", {
+		Name = "Footer",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		Position = UDim2.new(0, 0, 1, -76),
+		Size = UDim2.new(1, 0, 0, 76),
+		Parent = glidersPage,
+	})
+	Create.Corner(14, footer)
+	gliderInfo = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -280, 1, -16),
+		Position = UDim2.fromOffset(14, 8),
+		Font = Theme.Fonts.Body,
+		TextSize = 24,
+		Scaled = true,
+		Wrapped = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Stroke = 1.5,
+		Parent = footer,
+	})
+	equipButton = Button.new({
+		Parent = footer,
+		Name = "Equip",
+		Size = UDim2.fromOffset(240, 62),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Style = "Green",
+		Text = "EQUIP",
+		TextSize = 28,
+		OnClick = function()
+			local id = selectedGlider
+			if id then
+				task.spawn(Net.Invoke, "RequestEquipThrowable", false, id)
+			end
+		end,
+	})
+
+	-- Potions page
+	local potionsPage = MenuGrid.new({
+		Parent = content,
+		Name = "Potions",
+		Position = UDim2.fromOffset(0, TAB_H + 12),
+		Size = UDim2.new(1, 0, 1, -(TAB_H + 12)),
+		Cell = Vector2.new(MenuGrid.CellWidth(WIDTH, 3), 330),
+		Center = true,
+	})
+	potionsPage.Visible = false
+	pages.Potions = potionsPage
+	for i, boost in Boosts.List do
+		local id = boost.Id
+		potionCards[id] = MenuCard.new({
+			Parent = potionsPage,
+			Name = id,
+			LayoutOrder = i,
+			Accent = Color3.fromHex(boost.Color),
+			Icon = if boost.Stat == "Luck" then Theme.Icons.Luck elseif boost.Stat == "Wins" then Theme.Icons.Wins else Theme.Icons.Skill,
+			Title = boost.Name,
+			Subtitle = "",
+			Description = string.format("x%s %s for %d minutes. Using more adds time.", Format.Short(boost.Multiplier), boost.Stat, math.floor(boost.Duration / 60)),
+			ButtonText = "",
+			OnClick = function()
+				task.spawn(Net.Invoke, "RequestUseBoost", false, id)
+			end,
+		})
+	end
+
+	UIController.Register("Inventory", shell)
+	StateController.DataChanged:Connect(function()
+		if shell:IsOpen() then
+			refresh()
+		end
+	end)
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc >= 1 then
+			acc = 0
+			if shell:IsOpen() and tabs.Selected == "Potions" then
+				refresh()
+			end
+		end
+	end)
+end
+
+return InventoryScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="123">
               <Properties>
                 <string name="Name">Notifications</string>
                 <string name="Source"><![CDATA[--!strict
@@ -17689,7 +19969,472 @@ return Notifications
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="117">
+            <Item class="ModuleScript" referent="124">
+              <Properties>
+                <string name="Name">PetsScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Pets menu ("Pets"): every owned pet in a rarity-bordered grid (equipped first, then strongest),
+-- a detail pane with Equip/Unequip and Lock/Unlock, Equip Best, and a multi-select delete mode
+-- (locked pets can't be picked). Every action is a RequestPetAction intent; the server owns the
+-- inventory and slot limits.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Pets = require(Shared.Definitions.Pets)
+local Economy = require(Shared.Config.Economy)
+local Rarity = require(Shared.Config.Rarity)
+local Format = require(Shared.Util.Format)
+local PetFactory = require(Shared.Visual.PetFactory)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local Button = require(Components.Button)
+local MenuShell = require(Components.MenuShell)
+local MenuGrid = require(Components.MenuGrid)
+local ItemSlot = require(Components.ItemSlot)
+local Viewport = require(Components.Viewport)
+
+local PetsScreen = {}
+
+local PANEL = Vector2.new(1240, 740)
+local WIDTH = PANEL.X - 36
+local HEIGHT = PANEL.Y - 78 - 16
+local BAR_H = 70
+local DETAIL_W = 360
+local GRID_W = WIDTH - DETAIL_W - 16
+
+local shell: MenuShell.Shell
+local grid: ScrollingFrame
+local slots: { [string]: ItemSlot.Slot } = {}
+local selected: string? = nil
+local deleteMode = false
+local toDelete: { [string]: boolean } = {}
+
+local summary: TextLabel
+local equipBestButton: Button.Button
+local deleteButton: Button.Button
+local detail: Frame
+local detailPreview: Frame
+local detailName: TextLabel
+local detailRarity: TextLabel
+local detailStats: TextLabel
+local equipButton: Button.Button
+local lockButton: Button.Button
+local emptyLabel: TextLabel
+local previewId: string? = nil
+
+local function petScore(def: Pets.Pet): number
+	return def.SkillBoost * 1000 + def.WinsBoost
+end
+
+local function multiplierText(def: Pets.Pet): string
+	return "x" .. Format.Short(1 + def.SkillBoost) .. " Skill"
+end
+
+local function ownedPets(data: { [string]: any }): { [string]: { Id: string, Locked: boolean } }
+	return if type(data.Pets) == "table" then data.Pets else {}
+end
+
+local function equippedSet(data: { [string]: any }): { [string]: boolean }
+	local set = {}
+	if type(data.EquippedPets) == "table" then
+		for _, uid in data.EquippedPets do
+			set[uid] = true
+		end
+	end
+	return set
+end
+
+local function refreshDetail(data: { [string]: any })
+	local pets = ownedPets(data)
+	local equipped = equippedSet(data)
+	if deleteMode then
+		local count = 0
+		for _ in toDelete do
+			count += 1
+		end
+		detailName.Text = "DELETE MODE"
+		detailRarity.Text = string.format("%d selected", count)
+		detailStats.Text = "Tap pets to select them.\nLocked pets can't be deleted."
+		equipButton:SetText(string.format("DELETE %d", count))
+		equipButton:SetStyle("Red")
+		equipButton:SetEnabled(count > 0)
+		lockButton:SetText("CANCEL")
+		lockButton:SetStyle("Grey")
+		lockButton:SetEnabled(true)
+		return
+	end
+	local owned = if selected then pets[selected] else nil
+	local def = if owned then Pets.Get(owned.Id) else nil
+	if not owned or not def then
+		detailName.Text = "Select a pet"
+		detailRarity.Text = ""
+		detailStats.Text = "Pets multiply your Skill.\nHatch eggs to get more!"
+		equipButton:SetText("EQUIP")
+		equipButton:SetEnabled(false)
+		lockButton:SetText("LOCK")
+		lockButton:SetEnabled(false)
+		if previewId then
+			detailPreview:ClearAllChildren()
+			previewId = nil
+		end
+		return
+	end
+	detailName.Text = def.Name
+	detailRarity.Text = string.upper(def.Rarity)
+	detailRarity.TextColor3 = Theme.Rarity(def.Rarity)
+	local lines = { Theme.Icons.Skill .. " " .. multiplierText(def) }
+	if def.WinsBoost > 0 then
+		table.insert(lines, Theme.Icons.Wins .. " +" .. Format.Short(def.WinsBoost * 100) .. "% Wins")
+	end
+	if def.Exclusive then
+		table.insert(lines, Theme.Icons.Star .. " Exclusive")
+	end
+	detailStats.Text = table.concat(lines, "\n")
+	local isEquipped = equipped[selected :: string] == true
+	equipButton:SetText(if isEquipped then "UNEQUIP" else "EQUIP")
+	equipButton:SetStyle(if isEquipped then "Orange" else "Green")
+	equipButton:SetEnabled(true)
+	lockButton:SetText(if owned.Locked then "UNLOCK" else "LOCK")
+	lockButton:SetStyle(if owned.Locked then "Purple" else "Blue")
+	lockButton:SetEnabled(true)
+	if previewId ~= owned.Id then
+		detailPreview:ClearAllChildren()
+		previewId = owned.Id
+		Viewport.Model(detailPreview, PetFactory.ForId(owned.Id, 3), { Spin = 0.8, Yaw = math.pi, Pitch = math.rad(-8) })
+	end
+end
+
+local function refresh()
+	local data = StateController.Data
+	if data == nil then
+		return
+	end
+	local pets = ownedPets(data)
+	local equipped = equippedSet(data)
+	local derived = StateController.Derived()
+
+	-- sort: equipped first, then strongest, then rarity, then uid
+	local uids = {}
+	for uid, owned in pets do
+		if Pets.Get(owned.Id) then
+			table.insert(uids, uid)
+		end
+	end
+	table.sort(uids, function(a, b)
+		local ea, eb = equipped[a] == true, equipped[b] == true
+		if ea ~= eb then
+			return ea
+		end
+		local da, db = Pets.Get(pets[a].Id) :: Pets.Pet, Pets.Get(pets[b].Id) :: Pets.Pet
+		local sa, sb = petScore(da), petScore(db)
+		if sa ~= sb then
+			return sa > sb
+		end
+		if da.Rarity ~= db.Rarity then
+			return Rarity.Order(da.Rarity) > Rarity.Order(db.Rarity)
+		end
+		return a < b
+	end)
+
+	local alive: { [string]: boolean } = {}
+	local totalBoost = 0
+	for i, uid in uids do
+		alive[uid] = true
+		local owned = pets[uid]
+		local def = Pets.Get(owned.Id) :: Pets.Pet
+		if equipped[uid] then
+			totalBoost += def.SkillBoost
+		end
+		local slot = slots[uid]
+		if not slot then
+			local petId = owned.Id
+			local thisUid = uid
+			slot = ItemSlot.new({
+				Parent = grid,
+				Name = "Pet_" .. uid,
+				Rarity = def.Rarity,
+				Build = function()
+					return PetFactory.ForId(petId, 2.2)
+				end,
+				Title = def.Name,
+				Stat = multiplierText(def),
+				OnClick = function()
+					if deleteMode then
+						local current = StateController.Data
+						local now = if current then ownedPets(current)[thisUid] else nil
+						if now and not now.Locked then
+							if toDelete[thisUid] then
+								toDelete[thisUid] = nil :: any
+							else
+								toDelete[thisUid] = true
+							end
+						end
+					else
+						selected = thisUid
+					end
+					refresh()
+				end,
+			})
+			slots[uid] = slot
+		end
+		local s = slot :: ItemSlot.Slot
+		s.Instance.LayoutOrder = i
+		s:SetCorner(if equipped[uid] then Theme.Icons.Check else nil)
+		s:SetTag(if owned.Locked then Theme.Icons.Lock else nil)
+		s:SetSelected(if deleteMode then toDelete[uid] == true else selected == uid)
+		s:SetDimmed(deleteMode and owned.Locked)
+	end
+	for uid, slot in slots do
+		if not alive[uid] then
+			slot:Destroy()
+			slots[uid] = nil
+			toDelete[uid] = nil
+			if selected == uid then
+				selected = nil
+			end
+		end
+	end
+
+	local slotsMax = if type(derived.PetSlots) == "number" then derived.PetSlots else Economy.PetSlots
+	local equippedCount = if type(data.EquippedPets) == "table" then #data.EquippedPets else 0
+	summary.Text = string.format(
+		"%s Equipped %d/%d   ·   🎒 Storage %d/%d   ·   %s Pet boost x%s",
+		Theme.Icons.Check,
+		equippedCount,
+		slotsMax,
+		#uids,
+		Economy.PetInventory,
+		Theme.Icons.Skill,
+		Format.Short(1 + totalBoost)
+	)
+	emptyLabel.Visible = #uids == 0
+	deleteButton:SetText(if deleteMode then "DONE" else "DELETE")
+	equipBestButton:SetEnabled(#uids > 0 and not deleteMode)
+	refreshDetail(data)
+end
+
+local function onPrimary()
+	if deleteMode then
+		local list = {}
+		for uid in toDelete do
+			table.insert(list, uid)
+		end
+		if #list == 0 then
+			return
+		end
+		task.spawn(function()
+			local result = Net.Invoke("RequestPetAction", false, "Delete", list)
+			if result.ok then
+				toDelete = {}
+				deleteMode = false
+				refresh()
+			end
+		end)
+		return
+	end
+	local data = StateController.Data
+	local uid = selected
+	if not data or not uid then
+		return
+	end
+	local action = if equippedSet(data)[uid] then "Unequip" else "Equip"
+	task.spawn(Net.Invoke, "RequestPetAction", false, action, uid)
+end
+
+local function onSecondary()
+	if deleteMode then
+		deleteMode = false
+		toDelete = {}
+		refresh()
+		return
+	end
+	local data = StateController.Data
+	local uid = selected
+	if not data or not uid then
+		return
+	end
+	local owned = ownedPets(data)[uid]
+	if owned then
+		task.spawn(Net.Invoke, "RequestPetAction", false, if owned.Locked then "Unlock" else "Lock", uid)
+	end
+end
+
+function PetsScreen.Init()
+	shell = MenuShell.new({
+		Name = "Pets",
+		Title = "Pets",
+		Icon = Theme.Icons.Pets,
+		Size = PANEL,
+		Accent = Color3.fromHex("#FFB86B"),
+		OnOpen = function()
+			deleteMode = false
+			toDelete = {}
+			refresh()
+		end,
+		FirstSelection = function()
+			return equipBestButton.Instance
+		end,
+	})
+	local content = shell.Content
+
+	local bar: Frame = Create("Frame", {
+		Name = "Bar",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		Size = UDim2.new(1, 0, 0, BAR_H),
+		Parent = content,
+	})
+	Create.Corner(14, bar)
+	summary = Create.Text({
+		Name = "Summary",
+		Text = "",
+		Size = UDim2.new(1, -420, 1, -16),
+		Position = UDim2.fromOffset(14, 8),
+		Font = Theme.Fonts.Display,
+		TextSize = 26,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Stroke = 2,
+		Parent = bar,
+	})
+	equipBestButton = Button.new({
+		Parent = bar,
+		Name = "EquipBest",
+		Size = UDim2.fromOffset(200, 60),
+		Position = UDim2.new(1, -214, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Style = "Green",
+		Text = "EQUIP BEST",
+		TextSize = 24,
+		OnClick = function()
+			task.spawn(Net.Invoke, "RequestPetAction", false, "EquipBest")
+		end,
+	})
+	deleteButton = Button.new({
+		Parent = bar,
+		Name = "Delete",
+		Size = UDim2.fromOffset(190, 60),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Style = "Red",
+		Text = "DELETE",
+		TextSize = 24,
+		OnClick = function()
+			deleteMode = not deleteMode
+			toDelete = {}
+			refresh()
+		end,
+	})
+
+	grid = MenuGrid.new({
+		Parent = content,
+		Name = "PetGrid",
+		Position = UDim2.fromOffset(0, BAR_H + 12),
+		Size = UDim2.new(0, GRID_W, 1, -(BAR_H + 12)),
+		Cell = Vector2.new(MenuGrid.CellWidth(GRID_W, 5), 176),
+	})
+	emptyLabel = Create.Text({
+		Name = "Empty",
+		Text = "No pets yet! Hatch an egg in the hub " .. Theme.Icons.Egg,
+		Size = UDim2.new(0, GRID_W, 0, 60),
+		Position = UDim2.fromOffset(0, BAR_H + 120),
+		Font = Theme.Fonts.Display,
+		TextSize = 30,
+		Scaled = true,
+		Color = Theme.Colors.TextDim,
+		Stroke = 2,
+		Parent = content,
+	})
+
+	detail = Create("Frame", {
+		Name = "Detail",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		Position = UDim2.new(1, -DETAIL_W, 0, BAR_H + 12),
+		Size = UDim2.new(0, DETAIL_W, 1, -(BAR_H + 12)),
+		Parent = content,
+	})
+	Create.Corner(16, detail)
+	Create.Stroke(detail, Theme.Colors.PanelEdge, 2, 0.4, true)
+	detailPreview = Create("Frame", {
+		Name = "Preview",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(20, 10),
+		Size = UDim2.new(1, -40, 0, 210),
+		Parent = detail,
+	})
+	detailName = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 40),
+		Position = UDim2.fromOffset(12, 224),
+		Font = Theme.Fonts.Display,
+		TextSize = 34,
+		Scaled = true,
+		Stroke = 2.5,
+		Parent = detail,
+	})
+	detailRarity = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 28),
+		Position = UDim2.fromOffset(12, 266),
+		Font = Theme.Fonts.Display,
+		TextSize = 24,
+		Scaled = true,
+		Stroke = 2,
+		Parent = detail,
+	})
+	detailStats = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 100),
+		Position = UDim2.fromOffset(12, 300),
+		Font = Theme.Fonts.Body,
+		TextSize = 24,
+		Wrapped = true,
+		YAlign = Enum.TextYAlignment.Top,
+		Stroke = 1.4,
+		Parent = detail,
+	})
+	equipButton = Button.new({
+		Parent = detail,
+		Name = "Equip",
+		Size = UDim2.new(1, -24, 0, 62),
+		Position = UDim2.new(0, 12, 1, -84),
+		AnchorPoint = Vector2.new(0, 1),
+		Style = "Green",
+		Text = "EQUIP",
+		TextSize = 26,
+		OnClick = onPrimary,
+	})
+	lockButton = Button.new({
+		Parent = detail,
+		Name = "Lock",
+		Size = UDim2.new(1, -24, 0, 62),
+		Position = UDim2.new(0, 12, 1, -12),
+		AnchorPoint = Vector2.new(0, 1),
+		Style = "Blue",
+		Text = "LOCK",
+		TextSize = 26,
+		OnClick = onSecondary,
+	})
+
+	UIController.Register("Pets", shell)
+	StateController.DataChanged:Connect(function()
+		if shell:IsOpen() then
+			refresh()
+		end
+	end)
+	local _ = HEIGHT
+end
+
+return PetsScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="125">
               <Properties>
                 <string name="Name">RebirthScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18318,7 +21063,221 @@ return RebirthScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="118">
+            <Item class="ModuleScript" referent="126">
+              <Properties>
+                <string name="Name">SettingsScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Settings menu ("Settings"): sound, camera and effects toggles plus a personal stats card.
+-- Toggles send RequestSetting intents (cosmetic preferences); the sound toggle also applies
+-- locally right away. Init() keeps AudioController in sync with the saved setting even if this
+-- panel is never opened.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Worlds = require(Shared.Definitions.Worlds)
+local Format = require(Shared.Util.Format)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local AudioController = require(Client.Controllers.AudioController)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local MenuShell = require(Components.MenuShell)
+local MenuToggle = require(Components.MenuToggle)
+
+local SettingsScreen = {}
+
+local PANEL = Vector2.new(1100, 640)
+
+type Row = { Key: string, Title: string, Hint: string, Icon: string }
+
+local ROWS: { Row } = {
+	{ Key = "Sfx", Title = "Sound effects", Hint = "Chimes, splashes, wind and UI sounds", Icon = "🔊" },
+	{ Key = "FollowCam", Title = "Follow camera", Hint = "Camera chases your glider down the river", Icon = "🎥" },
+	{ Key = "LowFx", Title = "Low effects", Hint = "Fewer particles for older devices", Icon = "✨" },
+}
+
+local shell: MenuShell.Shell
+local toggles: { [string]: MenuToggle.Toggle } = {}
+local statsLabel: TextLabel
+local firstToggle: GuiObject? = nil
+
+local function setting(data: { [string]: any }, key: string, default: boolean): boolean
+	local settings = data.Settings
+	if type(settings) == "table" and type(settings[key]) == "boolean" then
+		return settings[key]
+	end
+	return default
+end
+
+local function statsText(data: { [string]: any }): string
+	local stats = if type(data.Stats) == "table" then data.Stats else {}
+	local lines = {
+		string.format("%s Throws: %s", Theme.Icons.Glider, Format.Commas(stats.Throws or 0)),
+		string.format("%s Perfect catches: %s", Theme.Icons.Star, Format.Commas(stats.Perfects or 0)),
+		string.format("%s Rebirths: %s", Theme.Icons.Rebirth, Format.Commas(data.Rebirths or 0)),
+		string.format("%s Eggs hatched: %s", Theme.Icons.Egg, Format.Commas(stats.Hatches or 0)),
+		string.format("%s Total Wins: %s", Theme.Icons.Wins, Format.Short(stats.TotalWins or 0)),
+		string.format("%s Total Skill: %s", Theme.Icons.Skill, Format.Short(stats.TotalSkill or 0)),
+		"",
+		"BEST GLIDE PER WORLD",
+	}
+	local best = if type(data.Best) == "table" then data.Best else {}
+	for _, world in Worlds.List do
+		local meters = best[tostring(world.Id)]
+		table.insert(lines, string.format("%s %s: %s", Theme.Icons.World, world.Name, if type(meters) == "number" then Format.Meters(meters) else "-"))
+	end
+	return table.concat(lines, "\n")
+end
+
+local function refresh()
+	local data = StateController.Data
+	if data == nil then
+		return
+	end
+	toggles.Sfx:Set(setting(data, "Sfx", true))
+	toggles.FollowCam:Set(setting(data, "FollowCam", true))
+	toggles.LowFx:Set(setting(data, "LowFx", false))
+	statsLabel.Text = statsText(data)
+end
+
+function SettingsScreen.Init()
+	shell = MenuShell.new({
+		Name = "Settings",
+		Title = "Settings",
+		Icon = Theme.Icons.Settings,
+		Size = PANEL,
+		Accent = Theme.Colors.PanelEdge,
+		OnOpen = function()
+			refresh()
+		end,
+		FirstSelection = function()
+			return firstToggle
+		end,
+	})
+	local content = shell.Content
+	local left: Frame = Create("Frame", {
+		Name = "Toggles",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(0.56, -10, 1, 0),
+		Parent = content,
+	})
+	Create.List(left, Enum.FillDirection.Vertical, 14)
+	for i, row in ROWS do
+		local frame: Frame = Create("Frame", {
+			Name = row.Key,
+			BackgroundColor3 = Theme.Colors.Card,
+			Size = UDim2.new(1, 0, 0, 104),
+			LayoutOrder = i,
+			Parent = left,
+		})
+		Create.Corner(14, frame)
+		Create.Stroke(frame, Theme.Colors.PanelBorder, 2, 0, true)
+		Create.Text({
+			Text = row.Icon,
+			Size = UDim2.fromOffset(64, 64),
+			Position = UDim2.new(0, 14, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			TextSize = 46,
+			Scaled = true,
+			Parent = frame,
+		})
+		Create.Text({
+			Text = row.Title,
+			Size = UDim2.new(1, -260, 0, 36),
+			Position = UDim2.fromOffset(92, 16),
+			Font = Theme.Fonts.Display,
+			TextSize = 30,
+			Scaled = true,
+			XAlign = Enum.TextXAlignment.Left,
+			Stroke = 2,
+			Parent = frame,
+		})
+		Create.Text({
+			Text = row.Hint,
+			Size = UDim2.new(1, -260, 0, 28),
+			Position = UDim2.fromOffset(92, 56),
+			Font = Theme.Fonts.Body,
+			TextSize = 22,
+			Scaled = true,
+			Color = Theme.Colors.TextDim,
+			XAlign = Enum.TextXAlignment.Left,
+			Stroke = 1,
+			Parent = frame,
+		})
+		local key = row.Key
+		local toggle = MenuToggle.new({
+			Parent = frame,
+			Name = "Toggle",
+			Value = key ~= "LowFx",
+			Position = UDim2.new(1, -16, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			OnChanged = function(value: boolean)
+				if key == "Sfx" then
+					AudioController.SetEnabled(value)
+				end
+				Net.Fire("RequestSetting", key, value)
+			end,
+		})
+		toggles[key] = toggle
+		if i == 1 then
+			firstToggle = toggle.Instance
+		end
+	end
+
+	local right: Frame = Create("Frame", {
+		Name = "Stats",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		Size = UDim2.new(0.44, -10, 1, 0),
+		Position = UDim2.new(0.56, 10, 0, 0),
+		Parent = content,
+	})
+	Create.Corner(14, right)
+	Create.Stroke(right, Theme.Colors.PanelEdge, 2, 0.4, true)
+	Create.Text({
+		Text = "📊 YOUR STATS",
+		Size = UDim2.new(1, -24, 0, 40),
+		Position = UDim2.fromOffset(12, 10),
+		Font = Theme.Fonts.Display,
+		TextSize = 32,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Stroke = 2.5,
+		Parent = right,
+	})
+	statsLabel = Create.Text({
+		Name = "Lines",
+		Text = "",
+		Size = UDim2.new(1, -28, 1, -64),
+		Position = UDim2.fromOffset(14, 58),
+		Font = Theme.Fonts.Body,
+		TextSize = 24,
+		XAlign = Enum.TextXAlignment.Left,
+		YAlign = Enum.TextYAlignment.Top,
+		Wrapped = true,
+		Stroke = 1.2,
+		Parent = right,
+	})
+
+	UIController.Register("Settings", shell)
+	StateController.DataChanged:Connect(function(data)
+		if data then
+			AudioController.SetEnabled(setting(data, "Sfx", true))
+		end
+		if shell:IsOpen() then
+			refresh()
+		end
+	end)
+end
+
+return SettingsScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="127">
               <Properties>
                 <string name="Name">ShopScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18902,8 +21861,371 @@ return ShopScreen
 ]]></string>
               </Properties>
             </Item>
+            <Item class="ModuleScript" referent="128">
+              <Properties>
+                <string name="Name">TrailsScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Trails menu ("Trails"): every trail with its gradient swatch, Wins bonus and price.
+-- Buy / Equip / Unequip are RequestTrailAction intents; the server spends the Wins.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Trails = require(Shared.Definitions.Trails)
+local Format = require(Shared.Util.Format)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local MenuShell = require(Components.MenuShell)
+local MenuCard = require(Components.MenuCard)
+local MenuGrid = require(Components.MenuGrid)
+
+local TrailsScreen = {}
+
+local PANEL = Vector2.new(1240, 740)
+local WIDTH = PANEL.X - 36
+
+local shell: MenuShell.Shell
+local cards: { [string]: MenuCard.Card } = {}
+local firstButton: GuiObject? = nil
+
+local function gradientOf(trail: Trails.Trail): ColorSequence
+	local keys = {}
+	for i, h in trail.Colors do
+		local t = if #trail.Colors == 1 then 0 else (i - 1) / (#trail.Colors - 1)
+		table.insert(keys, ColorSequenceKeypoint.new(t, Color3.fromHex(h)))
+	end
+	if #keys == 1 then
+		table.insert(keys, ColorSequenceKeypoint.new(1, keys[1].Value))
+	end
+	return ColorSequence.new(keys)
+end
+
+local function refresh()
+	local data = StateController.Data
+	if data == nil then
+		return
+	end
+	local owned = if type(data.Trails) == "table" then data.Trails else {}
+	local wins = if type(data.Wins) == "number" then data.Wins else 0
+	for _, trail in Trails.List do
+		local card = cards[trail.Id]
+		if data.Trail == trail.Id then
+			card:SetAction("UNEQUIP", "Orange", true)
+			card:SetBadge("EQUIPPED", Theme.Colors.Success)
+		elseif owned[trail.Id] then
+			card:SetAction("EQUIP", "Blue", true)
+			card:SetBadge("OWNED", Theme.Colors.PanelEdge)
+		else
+			local affordable = wins >= trail.Price
+			card:SetAction(string.format("%s %s", Theme.Icons.Wins, Format.Short(trail.Price)), if affordable then "Green" else "Grey", true)
+			card:SetBadge(nil)
+		end
+	end
+end
+
+local function act(trail: Trails.Trail)
+	local data = StateController.Data
+	if data == nil then
+		return
+	end
+	local owned = if type(data.Trails) == "table" then data.Trails else {}
+	local action = if data.Trail == trail.Id then "Unequip" elseif owned[trail.Id] then "Equip" else "Buy"
+	task.spawn(Net.Invoke, "RequestTrailAction", false, action, trail.Id)
+end
+
+function TrailsScreen.Init()
+	shell = MenuShell.new({
+		Name = "Trails",
+		Title = "Trails",
+		Icon = Theme.Icons.Trails,
+		Size = PANEL,
+		Accent = Color3.fromHex("#B65CFF"),
+		OnOpen = function()
+			refresh()
+		end,
+		FirstSelection = function()
+			return firstButton
+		end,
+	})
+	local grid = MenuGrid.new({
+		Parent = shell.Content,
+		Name = "TrailGrid",
+		Size = UDim2.fromScale(1, 1),
+		Cell = Vector2.new(MenuGrid.CellWidth(WIDTH, 4), 300),
+	})
+	for i, trail in Trails.List do
+		local card = MenuCard.new({
+			Parent = grid,
+			Name = trail.Id,
+			LayoutOrder = i,
+			Accent = Theme.Rarity(trail.Rarity),
+			Rainbow = trail.Rarity == "Mythic",
+			Icon = Theme.Icons.Trails,
+			Title = trail.Name,
+			Subtitle = string.format("+%s%% Wins", Format.Short(trail.WinsBoost * 100)),
+			Description = string.upper(trail.Rarity) .. "\nA ribbon behind you and your glider.",
+			ButtonText = "",
+			OnClick = function()
+				act(trail)
+			end,
+		})
+		-- gradient swatch across the top of the card
+		local swatch: Frame = Create("Frame", {
+			Name = "Swatch",
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			Size = UDim2.new(1, -24, 0, 12),
+			Position = UDim2.fromOffset(12, 8),
+			ZIndex = 4,
+			Parent = card.Instance,
+		})
+		Create.Corner(6, swatch)
+		local g = Instance.new("UIGradient")
+		g.Color = gradientOf(trail)
+		g.Parent = swatch
+		cards[trail.Id] = card
+		if i == 1 and card.Button then
+			firstButton = card.Button.Instance
+		end
+	end
+	UIController.Register("Trails", shell)
+	StateController.DataChanged:Connect(function()
+		if shell:IsOpen() then
+			refresh()
+		end
+	end)
+end
+
+return TrailsScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="129">
+              <Properties>
+                <string name="Name">WorldScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- World portal menu ("World"): opened from a portal with UIController.Open("World", worldId).
+-- Shows the world, its two unlock requirements (reach the end of the previous river + rebirths)
+-- with check marks, and a Travel button that sends a RequestEnterWorld intent. The server
+-- re-checks everything; this screen only explains what is missing.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Worlds = require(Shared.Definitions.Worlds)
+local Zones = require(Shared.Definitions.Zones)
+local Themes = require(Shared.Visual.Themes)
+local Format = require(Shared.Util.Format)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local Net = require(Client.Controllers.Net)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local Button = require(Components.Button)
+local MenuShell = require(Components.MenuShell)
+
+local WorldScreen = {}
+
+local PANEL = Vector2.new(900, 600)
+
+local shell: MenuShell.Shell
+local worldId = 1
+local swatch: Frame
+local swatchGradient: UIGradient
+local nameLabel: TextLabel
+local descLabel: TextLabel
+local stateLabel: TextLabel
+local reqLabels: { TextLabel } = {}
+local travelButton: Button.Button
+
+type Requirement = { Text: string, Met: boolean }
+
+local function requirements(world: Worlds.World, data: { [string]: any }): { Requirement }
+	local out: { Requirement } = {}
+	local zones = if type(data.Zones) == "table" then data.Zones else {}
+	local rebirths = if type(data.Rebirths) == "number" then data.Rebirths else 0
+	if world.UnlockZone then
+		local zone = Zones.Get(world.UnlockZone)
+		local prev = Worlds.Get(world.Id - 1)
+		table.insert(out, {
+			Text = string.format("Throw to %s in %s (%s)", if zone then zone.Name else "the end of the river", if prev then prev.Name else "the last world", if zone then Format.Meters(zone.Distance) else "?"),
+			Met = zones[world.UnlockZone] == true,
+		})
+	end
+	if world.UnlockRebirths > 0 then
+		table.insert(out, { Text = string.format("Reach %d rebirths (you have %d)", world.UnlockRebirths, rebirths), Met = rebirths >= world.UnlockRebirths })
+	end
+	if world.UnlockWins > 0 then
+		local wins = if type(data.Wins) == "number" then data.Wins else 0
+		table.insert(out, { Text = string.format("Pay %s Wins", Format.Short(world.UnlockWins)), Met = wins >= world.UnlockWins })
+	end
+	return out
+end
+
+local function refresh()
+	local data = StateController.Data
+	local world = Worlds.Get(worldId)
+	if data == nil or world == nil then
+		return
+	end
+	local theme = Themes[world.Theme]
+	if theme then
+		swatchGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromHex(theme.Sky.Top)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromHex(theme.Water)),
+			ColorSequenceKeypoint.new(1, Color3.fromHex(theme.FloorA)),
+		})
+	end
+	nameLabel.Text = string.upper(world.Name)
+	descLabel.Text = world.Description
+	local unlocked = type(data.Worlds) == "table" and data.Worlds[tostring(world.Id)] == true
+	local here = data.World == world.Id
+	local reqs = if unlocked then {} else requirements(world, data)
+	local allMet = true
+	for i, label in reqLabels do
+		local req = reqs[i]
+		if req then
+			label.Visible = true
+			label.Text = (if req.Met then Theme.Icons.Check else Theme.Icons.Lock) .. "  " .. req.Text
+			label.TextColor3 = if req.Met then Theme.Colors.Success else Theme.Colors.Text
+			allMet = allMet and req.Met
+		else
+			label.Visible = false
+		end
+	end
+	if unlocked then
+		stateLabel.Text = if here then "YOU ARE HERE" else "UNLOCKED"
+		stateLabel.TextColor3 = Theme.Colors.Success
+	else
+		stateLabel.Text = if allMet then "READY TO UNLOCK!" else "LOCKED"
+		stateLabel.TextColor3 = if allMet then Theme.Colors.Skill else Theme.Colors.Danger
+	end
+	if here then
+		travelButton:SetText("YOU ARE HERE")
+		travelButton:SetStyle("Grey")
+		travelButton:SetEnabled(false)
+	elseif unlocked or allMet then
+		travelButton:SetText(if unlocked then "TRAVEL" else "UNLOCK & TRAVEL")
+		travelButton:SetStyle("Green")
+		travelButton:SetEnabled(true)
+	else
+		travelButton:SetText("LOCKED")
+		travelButton:SetStyle("Disabled")
+		travelButton:SetEnabled(false)
+	end
+end
+
+function WorldScreen.Init()
+	shell = MenuShell.new({
+		Name = "World",
+		Title = "Portal",
+		Icon = Theme.Icons.World,
+		Size = PANEL,
+		Accent = Color3.fromHex("#7CFFB2"),
+		OnOpen = function(id: any)
+			if type(id) == "number" and Worlds.Get(id) then
+				worldId = id
+			end
+			refresh()
+		end,
+		FirstSelection = function()
+			return travelButton.Instance
+		end,
+	})
+	local content = shell.Content
+	swatch = Create("Frame", {
+		Name = "Swatch",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.new(1, 0, 0, 150),
+		Parent = content,
+	})
+	Create.Corner(16, swatch)
+	swatchGradient = Instance.new("UIGradient")
+	swatchGradient.Rotation = 90
+	swatchGradient.Parent = swatch
+	nameLabel = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -40, 0, 70),
+		Position = UDim2.fromOffset(20, 18),
+		Font = Theme.Fonts.Display,
+		TextSize = 64,
+		Scaled = true,
+		Stroke = 4,
+		Parent = swatch,
+	})
+	descLabel = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, -40, 0, 34),
+		Position = UDim2.fromOffset(20, 96),
+		Font = Theme.Fonts.Body,
+		TextSize = 28,
+		Scaled = true,
+		Stroke = 2,
+		Parent = swatch,
+	})
+	stateLabel = Create.Text({
+		Text = "",
+		Size = UDim2.new(1, 0, 0, 44),
+		Position = UDim2.fromOffset(0, 166),
+		Font = Theme.Fonts.Display,
+		TextSize = 40,
+		Scaled = true,
+		Stroke = 3,
+		Parent = content,
+	})
+	for i = 1, 3 do
+		reqLabels[i] = Create.Text({
+			Name = "Req" .. i,
+			Text = "",
+			Size = UDim2.new(1, -40, 0, 40),
+			Position = UDim2.fromOffset(20, 220 + (i - 1) * 48),
+			Font = Theme.Fonts.Body,
+			TextSize = 28,
+			Scaled = true,
+			XAlign = Enum.TextXAlignment.Left,
+			Stroke = 1.8,
+			Parent = content,
+		})
+	end
+	travelButton = Button.new({
+		Parent = content,
+		Name = "Travel",
+		Size = UDim2.fromOffset(420, 76),
+		Position = UDim2.new(0.5, 0, 1, -8),
+		AnchorPoint = Vector2.new(0.5, 1),
+		Style = "Green",
+		Text = "TRAVEL",
+		TextSize = 34,
+		OnClick = function()
+			local target = worldId
+			task.spawn(function()
+				local result = Net.Invoke("RequestEnterWorld", false, target)
+				if result.ok then
+					UIController.Close("World")
+				end
+			end)
+		end,
+	})
+	UIController.Register("World", shell)
+	StateController.DataChanged:Connect(function()
+		if shell:IsOpen() then
+			refresh()
+		end
+	end)
+end
+
+return WorldScreen
+]]></string>
+              </Properties>
+            </Item>
           </Item>
-          <Item class="ModuleScript" referent="119">
+          <Item class="ModuleScript" referent="130">
             <Properties>
               <string name="Name">Theme</string>
               <string name="Source"><![CDATA[--!strict
@@ -19026,11 +22348,11 @@ return Theme
             </Properties>
           </Item>
         </Item>
-        <Item class="Folder" referent="120">
+        <Item class="Folder" referent="131">
           <Properties>
             <string name="Name">VFX</string>
           </Properties>
-          <Item class="ModuleScript" referent="121">
+          <Item class="ModuleScript" referent="132">
             <Properties>
               <string name="Name">Effects</string>
               <string name="Source"><![CDATA[--!strict
@@ -19285,7 +22607,7 @@ return Effects
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="122">
+          <Item class="ModuleScript" referent="133">
             <Properties>
               <string name="Name">FlightFX</string>
               <string name="Source"><![CDATA[--!strict
@@ -19624,7 +22946,7 @@ return FlightFX
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="123">
+          <Item class="ModuleScript" referent="134">
             <Properties>
               <string name="Name">ThermalRings</string>
               <string name="Source"><![CDATA[--!strict
@@ -19740,7 +23062,7 @@ return ThermalRings
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="124">
+  <Item class="Workspace" referent="135">
     <Properties>
       <string name="Name">Workspace</string>
       <float name="Gravity">196.2</float>
