@@ -19,6 +19,7 @@ MOUNTS = {
     # DataModel path -> source dir
     "ReplicatedStorage/Shared": ROOT / "src" / "shared",
     "ServerScriptService/Server": ROOT / "src" / "server",
+    "StarterPlayer/StarterPlayerScripts/Client": ROOT / "src" / "client",
 }
 
 
@@ -135,11 +136,15 @@ def bundle(spec_path):
     )
     harness = HARNESS.replace("__SOURCES__", "{\n" + entries + "\n}")
     spec = spec_path.read_text()
-    first = spec.split("\n", 1)[0]
-    if first.startswith("--!prelude-before "):
-        # full Roblox API mock that must exist before the harness (world/factory builds)
-        mock = (ROOT / "tests" / first.split(" ", 1)[1].strip()).read_text()
-        return mock + "\n" + harness + "\n-- spec ---------------------------------------------------\n" + spec
+    lines = spec.split("\n")
+    before = [l.split(" ", 1)[1].strip() for l in lines[:3] if l.startswith("--!prelude-before ")]
+    after = [l.split(" ", 1)[1].strip() for l in lines[:3] if l.startswith("--!prelude-after ")]
+    if before:
+        # full Roblox API mock that must exist before the harness (world/factory/client builds),
+        # plus optional mocks that need the harness (fake DataModel) to exist first
+        pre = "\n".join((ROOT / "tests" / n).read_text() for n in before)
+        post = "\n".join((ROOT / "tests" / n).read_text() for n in after)
+        return pre + "\n" + harness + "\n" + post + "\n-- spec ---------------------------------------------------\n" + spec
     prelude = ROOT / "tests" / "_prelude.luau"
     pre = prelude.read_text() if prelude.exists() else ""
     return harness + "\n-- prelude ------------------------------------------------\n" + pre + "\n-- spec ---------------------------------------------------\n" + spec
