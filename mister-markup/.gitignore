@@ -1,0 +1,13 @@
+# Large / regenerable files (models, renders, audio) — see README for how to rebuild
+assets/*.onnx
+assets/*.bin
+assets/*.tar.bz2
+assets/sherpa-onnx-*/
+assets/fonts/*.tgz
+assets/fonts/*/
+audio/
+out/frames.mp4
+out/mister_markup_racket001_popcorn.mp4
+out/previews/
+out/qa/
+__pycache__/
