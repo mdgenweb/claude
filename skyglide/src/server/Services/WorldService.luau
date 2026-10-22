@@ -88,23 +88,30 @@ end
 
 function WorldService.Start()
 	Guard.OnInvoke(Remotes.Function("RequestEnterWorld"), 1, 3, enterWorld)
+	local function onCharacter(player: Player, character: Model)
+		-- a respawn mid-flight cancels that flight (no payout for a throw you can't watch)
+		if registry.FlightService then
+			registry.FlightService.Cancel(player)
+		end
+		local profile = DataService.WaitFor(player, 30)
+		local worldId = if profile then profile.World else 1
+		if not character:FindFirstChild("HumanoidRootPart") then
+			character:WaitForChild("HumanoidRootPart", 10)
+		end
+		task.wait()
+		if character.Parent and player.Character == character then
+			placeCharacter(player, worldId)
+			worldChanged:FireClient(player, worldId)
+		end
+	end
 	local function hook(player: Player)
 		player.CharacterAdded:Connect(function(character)
-			-- a respawn mid-flight cancels that flight (no payout for a throw you can't watch)
-			if registry.FlightService then
-				registry.FlightService.Cancel(player)
-			end
-			local profile = DataService.WaitFor(player, 30)
-			local worldId = if profile then profile.World else 1
-			if not character:FindFirstChild("HumanoidRootPart") then
-				character:WaitForChild("HumanoidRootPart", 10)
-			end
-			task.wait()
-			if character.Parent then
-				placeCharacter(player, worldId)
-				worldChanged:FireClient(player, worldId)
-			end
+			onCharacter(player, character)
 		end)
+		-- already spawned (players present before this service started, e.g. Studio Play Solo)
+		if player.Character then
+			task.spawn(onCharacter, player, player.Character)
+		end
 	end
 	Players.PlayerAdded:Connect(hook)
 	for _, player in Players:GetPlayers() do

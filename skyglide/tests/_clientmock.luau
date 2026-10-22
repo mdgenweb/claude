@@ -456,7 +456,12 @@ method("Fire", function(i, ...)
 		i.Event:Fire(...)
 	end
 end)
-method("Play", function(i)
+method("Play", function(i, ...)
+	-- tweens carry their own Play (see TweenService.Create); sounds just start playing
+	local own = rawget(i, "_props").Play
+	if type(own) == "function" then
+		return own(i, ...)
+	end
 	rawget(i, "_props").IsPlaying = true
 end)
 method("Stop", function(i)

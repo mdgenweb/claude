@@ -31,7 +31,8 @@ def collect_modules():
             parts = list(rel.parts)
             name = parts[-1]
             if name.endswith(".server.luau") or name.endswith(".client.luau"):
-                continue
+                # entry scripts are bundled too (a spec can boot them with MODULE(".../Main"))
+                name = name.rsplit(".", 2)[0] + ".luau"
             parts[-1] = name[: -len(".luau")]
             if parts[-1] == "init":
                 parts = parts[:-1]
@@ -99,6 +100,10 @@ local fakeGame = setmetatable({}, { __index = function(_, key)
             return rawget(ROOT, "_children")[name] or newNode(name, ROOT, name)
         end
     end
+    -- extra DataModel members (JobId, BindToClose, ...) provided by a mock layer
+    if GAME_MEMBERS ~= nil and GAME_MEMBERS[key] ~= nil then
+        return GAME_MEMBERS[key]
+    end
     error("fake game has no member " .. tostring(key))
 end })
 
@@ -114,7 +119,10 @@ local function fakeRequire(node)
     local chunk, err = loadstring(source, "=" .. path)
     assert(chunk, err)
     local env = setmetatable({ script = node, require = fakeRequire, game = fakeGame,
-        warn = function(...) print("WARN", ...) end }, { __index = getfenv(1) })
+        warn = function(...)
+            if WARN_HOOK ~= nil then WARN_HOOK(path, ...) end
+            print("WARN", ...)
+        end }, { __index = getfenv(1) })
     setfenv(chunk, env)
     local result = chunk()
     loading[path] = nil

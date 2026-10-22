@@ -163,6 +163,9 @@ function makePlayer(userId)
 	function character:FindFirstChild(name)
 		return nil
 	end
+	function character:WaitForChild(name)
+		return nil
+	end
 	function character:PivotTo(cf)
 		table.insert(self.pivots, cf)
 	end

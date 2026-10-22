@@ -99,7 +99,9 @@ function Effects.Ring(pos: Vector3, normal: Vector3, radius: number, color: Colo
 	local p = basicPart(Enum.PartType.Cylinder)
 	p.Color = color
 	p.Transparency = 0.2
-	local cf = CFrame.lookAt(pos, pos + normal) * CFrame.Angles(0, math.rad(90), 0)
+	-- a vertical normal (rings on the ground) needs another up axis for lookAt
+	local up = if math.abs(normal.Unit.Y) > 0.99 then Vector3.xAxis else Vector3.yAxis
+	local cf = CFrame.lookAt(pos, pos + normal, up) * CFrame.Angles(0, math.rad(90), 0)
 	p.CFrame = cf
 	p.Size = Vector3.new(thickness or 0.15, radius * 0.4, radius * 0.4)
 	p.Parent = ensureFolder()
