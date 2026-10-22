@@ -93,6 +93,16 @@ check(math.abs(petSkill - 11) < 1e-9 and math.abs(petWins - 0.25) < 1e-9, "pet b
 check(math.abs(Progression.WinsMultiplier(m, ctx({ DoubleWins = true })) - 2.5) < 1e-9, "wins multiplier")
 check(Progression.SkillMultiplier(m, ctx()) == 5 * 12, "pets multiply skill (x5 rebirth x x12 pets)")
 check(Progression.PetSlots(ctx()) == Economy.PetSlots and Progression.PetSlots(ctx({ PetSlots = true })) == Economy.PetSlots + Economy.PetSlotsPass, "pet slots")
+do
+	local PetDefs = MODULE("ReplicatedStorage/Shared/Definitions/Pets")
+	local firstOnly = Progression.PetBoosts(m, 1)
+	check(math.abs(firstOnly - PetDefs.Get("golden_gull").SkillBoost) < 1e-9, "pet boosts stop at the slot count")
+	m.EquippedPets = { "1", "2", "1", "2", "1", "2" } -- more entries than slots (e.g. a slot pass ran out)
+	local capped = Progression.PetBoosts(m, Progression.PetSlots(ctx()))
+	local full = Progression.PetBoosts(m)
+	check(capped <= full and Progression.SkillMultiplier(m, ctx()) == 5 * (1 + capped), "skill multiplier only counts equipped slots")
+	m.EquippedPets = { "1", "2" }
+end
 
 -- relic: always 125% better than the best owned glider
 local r = profile()
@@ -237,6 +247,29 @@ check(view.Receipts == nil and view.TestPasses == nil, "private fields not expos
 -- round trip stays stable
 local again = Schema.Sanitize(s)
 check(again.Wins == s.Wins and again.Glider == s.Glider and #again.EquippedPets == #s.EquippedPets, "sanitize is idempotent")
+-- pets past the soft inventory cap (gifts / Robux eggs) are never dropped on load
+do
+	local many = {}
+	for i = 1, Economy.PetInventory + 25 do
+		many[tostring(i)] = { Id = "sandy_crab" }
+	end
+	many["x7"] = { Id = "sandy_crab" } -- non-numeric uid mixed in: the load order must still be total
+	many["1a"] = { Id = "sandy_crab" }
+	local ok, loaded = pcall(Schema.Sanitize, { Version = Schema.CURRENT_VERSION, Skill = 1, Pets = many })
+	local count = 0
+	if ok then
+		for _ in loaded.Pets do
+			count += 1
+		end
+	end
+	check(ok and count == Economy.PetInventory + 27, "no pets lost over the soft cap")
+	local huge = {}
+	for i = 1, Economy.PetHardLimit + 10 do
+		huge[tostring(i)] = { Id = "sandy_crab" }
+	end
+	local bounded = Schema.Sanitize({ Version = Schema.CURRENT_VERSION, Skill = 1, Pets = huge })
+	check(bounded.Pets["1"] ~= nil and bounded.Pets[tostring(Economy.PetHardLimit)] ~= nil and bounded.Pets[tostring(Economy.PetHardLimit + 1)] == nil, "hard limit keeps the oldest uids")
+end
 
 -- special throws: rare, deterministic per seed, rarest first
 do

@@ -4328,7 +4328,7 @@ function Match.Start(self: Match)
 				local pa = a.Player
 				if pa and b.Player and a ~= b and a.Team ~= b.Team then
 					local ok, friends = pcall(function()
-						return pa:IsFriendsWith(b.UserId)
+						return pa:IsFriendsWithAsync(b.UserId)
 					end)
 					if ok and friends then
 						a.VsFriend = true
@@ -7224,6 +7224,7 @@ local sessions: { [Player]: ProfileStore.Session } = {}
 local dirtySync: { [Player]: boolean } = {}
 local loadWaiters: { [Player]: { thread } } = {}
 local loading: { [Player]: boolean } = {}
+local releasing: { [Player]: boolean } = {} -- final saves in flight (BindToClose waits for them)
 
 local playerDataRemote: RemoteEvent
 
@@ -7313,13 +7314,19 @@ local function onPlayerAdded(player: Player)
 	local session = store:Load(keyFor(player), function()
 		return player.Parent == Players
 	end)
-	loading[player] = nil
 	if player.Parent ~= Players then
+		-- left while loading: release the lock we just took
 		if session then
+			releasing[player] = true
+			loading[player] = nil
 			store:Save(session, true)
+			releasing[player] = nil
+		else
+			loading[player] = nil
 		end
 		return
 	end
+	loading[player] = nil
 	if session == nil then
 		player:Kick("Could not load your data. Please rejoin in a moment.")
 		return
@@ -7330,7 +7337,9 @@ local function onPlayerAdded(player: Player)
 	local waiters = loadWaiters[player]
 	loadWaiters[player] = nil
 	if waiters then
-		for _, thread in waiters do
+		local list = table.clone(waiters)
+		table.clear(waiters) -- the WaitFor timeout must not resume these again
+		for _, thread in list do
 			task.spawn(thread)
 		end
 	end
@@ -7344,10 +7353,12 @@ local function release(player: Player)
 	if session == nil then
 		return
 	end
+	releasing[player] = true
 	DataService.Releasing:Fire(player, session.Data)
 	sessions[player] = nil
 	dirtySync[player] = nil
 	store:Save(session, true)
+	releasing[player] = nil
 end
 
 function DataService.Init()
@@ -7394,16 +7405,16 @@ function DataService.Start()
 	end)
 
 	game:BindToClose(function()
-		local pending = 0
 		for player in sessions do
-			pending += 1
-			task.spawn(function()
-				release(player)
-				pending -= 1
-			end)
+			task.spawn(release, player)
 		end
+		-- wait for every save: open sessions, releases already started by PlayerRemoving, and
+		-- profiles still loading (they release their lock as soon as the load returns)
 		local deadline = os.clock() + (if RunService:IsStudio() then 5 else 25)
-		while pending > 0 and os.clock() < deadline do
+		while (next(sessions) ~= nil or next(releasing) ~= nil or next(loading) ~= nil) and os.clock() < deadline do
+			for player in sessions do
+				task.spawn(release, player)
+			end
 			task.wait(0.1)
 		end
 	end)
@@ -9301,7 +9312,7 @@ function RewardService.ClaimGroup(player: Player): { [string]: any }
 		end
 	else
 		local ok, inGroup = pcall(function()
-			return player:IsInGroup(groupId)
+			return player:IsInGroupAsync(groupId)
 		end)
 		if not ok then
 			return { ok = false, error = "Couldn't check the group. Try again." }
@@ -13623,6 +13634,8 @@ export type TextProps = {
 	LayoutOrder: number?,
 	RichText: boolean?,
 	Wrapped: boolean?,
+	Visible: boolean?,
+	Rotation: number?,
 }
 
 -- Text in the reference style: bold face, white, dark rounded stroke.
@@ -13653,6 +13666,12 @@ function Create.Text(p: TextProps): TextLabel
 	end
 	if p.ZIndex then
 		label.ZIndex = p.ZIndex
+	end
+	if p.Visible ~= nil then
+		label.Visible = p.Visible
+	end
+	if p.Rotation then
+		label.Rotation = p.Rotation
 	end
 	if p.LayoutOrder then
 		label.LayoutOrder = p.LayoutOrder
@@ -14247,7 +14266,7 @@ local rewardTopLabel: TextLabel
 local pillIconHolder: Frame
 local pillLabel: TextLabel
 local questRows: { [string]: { Title: TextLabel, Progress: TextLabel, Check: Frame } } = {}
-local playButton: Button.Button
+local _playButton: Button.Button
 local modeButton: Button.Button
 local playGroup: Frame
 local queuePanel: Frame
@@ -14518,7 +14537,7 @@ local function buildPlay()
 	pillLabel = Create.Text({ Text = "Lv 2 Reward", Size = UDim2.fromOffset(190, 32), Position = UDim2.fromOffset(10, 14), Font = Theme.Fonts.Display, TextSize = 26, Scaled = true, Color = Color3.fromHex("#C9C9C9"), Stroke = 2, XAlign = Enum.TextXAlignment.Left, Parent = rewardPill })
 	pillIconHolder = Create("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(204, 2), Size = UDim2.fromOffset(56, 56), Parent = rewardPill })
 
-	playButton = Button.new({
+	_playButton = Button.new({
 		Parent = playGroup,
 		Name = "Play",
 		Size = UDim2.fromOffset(288, 63),

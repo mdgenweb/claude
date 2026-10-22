@@ -309,7 +309,7 @@ function Match.Start(self: Match)
 				local pa = a.Player
 				if pa and b.Player and a ~= b and a.Team ~= b.Team then
 					local ok, friends = pcall(function()
-						return pa:IsFriendsWith(b.UserId)
+						return pa:IsFriendsWithAsync(b.UserId)
 					end)
 					if ok and friends then
 						a.VsFriend = true

@@ -42,6 +42,8 @@ The runner bundles the real modules from `src/` into one Luau script with a fake
   * rewards reference valid content.
 * Number formatting is correct.
 * Profile sanitisation handles garbage data (NaN, bad ids, duplicates, out-of-range values), never exposes private fields, and is idempotent.
+* Pets over the soft inventory cap are never dropped on load (mixed uids sort safely), and the hard limit keeps the oldest uids.
+* Pet boosts stop at the slot count.
 * An economy simulation of a first session reaches the first rebirth in a sane time window.
 
 ### `services.spec.luau`
@@ -51,7 +53,8 @@ Drives the **real** server services with stubbed Roblox APIs:
 * **Throw state machine:** zone check, a server-timed perfect launch, double-throw rejection, a cooldown after landing.
 * **Ring payouts and gust taps:** perfect pays x2; invalid, mismatched and spammed taps are rejected.
 * **Landing:** zone Wins, XP, best distance and zone discovery are recorded.
-* **Auto throw:** gated by the pass.
+* **Auto throw:** gated by the pass, and it launches for a player who never threw by hand.
+* **Quick taps:** a hold shorter than `TapThreshold` launches at `TapLaunchMeter`.
 * **Training:** off-pad reps, rebirth-locked pads and pass pads are refused.
 * **Shop:** affordability, world lock, duplicates, equipping and trails.
 * **Hatching:** cost, auto-equip, the pets attribute mirror, the triple-hatch pass, the Robux egg and world eggs.
@@ -101,8 +104,14 @@ Any error inside a handler, tween, render step or scheduled task fails the spec.
 ```bash
 rojo sourcemap default.project.json -o sourcemap.json
 luau-lsp analyze --sourcemap=sourcemap.json --definitions=@roblox=globalTypes.d.luau --platform=roblox src
+python3 tests/api_lint.py --defs globalTypes.d.luau src
 rojo build default.project.json -o build/SkyGlide.rbxlx
 ```
+
+`tests/api_lint.py` covers what luau-lsp cannot see:
+
+* every `Instance.new` / `Create("Class", {...})` class is creatable, and every key of a `Create` property table is a real property or event of that class (from the Roblox definitions file);
+* every key of a table literal passed to a typed helper (`Create.Text`, `Button.new`, `MapKit.Part`, the menu components...) is a field of its declared type. Luau accepts unknown keys silently, so a typo there would be ignored at runtime.
 
 ## Studio acceptance checklist (manual)
 
@@ -126,7 +135,7 @@ Use *Test → Clients and Servers* with 2 players, and enable API access for per
 
 ## Known limits of this verification
 
-Logic, map building and a full client session are verified headlessly (above), and the code type-checks in strict mode. The mock accepts any property name, so a misspelled Roblox property would not be caught there; a code review pass covered that. It has **not** been run in a Roblox client from this environment, so these still need an in-Studio pass:
+Logic, map building and a full client session are verified headlessly (above), and the code type-checks in strict mode. The mock accepts any property name, so misspelled Roblox properties are caught by `tests/api_lint.py` instead (0 issues). It has **not** been run in a Roblox client from this environment, so these still need an in-Studio pass:
 
 * Visual polish: map proportions, UI spacing, VFX intensity.
 * Camera feel.

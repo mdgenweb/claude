@@ -20,7 +20,8 @@ Train on pads (+Skill) ─► Throw a glider from the Throw Zone ─► glider r
    * 0.85–1.15 normally;
    * **PERFECT LAUNCH** (x1.25) when the meter is at 0.9 or higher.
 
-   The server times the meter from its own clock: it measures from the charge-start intent to the release intent.
+   The server times the meter from its own clock: it measures from the charge-start intent to the release intent. A hold shorter than `TapThreshold` (0.18 s) is a quick tap and launches at `TapLaunchMeter` (0.55). The client draws the needle from its own press time, so what you see matches what the server measures.
+   * **Auto Throw** (pass) works for every player in the server, including one who has never thrown by hand.
 2. **Flight.** The glider flies down the channel and passes through glowing thermal rings. Ring spacing tightens geometrically, which creates an accelerating rhythm. Each ring pays `+N Skill` (the glider stat) x the Skill multiplier.
 3. **Gust tap.** Tapping (click, tap, Space or gamepad A) within 0.3 s before to 0.12 s after a ring (plus a ping allowance of up to 0.3 s) makes that ring **PERFECT**, which pays x2 Skill and plays a bigger effect.
    * Tapping more than 0.3 s and up to 0.9 s early spends that ring as a miss, so spam-tapping never works.
@@ -75,7 +76,8 @@ Both are rolled from the server seed. `plan.Special` carries the id; the server 
 | Training rep | pad multiplier x Skill multiplier. Manual tap rate is up to 6/s; AUTO gives 1 rep per 0.8 s | ORIGINAL |
 | Pads | world 1: 1x / 4x / 10x / 20x needing 0 / 2 / 4 / 6 rebirths; ALL WORLDS pass pads 3x / 15x / 50x | OBSERVED |
 | Rebirth resets | Skill and Level. Wins, gliders, pets, trails and worlds are kept | CONFIRMED for Skill and Level. Wins being kept is LIKELY |
-| Pets | Shown as "xN Skill" (SkillBoost = N - 1); equipped pets add up | LIKELY |
+| Pets | Shown as "xN Skill" (SkillBoost = N - 1); equipped pets add up, counting only the player's current slot count | LIKELY |
+| Pet inventory | Soft cap `PetInventory` (60) blocks Wins hatches only. Gifts, codes and Robux eggs always deliver, and nothing is dropped on load (`PetHardLimit` 5000 only guards against corrupted records) | ORIGINAL |
 | Potions | 2x Skill / Wins / Luck for 10 minutes | LIKELY |
 | Pacing (`tests/progression.spec.luau` simulation) | First rebirth in about 1 min (the tutorial goal). World 1 river end at about 2.3 h, World 2 at about 4.9 h, World 3 at about 9.2 h, World 4 at about 23 h | ORIGINAL tuning |
 

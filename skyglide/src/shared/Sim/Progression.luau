@@ -41,9 +41,14 @@ function Progression.FriendBoost(friends: number): number
 	return math.min(Economy.FriendBoostMax, Economy.FriendBoostPer * math.max(0, friends))
 end
 
-function Progression.PetBoosts(p: ProfileLike): (number, number)
+-- Boost from equipped pets. Only the first `slots` equipped pets count (a refunded slot pass
+-- never deletes equips; the extra ones simply stop counting).
+function Progression.PetBoosts(p: ProfileLike, slots: number?): (number, number)
 	local skill, wins = 0, 0
-	for _, uid in p.EquippedPets do
+	for i, uid in p.EquippedPets do
+		if slots and i > slots then
+			break
+		end
 		local owned = p.Pets[uid]
 		local def = if owned then Pets.Get(owned.Id) else nil
 		if def then
@@ -79,7 +84,7 @@ export type Breakdown = {
 -- Multiplier applied to every Skill gain (training reps and thermal rings).
 function Progression.SkillBreakdown(p: ProfileLike, ctx: Context): Breakdown
 	local rebirth = Economy.RebirthMultiplier(p.Rebirths)
-	local petSkill = Progression.PetBoosts(p)
+	local petSkill = Progression.PetBoosts(p, Progression.PetSlots(ctx))
 	local pets = 1 + petSkill
 	local pass = if ctx.Passes.DoubleSkill then 2 else 1
 	local potion = Progression.BoostActive(p, "Skill", ctx.Now)
@@ -103,7 +108,7 @@ function Progression.SkillMultiplier(p: ProfileLike, ctx: Context): number
 end
 
 function Progression.WinsMultiplier(p: ProfileLike, ctx: Context): number
-	local _, petWins = Progression.PetBoosts(p)
+	local _, petWins = Progression.PetBoosts(p, Progression.PetSlots(ctx))
 	local trail = Trails.Get(p.Trail)
 	local trailBoost = if trail then trail.WinsBoost else 0
 	local pass = if ctx.Passes.DoubleWins then 2 else 1

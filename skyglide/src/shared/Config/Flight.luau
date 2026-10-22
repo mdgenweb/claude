@@ -21,6 +21,7 @@ Flight.LaunchMax = 1.15 -- multiplier at meter just below the perfect band
 Flight.PerfectLaunchAt = 0.9 -- meter >= this = PERFECT LAUNCH
 Flight.PerfectLaunchMultiplier = 1.25
 Flight.TapLaunchMeter = 0.55 -- a quick tap without holding
+Flight.TapThreshold = 0.18 -- holds shorter than this (seconds) count as a quick tap
 Flight.AutoLaunchMeter = 0.7 -- auto-throw quality
 
 -- Rendered path: Z(d) = RenderScale * ln(1 + d / (RenderD0 * world.DistanceScale)) studs.

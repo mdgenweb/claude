@@ -354,4 +354,40 @@ check(Remotes.Last("ServerInfo").Kind == "Event" and Remotes.Last("ServerInfo").
 Events.Stop()
 check(not Events.IsActive() and Stat.SkillMultiplier(player) == before, "event stopped")
 
+-- 15. auto throw works for a player who never threw by hand ---------------------------------------
+do
+	inZone = true
+	padUnder = nil
+	local auto = makePlayer(3)
+	local ap = Data.Load(auto)
+	FAKE_GAME:GetService("Players").PlayerAdded:Fire(auto)
+	check(HANDLERS.RequestPurchase(auto, "Pass", "AutoThrow").ok, "auto pass for fresh player")
+	HANDLERS.RequestToggle(auto, "AutoThrow", true)
+	check(ap.Settings.AutoThrow == true, "fresh player auto throw on")
+	local before = Remotes.Count("FlightStarted")
+	advance(Flight.AutoThrowDelay + 0.5)
+	check(FlightService.IsFlying(auto) and Remotes.Count("FlightStarted") > before, "auto throw launches without a manual throw first")
+	HANDLERS.RequestToggle(auto, "AutoThrow", false)
+	for _ = 1, 2000 do
+		if not FlightService.IsFlying(auto) then
+			break
+		end
+		CLOCK += 0.05
+		step()
+	end
+	check(not FlightService.IsFlying(auto), "fresh player's auto flight lands")
+end
+
+-- 16. a very short hold is a quick tap -------------------------------------------------------------
+do
+	local tapper = makePlayer(4)
+	Data.Load(tapper)
+	FAKE_GAME:GetService("Players").PlayerAdded:Fire(tapper)
+	HANDLERS.RequestThrowCharge(tapper)
+	CLOCK += Flight.TapThreshold * 0.5
+	HANDLERS.RequestThrow(tapper)
+	local tapPlan = Remotes.Last("FlightStarted")
+	check(tapPlan and tapPlan.UserId == 4 and math.abs(tapPlan.Launch - Flight.TapLaunchMeter) < 1e-9, "short hold uses the tap meter")
+end
+
 print(string.format("services.spec: %d checks, %d failures", checks, failures))

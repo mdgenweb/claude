@@ -21,7 +21,7 @@ Enable *Game Settings → Security → Studio Access to API Services* to test pe
 | Group | Knobs |
 |---|---|
 | Distance from Skill | `DistanceBase`, `DistanceScale`, `DistanceExponent` |
-| Launch meter | `MeterPeriod`, the `LaunchMin..LaunchMax` band, `PerfectLaunchAt`, `PerfectLaunchMultiplier` |
+| Launch meter | `MeterPeriod`, the `LaunchMin..LaunchMax` band, `PerfectLaunchAt`, `PerfectLaunchMultiplier`, `TapThreshold` / `TapLaunchMeter` (quick taps) |
 | Rendering | `RenderScale`, `RenderD0`, `RenderMaxZ` (bounded channel length) |
 | Timing | `Time*`, `EaseExponent` |
 | Rings | `Ring*`. `RingMinGap` must stay at or above `GustEarly + GustLate + GustMaxLatency` (0.72 s), or spam-tapping starts to work |
@@ -38,7 +38,8 @@ Re-run `python3 tests/run_tests.py` after any change. The flight spec checks the
 | `XPBase` / `XPQuad` | XP curve |
 | `RebirthStep` | Multiplier per rebirth |
 | `TrainManualRate`, `TrainAutoInterval` | Training rates |
-| `PetSlots`, `PetSlotsPass`, `PetInventory` | Pet limits |
+| `PetSlots`, `PetSlotsPass` | Equipped pet slots |
+| `PetInventory` / `PetHardLimit` | Soft cap for Wins hatches / corrupted-record guard on load |
 | `FriendBoostPer` / `FriendBoostMax` | Friend boost |
 
 ## Content (`src/shared/Definitions`)

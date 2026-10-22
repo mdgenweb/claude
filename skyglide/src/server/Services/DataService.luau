@@ -29,6 +29,7 @@ local sessions: { [Player]: ProfileStore.Session } = {}
 local dirtySync: { [Player]: boolean } = {}
 local loadWaiters: { [Player]: { thread } } = {}
 local loading: { [Player]: boolean } = {}
+local releasing: { [Player]: boolean } = {} -- final saves in flight (BindToClose waits for them)
 
 local playerDataRemote: RemoteEvent
 local decorators: { (Player, { [string]: any }) -> () } = {}
@@ -138,13 +139,19 @@ local function onPlayerAdded(player: Player)
 	local session = store:Load(keyFor(player), function()
 		return player.Parent == Players
 	end)
-	loading[player] = nil
 	if player.Parent ~= Players then
+		-- left while loading: release the lock we just took
 		if session then
+			releasing[player] = true
+			loading[player] = nil
 			store:Save(session, true)
+			releasing[player] = nil
+		else
+			loading[player] = nil
 		end
 		return
 	end
+	loading[player] = nil
 	if session == nil then
 		player:Kick("Could not load your data. Please rejoin in a moment.")
 		return
@@ -155,7 +162,9 @@ local function onPlayerAdded(player: Player)
 	local waiters = loadWaiters[player]
 	loadWaiters[player] = nil
 	if waiters then
-		for _, thread in waiters do
+		local list = table.clone(waiters)
+		table.clear(waiters) -- the WaitFor timeout must not resume these again
+		for _, thread in list do
 			task.spawn(thread)
 		end
 	end
@@ -169,10 +178,12 @@ local function release(player: Player)
 	if session == nil then
 		return
 	end
+	releasing[player] = true
 	DataService.Releasing:Fire(player, session.Data)
 	sessions[player] = nil
 	dirtySync[player] = nil
 	store:Save(session, true)
+	releasing[player] = nil
 end
 
 function DataService.Init()
@@ -219,16 +230,16 @@ function DataService.Start()
 	end)
 
 	game:BindToClose(function()
-		local pending = 0
 		for player in sessions do
-			pending += 1
-			task.spawn(function()
-				release(player)
-				pending -= 1
-			end)
+			task.spawn(release, player)
 		end
+		-- wait for every save: open sessions, releases already started by PlayerRemoving, and
+		-- profiles still loading (they release their lock as soon as the load returns)
 		local deadline = os.clock() + (if RunService:IsStudio() then 5 else 25)
-		while pending > 0 and os.clock() < deadline do
+		while (next(sessions) ~= nil or next(releasing) ~= nil or next(loading) ~= nil) and os.clock() < deadline do
+			for player in sessions do
+				task.spawn(release, player)
+			end
 			task.wait(0.1)
 		end
 	end)

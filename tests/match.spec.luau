@@ -117,7 +117,7 @@ local function fakePlayer(id)
 		DisplayName = "Tester" .. id,
 		Name = "Tester" .. id,
 		Parent = true,
-		IsFriendsWith = function()
+		IsFriendsWithAsync = function()
 			return id == 1
 		end,
 	}

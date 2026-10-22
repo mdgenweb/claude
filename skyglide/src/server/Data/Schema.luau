@@ -180,16 +180,31 @@ function Schema.Sanitize(raw: any): Profile
 	p.Trails = boolSet(data.Trails, Trails.Exists)
 	p.Trail = if type(data.Trail) == "string" and p.Trails[data.Trail] then data.Trail else ""
 
-	local count = 0
 	if type(data.Pets) == "table" then
+		-- Never drop pets on load. Gifts, codes and Robux eggs may legitimately take a player past
+		-- the soft inventory cap (only Wins hatches are blocked by it). The hard bound only guards
+		-- against corrupted records, and keeps the lowest uids (oldest pets) deterministically.
+		local uids = {}
 		for uid, pet in data.Pets do
-			if count >= Economy.PetInventory + 20 then
+			if type(uid) == "string" and #uid <= 16 and type(pet) == "table" and Pets.Exists(pet.Id) then
+				table.insert(uids, uid)
+			end
+		end
+		table.sort(uids, function(a, b)
+			local na, nb = tonumber(a), tonumber(b)
+			if na and nb then
+				return na < nb
+			elseif na or nb then
+				return na ~= nil -- numeric uids first (a total order, so the sort can never fail)
+			end
+			return a < b
+		end)
+		for i, uid in uids do
+			if i > Economy.PetHardLimit then
 				break
 			end
-			if type(uid) == "string" and #uid <= 16 and type(pet) == "table" and Pets.Exists(pet.Id) then
-				p.Pets[uid] = { Id = pet.Id, Locked = pet.Locked == true }
-				count += 1
-			end
+			local pet = data.Pets[uid]
+			p.Pets[uid] = { Id = pet.Id, Locked = pet.Locked == true }
 		end
 	end
 	if type(data.EquippedPets) == "table" then

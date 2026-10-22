@@ -36,7 +36,7 @@ local DAILY_H = 196
 
 local shell: MenuShell.Shell
 local giftCards: { MenuCard.Card } = {}
-local dayFrames: { { Frame: Frame, Stroke: UIStroke, State: TextLabel } } = {}
+local dayFrames: { { Frame: Frame, Stroke: UIStroke, State: TextLabel, Reward: TextLabel } } = {}
 local dailyButton: Button.Button
 local streakLabel: TextLabel
 local autoOpened = false
@@ -104,6 +104,8 @@ local function refresh()
 	streakLabel.Text = string.format("DAILY REWARDS  ·  %d day streak", if ready then math.max(0, streak - 1) else streak)
 	for i, day in dayFrames do
 		local isNext = i == index
+		local _, rewardText = describe(Rewards.Daily[i], data) -- Wins scale with the current world
+		day.Reward.Text = rewardText
 		if ready then
 			day.State.Text = if i < index then "✅" elseif isNext then "TODAY" else ""
 		else
@@ -215,7 +217,8 @@ local function buildDaily(parent: Frame)
 			Scaled = true,
 			Parent = day,
 		})
-		Create.Text({
+		local rewardLabel = Create.Text({
+			Name = "Reward",
 			Text = text,
 			Size = UDim2.new(1, -8, 0, 22),
 			Position = UDim2.new(0, 4, 1, -26),
@@ -238,7 +241,7 @@ local function buildDaily(parent: Frame)
 			Stroke = 1.5,
 			Parent = day,
 		})
-		table.insert(dayFrames, { Frame = day, Stroke = stroke, State = state })
+		table.insert(dayFrames, { Frame = day, Stroke = stroke, State = state, Reward = rewardLabel })
 	end
 end
 

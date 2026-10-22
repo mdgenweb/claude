@@ -299,14 +299,8 @@ function PetService.Init(reg: { [string]: any })
 	registry = reg
 	hatchResult = Remotes.Event("HatchResult")
 	DataService.Loaded:Connect(function(player)
-		-- trim to the current slot count (a pass may have been refunded)
-		local maxSlots = slots(player)
-		DataService.Update(player, function(p)
-			while #p.EquippedPets > maxSlots do
-				table.remove(p.EquippedPets)
-			end
-			return true
-		end)
+		-- No trimming here: pass ownership may still be loading. Extra equips beyond the current
+		-- slot count simply don't count (Progression.PetBoosts) until slots come back.
 		mirror(player)
 	end)
 end

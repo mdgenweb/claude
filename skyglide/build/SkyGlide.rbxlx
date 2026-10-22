@@ -169,7 +169,8 @@ Economy.TrainRepBase = 1
 -- Pets
 Economy.PetSlots = 3
 Economy.PetSlotsPass = 2 -- extra slots with the "PetSlots" pass
-Economy.PetInventory = 60
+Economy.PetInventory = 60 -- soft cap: blocks Wins hatches only (gifts / Robux eggs always deliver)
+Economy.PetHardLimit = 5000 -- corrupted-record guard on load
 Economy.HatchMulti = 3 -- "TripleHatch" pass
 
 -- Friend boost: +10% Skill per friend in the server, up to +50% (OBSERVED HUD "Friend Boost +0%").
@@ -269,6 +270,7 @@ Flight.LaunchMax = 1.15 -- multiplier at meter just below the perfect band
 Flight.PerfectLaunchAt = 0.9 -- meter >= this = PERFECT LAUNCH
 Flight.PerfectLaunchMultiplier = 1.25
 Flight.TapLaunchMeter = 0.55 -- a quick tap without holding
+Flight.TapThreshold = 0.18 -- holds shorter than this (seconds) count as a quick tap
 Flight.AutoLaunchMeter = 0.7 -- auto-throw quality
 
 -- Rendered path: Z(d) = RenderScale * ln(1 + d / (RenderD0 * world.DistanceScale)) studs.
@@ -2060,9 +2062,14 @@ function Progression.FriendBoost(friends: number): number
 	return math.min(Economy.FriendBoostMax, Economy.FriendBoostPer * math.max(0, friends))
 end
 
-function Progression.PetBoosts(p: ProfileLike): (number, number)
+-- Boost from equipped pets. Only the first `slots` equipped pets count (a refunded slot pass
+-- never deletes equips; the extra ones simply stop counting).
+function Progression.PetBoosts(p: ProfileLike, slots: number?): (number, number)
 	local skill, wins = 0, 0
-	for _, uid in p.EquippedPets do
+	for i, uid in p.EquippedPets do
+		if slots and i > slots then
+			break
+		end
 		local owned = p.Pets[uid]
 		local def = if owned then Pets.Get(owned.Id) else nil
 		if def then
@@ -2098,7 +2105,7 @@ export type Breakdown = {
 -- Multiplier applied to every Skill gain (training reps and thermal rings).
 function Progression.SkillBreakdown(p: ProfileLike, ctx: Context): Breakdown
 	local rebirth = Economy.RebirthMultiplier(p.Rebirths)
-	local petSkill = Progression.PetBoosts(p)
+	local petSkill = Progression.PetBoosts(p, Progression.PetSlots(ctx))
 	local pets = 1 + petSkill
 	local pass = if ctx.Passes.DoubleSkill then 2 else 1
 	local potion = Progression.BoostActive(p, "Skill", ctx.Now)
@@ -2122,7 +2129,7 @@ function Progression.SkillMultiplier(p: ProfileLike, ctx: Context): number
 end
 
 function Progression.WinsMultiplier(p: ProfileLike, ctx: Context): number
-	local _, petWins = Progression.PetBoosts(p)
+	local _, petWins = Progression.PetBoosts(p, Progression.PetSlots(ctx))
 	local trail = Trails.Get(p.Trail)
 	local trailBoost = if trail then trail.WinsBoost else 0
 	local pass = if ctx.Passes.DoubleWins then 2 else 1
@@ -4275,16 +4282,31 @@ function Schema.Sanitize(raw: any): Profile
 	p.Trails = boolSet(data.Trails, Trails.Exists)
 	p.Trail = if type(data.Trail) == "string" and p.Trails[data.Trail] then data.Trail else ""
 
-	local count = 0
 	if type(data.Pets) == "table" then
+		-- Never drop pets on load. Gifts, codes and Robux eggs may legitimately take a player past
+		-- the soft inventory cap (only Wins hatches are blocked by it). The hard bound only guards
+		-- against corrupted records, and keeps the lowest uids (oldest pets) deterministically.
+		local uids = {}
 		for uid, pet in data.Pets do
-			if count >= Economy.PetInventory + 20 then
+			if type(uid) == "string" and #uid <= 16 and type(pet) == "table" and Pets.Exists(pet.Id) then
+				table.insert(uids, uid)
+			end
+		end
+		table.sort(uids, function(a, b)
+			local na, nb = tonumber(a), tonumber(b)
+			if na and nb then
+				return na < nb
+			elseif na or nb then
+				return na ~= nil -- numeric uids first (a total order, so the sort can never fail)
+			end
+			return a < b
+		end)
+		for i, uid in uids do
+			if i > Economy.PetHardLimit then
 				break
 			end
-			if type(uid) == "string" and #uid <= 16 and type(pet) == "table" and Pets.Exists(pet.Id) then
-				p.Pets[uid] = { Id = pet.Id, Locked = pet.Locked == true }
-				count += 1
-			end
+			local pet = data.Pets[uid]
+			p.Pets[uid] = { Id = pet.Id, Locked = pet.Locked == true }
 		end
 	end
 	if type(data.EquippedPets) == "table" then
@@ -4790,6 +4812,7 @@ local sessions: { [Player]: ProfileStore.Session } = {}
 local dirtySync: { [Player]: boolean } = {}
 local loadWaiters: { [Player]: { thread } } = {}
 local loading: { [Player]: boolean } = {}
+local releasing: { [Player]: boolean } = {} -- final saves in flight (BindToClose waits for them)
 
 local playerDataRemote: RemoteEvent
 local decorators: { (Player, { [string]: any }) -> () } = {}
@@ -4899,13 +4922,19 @@ local function onPlayerAdded(player: Player)
 	local session = store:Load(keyFor(player), function()
 		return player.Parent == Players
 	end)
-	loading[player] = nil
 	if player.Parent ~= Players then
+		-- left while loading: release the lock we just took
 		if session then
+			releasing[player] = true
+			loading[player] = nil
 			store:Save(session, true)
+			releasing[player] = nil
+		else
+			loading[player] = nil
 		end
 		return
 	end
+	loading[player] = nil
 	if session == nil then
 		player:Kick("Could not load your data. Please rejoin in a moment.")
 		return
@@ -4916,7 +4945,9 @@ local function onPlayerAdded(player: Player)
 	local waiters = loadWaiters[player]
 	loadWaiters[player] = nil
 	if waiters then
-		for _, thread in waiters do
+		local list = table.clone(waiters)
+		table.clear(waiters) -- the WaitFor timeout must not resume these again
+		for _, thread in list do
 			task.spawn(thread)
 		end
 	end
@@ -4930,10 +4961,12 @@ local function release(player: Player)
 	if session == nil then
 		return
 	end
+	releasing[player] = true
 	DataService.Releasing:Fire(player, session.Data)
 	sessions[player] = nil
 	dirtySync[player] = nil
 	store:Save(session, true)
+	releasing[player] = nil
 end
 
 function DataService.Init()
@@ -4980,16 +5013,16 @@ function DataService.Start()
 	end)
 
 	game:BindToClose(function()
-		local pending = 0
 		for player in sessions do
-			pending += 1
-			task.spawn(function()
-				release(player)
-				pending -= 1
-			end)
+			task.spawn(release, player)
 		end
+		-- wait for every save: open sessions, releases already started by PlayerRemoving, and
+		-- profiles still loading (they release their lock as soon as the load returns)
 		local deadline = os.clock() + (if RunService:IsStudio() then 5 else 25)
-		while pending > 0 and os.clock() < deadline do
+		while (next(sessions) ~= nil or next(releasing) ~= nil or next(loading) ~= nil) and os.clock() < deadline do
+			for player in sessions do
+				task.spawn(release, player)
+			end
 			task.wait(0.1)
 		end
 	end)
@@ -5306,7 +5339,9 @@ local function onRelease(player: Player)
 		sendCharge(player, false, 0, reason)
 		return
 	end
-	local meter = if s.Charging then FlightSim.MeterAt(now() - s.ChargeStart) else Flight.TapLaunchMeter
+	-- a very short hold is a quick tap: it gets the designed tap value, not a near-zero meter
+	local held = if s.Charging then now() - s.ChargeStart else 0
+	local meter = if s.Charging and held >= Flight.TapThreshold then FlightSim.MeterAt(held) else Flight.TapLaunchMeter
 	launch(player, s, meter)
 end
 
@@ -5433,6 +5468,12 @@ end
 
 local function step()
 	local t0 = now()
+	-- every player gets a state (Auto Throw must work before their first manual throw)
+	for _, player in Players:GetPlayers() do
+		if states[player] == nil and DataService.Get(player) ~= nil then
+			stateOf(player)
+		end
+	end
 	for player, s in states do
 		if player.Parent == nil then
 			continue
@@ -6081,12 +6122,18 @@ local function grantProduct(player: Player, product: Monetization.Product, robux
 			return true
 		end)
 		if isNew then
+			-- count every paid sale even if the DataStore is briefly unavailable
 			task.spawn(function()
-				local sold = bumpGlobal("RelicSold_" .. relicId, 1)
-				if sold then
-					relicSold[relicId] = sold
-					broadcastRelics(nil)
+				for attempt = 1, 6 do
+					local sold = bumpGlobal("RelicSold_" .. relicId, 1)
+					if sold then
+						relicSold[relicId] = sold
+						broadcastRelics(nil)
+						return
+					end
+					task.wait(2 ^ attempt)
 				end
+				warn("[Monetization] could not record a relic sale for " .. relicId)
 			end)
 		end
 		if notify then
@@ -6196,6 +6243,11 @@ local function requestPurchase(player: Player, kind: any, key: any): { [string]:
 			local relicId = product.Ref or ""
 			if profile.Relics[relicId] then
 				return { ok = false, error = "You already own this relic!" }
+			end
+			-- refresh the global count right before prompting (other servers sell too)
+			local fresh = readGlobal("RelicSold_" .. relicId)
+			if fresh then
+				relicSold[relicId] = math.max(relicSold[relicId] or 0, fresh)
 			end
 			if MonetizationService.RelicRemaining(relicId) <= 0 then
 				return { ok = false, error = "Sold out!" }
@@ -6627,14 +6679,8 @@ function PetService.Init(reg: { [string]: any })
 	registry = reg
 	hatchResult = Remotes.Event("HatchResult")
 	DataService.Loaded:Connect(function(player)
-		-- trim to the current slot count (a pass may have been refunded)
-		local maxSlots = slots(player)
-		DataService.Update(player, function(p)
-			while #p.EquippedPets > maxSlots do
-				table.remove(p.EquippedPets)
-			end
-			return true
-		end)
+		-- No trimming here: pass ownership may still be loading. Extra equips beyond the current
+		-- slot count simply don't count (Progression.PetBoosts) until slots come back.
 		mirror(player)
 	end)
 end
@@ -12208,6 +12254,7 @@ local RELEASE_ANGLE = 1.7 -- radians: arm swung forward
 local inZone = false
 local pressing = false
 local charging = false
+local pressAt = 0 -- server-clock time of the local press (the meter is drawn from it)
 local activePlan: FlightSim.Plan? = nil
 local sent: { [number]: boolean } = {}
 local perfect: { [number]: boolean } = {}
@@ -12341,6 +12388,7 @@ function ThrowController.Press()
 		return
 	end
 	pressing = true
+	pressAt = Workspace:GetServerTimeNow()
 	windUp()
 	Net.Fire("RequestThrowCharge")
 end
@@ -12412,6 +12460,11 @@ local function onChargeState(payload: any)
 	local startedAt = if type(payload.StartedAt) == "number" then payload.StartedAt else 0
 	local reason: string? = if type(payload.Reason) == "string" then payload.Reason else nil
 	charging = isCharging
+	if isCharging and pressing and pressAt > 0 and pressAt < startedAt then
+		-- the server times the hold from its own receipt of both press and release, so the hold
+		-- it measures matches the local one: draw the needle from the local press, not one-way late
+		startedAt = pressAt
+	end
 	if not isCharging then
 		if reason == "NotInZone" then
 			pressing = false
@@ -12457,7 +12510,12 @@ function ThrowController.Tap()
 	if idx == nil or sent[idx] then
 		return
 	end
-	local verdict = FlightSim.JudgeGust(plan, idx, t, 0)
+	-- judge as the server will: at the predicted arrival time, with the same ping allowance
+	local ping = 0
+	pcall(function()
+		ping = LocalPlayer:GetNetworkPing()
+	end)
+	local verdict = FlightSim.JudgeGust(plan, idx, t + ping * 0.5, ping)
 	if verdict == nil then
 		return -- far too early: the server would ignore it as well
 	end
@@ -13856,6 +13914,15 @@ local function child(root: Instance?, ...: string): Instance?
 	return node
 end
 
+-- Robux items whose id is still 0 are free test grants in Studio and "SOON" on live servers.
+local IS_STUDIO = RunService:IsStudio()
+local function robuxPrice(id: number?, robux: number?): (string, Color3)
+	if id == nil or (id == 0 and not IS_STUDIO) then
+		return "SOON", WHITE
+	end
+	return "R$" .. tostring(robux or 0), GREEN
+end
+
 local function refreshLabels()
 	local data = StateController.Data
 	if data == nil or worldsFolder == nil then
@@ -13879,8 +13946,13 @@ local function refreshLabels()
 			local part = child(model, "Pads", "Pad_" .. pad.Id)
 			local unlocked = if pad.PassKey then StateController.HasPass(pad.PassKey) else rebirths >= pad.Rebirths
 			setLabel(part, "Status", if unlocked then "UNLOCKED" else "LOCKED", if unlocked then GREEN else RED)
-			if pad.PassKey and unlocked then
-				setLabel(part, "Gate", "OWNED", GREEN)
+			if pad.PassKey then
+				if unlocked then
+					setLabel(part, "Gate", "OWNED", GREEN)
+				else
+					local pass = Monetization.Pass(pad.PassKey)
+					setLabel(part, "Gate", robuxPrice(if pass then pass.Id else nil, if pass then pass.Robux else nil))
+				end
 			end
 		end
 		-- glider pedestals
@@ -13918,14 +13990,22 @@ local function refreshLabels()
 				setLabel(base, "Price", if equippedRelic == relic.Id then "EQUIPPED" else "OWNED", GREEN)
 				setPrompt(base, "BuyPrompt", if equippedRelic == relic.Id then "Equipped" else "Equip")
 			else
-				setLabel(base, "Price", if left <= 0 then "SOLD OUT" else "ONLY R$" .. tostring(if product then product.Robux else 0), if left <= 0 then RED else GREEN)
+				local price, color = robuxPrice(if product then product.Id else nil, if product then product.Robux else nil)
+				if left <= 0 then
+					setLabel(base, "Price", "SOLD OUT", RED)
+				else
+					setLabel(base, "Price", if price == "SOON" then price else "ONLY " .. price, color)
+				end
 				setPrompt(base, "BuyPrompt", "Buy")
 			end
 		end
 		-- eggs
 		for _, egg in Eggs.ForWorld(world.Id) do
 			local base = child(model, "Eggs", "Egg_" .. egg.Id, "Base")
-			if base and not egg.ProductKey then
+			if base and egg.ProductKey then
+				local product = Monetization.Product(egg.ProductKey)
+				setLabel(base, "Price", robuxPrice(if product then product.Id else nil, if product then product.Robux else nil))
+			elseif base then
 				setLabel(base, "Price", Format.Short(egg.Price) .. " Wins", if wins >= egg.Price then GOLD else RED)
 			end
 		end
@@ -18602,7 +18682,7 @@ local DAILY_H = 196
 
 local shell: MenuShell.Shell
 local giftCards: { MenuCard.Card } = {}
-local dayFrames: { { Frame: Frame, Stroke: UIStroke, State: TextLabel } } = {}
+local dayFrames: { { Frame: Frame, Stroke: UIStroke, State: TextLabel, Reward: TextLabel } } = {}
 local dailyButton: Button.Button
 local streakLabel: TextLabel
 local autoOpened = false
@@ -18670,6 +18750,8 @@ local function refresh()
 	streakLabel.Text = string.format("DAILY REWARDS  ·  %d day streak", if ready then math.max(0, streak - 1) else streak)
 	for i, day in dayFrames do
 		local isNext = i == index
+		local _, rewardText = describe(Rewards.Daily[i], data) -- Wins scale with the current world
+		day.Reward.Text = rewardText
 		if ready then
 			day.State.Text = if i < index then "✅" elseif isNext then "TODAY" else ""
 		else
@@ -18781,7 +18863,8 @@ local function buildDaily(parent: Frame)
 			Scaled = true,
 			Parent = day,
 		})
-		Create.Text({
+		local rewardLabel = Create.Text({
+			Name = "Reward",
 			Text = text,
 			Size = UDim2.new(1, -8, 0, 22),
 			Position = UDim2.new(0, 4, 1, -26),
@@ -18804,7 +18887,7 @@ local function buildDaily(parent: Frame)
 			Stroke = 1.5,
 			Parent = day,
 		})
-		table.insert(dayFrames, { Frame = day, Stroke = stroke, State = state })
+		table.insert(dayFrames, { Frame = day, Stroke = stroke, State = state, Reward = rewardLabel })
 	end
 end
 

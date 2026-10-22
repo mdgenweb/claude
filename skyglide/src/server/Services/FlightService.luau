@@ -186,7 +186,9 @@ local function onRelease(player: Player)
 		sendCharge(player, false, 0, reason)
 		return
 	end
-	local meter = if s.Charging then FlightSim.MeterAt(now() - s.ChargeStart) else Flight.TapLaunchMeter
+	-- a very short hold is a quick tap: it gets the designed tap value, not a near-zero meter
+	local held = if s.Charging then now() - s.ChargeStart else 0
+	local meter = if s.Charging and held >= Flight.TapThreshold then FlightSim.MeterAt(held) else Flight.TapLaunchMeter
 	launch(player, s, meter)
 end
 
@@ -313,6 +315,12 @@ end
 
 local function step()
 	local t0 = now()
+	-- every player gets a state (Auto Throw must work before their first manual throw)
+	for _, player in Players:GetPlayers() do
+		if states[player] == nil and DataService.Get(player) ~= nil then
+			stateOf(player)
+		end
+	end
 	for player, s in states do
 		if player.Parent == nil then
 			continue

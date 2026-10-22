@@ -34,7 +34,8 @@ Economy.TrainRepBase = 1
 -- Pets
 Economy.PetSlots = 3
 Economy.PetSlotsPass = 2 -- extra slots with the "PetSlots" pass
-Economy.PetInventory = 60
+Economy.PetInventory = 60 -- soft cap: blocks Wins hatches only (gifts / Robux eggs always deliver)
+Economy.PetHardLimit = 5000 -- corrupted-record guard on load
 Economy.HatchMulti = 3 -- "TripleHatch" pass
 
 -- Friend boost: +10% Skill per friend in the server, up to +50% (OBSERVED HUD "Friend Boost +0%").

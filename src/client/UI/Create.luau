@@ -134,6 +134,8 @@ export type TextProps = {
 	LayoutOrder: number?,
 	RichText: boolean?,
 	Wrapped: boolean?,
+	Visible: boolean?,
+	Rotation: number?,
 }
 
 -- Text in the reference style: bold face, white, dark rounded stroke.
@@ -164,6 +166,12 @@ function Create.Text(p: TextProps): TextLabel
 	end
 	if p.ZIndex then
 		label.ZIndex = p.ZIndex
+	end
+	if p.Visible ~= nil then
+		label.Visible = p.Visible
+	end
+	if p.Rotation then
+		label.Rotation = p.Rotation
 	end
 	if p.LayoutOrder then
 		label.LayoutOrder = p.LayoutOrder

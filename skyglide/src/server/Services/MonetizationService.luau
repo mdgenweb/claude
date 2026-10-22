@@ -168,12 +168,18 @@ local function grantProduct(player: Player, product: Monetization.Product, robux
 			return true
 		end)
 		if isNew then
+			-- count every paid sale even if the DataStore is briefly unavailable
 			task.spawn(function()
-				local sold = bumpGlobal("RelicSold_" .. relicId, 1)
-				if sold then
-					relicSold[relicId] = sold
-					broadcastRelics(nil)
+				for attempt = 1, 6 do
+					local sold = bumpGlobal("RelicSold_" .. relicId, 1)
+					if sold then
+						relicSold[relicId] = sold
+						broadcastRelics(nil)
+						return
+					end
+					task.wait(2 ^ attempt)
 				end
+				warn("[Monetization] could not record a relic sale for " .. relicId)
 			end)
 		end
 		if notify then
@@ -283,6 +289,11 @@ local function requestPurchase(player: Player, kind: any, key: any): { [string]:
 			local relicId = product.Ref or ""
 			if profile.Relics[relicId] then
 				return { ok = false, error = "You already own this relic!" }
+			end
+			-- refresh the global count right before prompting (other servers sell too)
+			local fresh = readGlobal("RelicSold_" .. relicId)
+			if fresh then
+				relicSold[relicId] = math.max(relicSold[relicId] or 0, fresh)
 			end
 			if MonetizationService.RelicRemaining(relicId) <= 0 then
 				return { ok = false, error = "Sold out!" }

@@ -122,7 +122,7 @@ function RewardService.ClaimGroup(player: Player): { [string]: any }
 		end
 	else
 		local ok, inGroup = pcall(function()
-			return player:IsInGroup(groupId)
+			return player:IsInGroupAsync(groupId)
 		end)
 		if not ok then
 			return { ok = false, error = "Couldn't check the group. Try again." }

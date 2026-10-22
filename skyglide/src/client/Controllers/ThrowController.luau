@@ -48,6 +48,7 @@ local RELEASE_ANGLE = 1.7 -- radians: arm swung forward
 local inZone = false
 local pressing = false
 local charging = false
+local pressAt = 0 -- server-clock time of the local press (the meter is drawn from it)
 local activePlan: FlightSim.Plan? = nil
 local sent: { [number]: boolean } = {}
 local perfect: { [number]: boolean } = {}
@@ -181,6 +182,7 @@ function ThrowController.Press()
 		return
 	end
 	pressing = true
+	pressAt = Workspace:GetServerTimeNow()
 	windUp()
 	Net.Fire("RequestThrowCharge")
 end
@@ -252,6 +254,11 @@ local function onChargeState(payload: any)
 	local startedAt = if type(payload.StartedAt) == "number" then payload.StartedAt else 0
 	local reason: string? = if type(payload.Reason) == "string" then payload.Reason else nil
 	charging = isCharging
+	if isCharging and pressing and pressAt > 0 and pressAt < startedAt then
+		-- the server times the hold from its own receipt of both press and release, so the hold
+		-- it measures matches the local one: draw the needle from the local press, not one-way late
+		startedAt = pressAt
+	end
 	if not isCharging then
 		if reason == "NotInZone" then
 			pressing = false
@@ -297,7 +304,12 @@ function ThrowController.Tap()
 	if idx == nil or sent[idx] then
 		return
 	end
-	local verdict = FlightSim.JudgeGust(plan, idx, t, 0)
+	-- judge as the server will: at the predicted arrival time, with the same ping allowance
+	local ping = 0
+	pcall(function()
+		ping = LocalPlayer:GetNetworkPing()
+	end)
+	local verdict = FlightSim.JudgeGust(plan, idx, t + ping * 0.5, ping)
 	if verdict == nil then
 		return -- far too early: the server would ignore it as well
 	end

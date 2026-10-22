@@ -45,7 +45,7 @@ local rewardTopLabel: TextLabel
 local pillIconHolder: Frame
 local pillLabel: TextLabel
 local questRows: { [string]: { Title: TextLabel, Progress: TextLabel, Check: Frame } } = {}
-local playButton: Button.Button
+local _playButton: Button.Button
 local modeButton: Button.Button
 local playGroup: Frame
 local queuePanel: Frame
@@ -316,7 +316,7 @@ local function buildPlay()
 	pillLabel = Create.Text({ Text = "Lv 2 Reward", Size = UDim2.fromOffset(190, 32), Position = UDim2.fromOffset(10, 14), Font = Theme.Fonts.Display, TextSize = 26, Scaled = true, Color = Color3.fromHex("#C9C9C9"), Stroke = 2, XAlign = Enum.TextXAlignment.Left, Parent = rewardPill })
 	pillIconHolder = Create("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(204, 2), Size = UDim2.fromOffset(56, 56), Parent = rewardPill })
 
-	playButton = Button.new({
+	_playButton = Button.new({
 		Parent = playGroup,
 		Name = "Play",
 		Size = UDim2.fromOffset(288, 63),

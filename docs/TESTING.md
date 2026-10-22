@@ -29,10 +29,13 @@ Static checks:
 ```bash
 rojo sourcemap default.project.json -o sourcemap.json
 luau-lsp analyze --sourcemap=sourcemap.json --definitions=@roblox=globalTypes.d.luau --platform=roblox src
+python3 tests/api_lint.py --defs globalTypes.d.luau src
 rojo build default.project.json -o build/OrbClash.rbxlx
 ```
 
-State at commit time: all specs pass, `luau-lsp analyze` reports 0 type errors, and `rojo build` succeeds.
+`tests/api_lint.py` checks what luau-lsp cannot: `Create("Class", {...})` property names against the Roblox definitions, and table keys passed to typed helpers such as `Create.Text` (Luau silently accepts unknown keys there).
+
+State at commit time: all specs pass, `luau-lsp analyze` reports 0 type errors and 0 warnings, `tests/api_lint.py` reports 0 issues, and `rojo build` succeeds.
 
 ## Studio acceptance checklist (manual)
 

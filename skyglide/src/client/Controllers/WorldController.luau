@@ -155,6 +155,15 @@ local function child(root: Instance?, ...: string): Instance?
 	return node
 end
 
+-- Robux items whose id is still 0 are free test grants in Studio and "SOON" on live servers.
+local IS_STUDIO = RunService:IsStudio()
+local function robuxPrice(id: number?, robux: number?): (string, Color3)
+	if id == nil or (id == 0 and not IS_STUDIO) then
+		return "SOON", WHITE
+	end
+	return "R$" .. tostring(robux or 0), GREEN
+end
+
 local function refreshLabels()
 	local data = StateController.Data
 	if data == nil or worldsFolder == nil then
@@ -178,8 +187,13 @@ local function refreshLabels()
 			local part = child(model, "Pads", "Pad_" .. pad.Id)
 			local unlocked = if pad.PassKey then StateController.HasPass(pad.PassKey) else rebirths >= pad.Rebirths
 			setLabel(part, "Status", if unlocked then "UNLOCKED" else "LOCKED", if unlocked then GREEN else RED)
-			if pad.PassKey and unlocked then
-				setLabel(part, "Gate", "OWNED", GREEN)
+			if pad.PassKey then
+				if unlocked then
+					setLabel(part, "Gate", "OWNED", GREEN)
+				else
+					local pass = Monetization.Pass(pad.PassKey)
+					setLabel(part, "Gate", robuxPrice(if pass then pass.Id else nil, if pass then pass.Robux else nil))
+				end
 			end
 		end
 		-- glider pedestals
@@ -217,14 +231,22 @@ local function refreshLabels()
 				setLabel(base, "Price", if equippedRelic == relic.Id then "EQUIPPED" else "OWNED", GREEN)
 				setPrompt(base, "BuyPrompt", if equippedRelic == relic.Id then "Equipped" else "Equip")
 			else
-				setLabel(base, "Price", if left <= 0 then "SOLD OUT" else "ONLY R$" .. tostring(if product then product.Robux else 0), if left <= 0 then RED else GREEN)
+				local price, color = robuxPrice(if product then product.Id else nil, if product then product.Robux else nil)
+				if left <= 0 then
+					setLabel(base, "Price", "SOLD OUT", RED)
+				else
+					setLabel(base, "Price", if price == "SOON" then price else "ONLY " .. price, color)
+				end
 				setPrompt(base, "BuyPrompt", "Buy")
 			end
 		end
 		-- eggs
 		for _, egg in Eggs.ForWorld(world.Id) do
 			local base = child(model, "Eggs", "Egg_" .. egg.Id, "Base")
-			if base and not egg.ProductKey then
+			if base and egg.ProductKey then
+				local product = Monetization.Product(egg.ProductKey)
+				setLabel(base, "Price", robuxPrice(if product then product.Id else nil, if product then product.Robux else nil))
+			elseif base then
 				setLabel(base, "Price", Format.Short(egg.Price) .. " Wins", if wins >= egg.Price then GOLD else RED)
 			end
 		end
