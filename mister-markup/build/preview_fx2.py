@@ -71,12 +71,12 @@ def ball(cv, x, y, extra=None, r=70, col=G1):
 # 01 action_word mid-pop (overshoot)
 panel(0, "action_word +0.12s",
       lambda cv: fx2.action_word(cv, 540, 930, "POW!", 0.12, 0.0, size=130, seed=3),
-      bg=lambda cv: art.stage_live(cv, 0.4))
+      view=(540, 960, 860), bg=lambda cv: art.stage_live(cv, 0.4))
 
 # 02 action_word money variant, settled
 panel(1, "money=True +0.40s",
-      lambda cv: fx2.action_word(cv, 540, 930, "$9!", 0.40, 0.0, size=150, seed=5, money=True, ang=7),
-      bg=lambda cv: art.bg_counter(cv))
+      lambda cv: fx2.action_word(cv, 540, 940, "$9!", 0.40, 0.0, size=150, seed=5, money=True, ang=7),
+      view=(540, 960, 860), bg=lambda cv: art.bg_counter(cv, "wall"))
 
 # 03 screen crack
 panel(2, "screen_crack +0.20s",
@@ -87,12 +87,12 @@ VALUES = ["$2.50", "$3.75", "$4.20", "$5.95", "$6.80", "$7.45", "$8.10", "$9.00"
 
 
 def slot_bg(cv):
-    art.bg_counter(cv, "back")
+    art.bg_counter(cv, "wall")
 
 
 # 04 slot roll mid-roll (blurred, moving)
 panel(3, "slot_roll mid-roll",
-      lambda cv: (fx2.slot_roll(cv, 540, 900, VALUES, 0.22, 0.0, dur=0.8, size=120, color=MONEY),
+      lambda cv: (fx2.slot_roll(cv, 540, 900, VALUES, 0.30, 0.0, dur=0.8, size=120, color=MONEY),
                   text(cv, "SODA", 540, 1060, 70, "slab", INK)),
       view=(540, 930, 820), bg=slot_bg)
 
@@ -191,23 +191,29 @@ def sparkle_draw(cv):
     fx2.sparkles(cv, 540, 920, 0.10, 0.0, life=0.8, n=5, seed=9, radius=200)
 
 
-panel(12, "sparkles +0.32s", sparkle_draw, view=(540, 930, 900),
+panel(12, "sparkles +0.32s", sparkle_draw, view=(540, 930, 760),
       bg=lambda cv: cv.drawRect(skia.Rect.MakeWH(W, H), fill(G1)))
 
 
 # 14 squash_hop filmstrip (onion skin)
 def hop_draw(cv):
-    floor = 1120
+    floor = 1150
     cv.drawRect(skia.Rect.MakeLTRB(0, floor, W, H), fill(G4)); cv.drawLine(0, floor, W, floor, stroke(INK, 7))
-    times = [0.02, 0.06, 0.12, 0.175, 0.23, 0.29, 0.33]
+    times = [0.035, 0.105, 0.14, 0.17, 0.205, 0.255, 0.3, 0.345]
+    xs = [110 + j * 122 for j in range(len(times))]
+    arc = skia.Path()
     for j, tt in enumerate(times):
-        dy, sx, sy = fx2.squash_hop(tt, 0.0, height=260, dur=0.35)
-        x = 150 + j * 130
-        fx2.contact_shadow(cv, x, floor + 4, 120 * (1 - min(0.6, -dy / 400)), alpha=int(140 * (1 + dy / 520)))
-        cv.saveLayerAlpha(None, 255 if j in (0, 3, 6) else 150)
+        dy, _, _ = fx2.squash_hop(tt, 0.0, height=300, dur=0.35)
+        (arc.moveTo if j == 0 else arc.lineTo)(xs[j], floor - 45 + dy)
+    dash = stroke(G2, 4); dash.setPathEffect(skia.DashPathEffect.Make([14, 12], 0))
+    cv.drawPath(arc, dash)
+    for j, tt in enumerate(times):
+        dy, sx, sy = fx2.squash_hop(tt, 0.0, height=300, dur=0.35)
+        x = xs[j]
+        fx2.contact_shadow(cv, x, floor + 4, 110 * (1 - min(0.6, -dy / 450)), alpha=int(150 * (1 + dy / 560)))
         cv.save(); cv.translate(x, floor + dy); cv.scale(sx, sy)
-        ball(cv, 0, -55, r=55)
-        cv.restore(); cv.restore()
+        ball(cv, 0, -45, r=45, col=G1 if j in (0, 3, 6) else G2)
+        cv.restore()
 
 
 panel(13, "squash_hop strip", hop_draw, view=(540, 960, 1080), bg=lambda cv: cv.drawRect(skia.Rect.MakeWH(W, H), fill(G6)))
@@ -234,8 +240,11 @@ def curves_draw(cv):
             (p.moveTo if k == 0 else p.lineTo)(px, py)
         cv.drawPath(p, stroke(col, wdt))
     text(cv, "1.0", x0 + 6, yt - 8, 18, "monob", G2, align="left")
-    text(cv, "pop_in", 200, 50, 20, "monob", INK, align="left")
-    text(cv, "shake / hop sy", 160, 252, 18, "monob", G3, align="left")
+    # legend row (kept clear of the panel number badge and the label tag)
+    lx = 28
+    for name, col, wdt in (("pop_in", INK, 5), ("shake", G3, 3), ("hop sy", G2, 3)):
+        cv.drawLine(lx, 244, lx + 16, 244, stroke(col, wdt))
+        lx += 22 + text(cv, name, lx + 22, 250, 16, "monob", col, align="left") + 12
 
 
 panel(14, "pop_in / shake", curves_draw, view=(CW / 2, CH / 2, CW))

@@ -175,7 +175,7 @@ def draw_s01(c, t, tq):
     counter_front(c)
     # Wally on the countertop, left
     pop = ease_out_back(prog(t, 0.32, 0.55)) * (1 - prog(t, 1.6, 2.0))
-    wally(c, 250, 1190, 0.95, tq, thick=1.0, expr="shock" if t < 2.0 else "nervous", eye_pop=pop, arms="grab" if t < 2.0 else "down",
+    wally(c, 230, 1190, 0.9, tq, thick=1.0, expr="shock" if t < 2.0 else "nervous", eye_pop=pop, arms="grab" if t < 2.0 else "down",
           look=(1, 0))
     # tub drops in with squash
     d = prog(t, 0.0, T_LAND)
@@ -193,7 +193,7 @@ def draw_s01(c, t, tq):
     fx.kernels(c, 740, 860, t, T_LAND, T_LAND + 0.9, every=0.08, seed=2)
     fx.dust_puff(c, 740, 1200, t, T_LAND, seed=4)
     # the price tag: hangs from the rim; Markup's glove grabs it and the price slot-rolls down to ~$1
-    tx, ty = 560, 980
+    tx, ty = 600, 880
     hand_in = ease_out(prog(t, T_GRAB - 0.35, T_GRAB))
     tug = math.sin(max(0, t - T_GRAB) * 9) * 6 * (1 - prog(t, T_GRAB, T_GRAB + 0.8))
     c.save(); c.translate(tx, ty + tug); c.rotate(-10 + math.sin(t * 4) * 3 * (1 - hand_in))
@@ -208,7 +208,7 @@ def draw_s01(c, t, tq):
     c.drawLine(tx + 140, ty, 740 - 150, 1205 - 300 * 1.15 + 40, stroke(INK, 4))
     if hand_in > 0:  # Markup's arm reaching in from the left edge
         hx = lerp(-200, tx - 170, hand_in); hy = ty + 10 + tug
-        c.drawLine(-80, hy + 90, hx - 20, hy + 6, stroke(INK, 64)); c.drawLine(-80, hy + 90, hx - 20, hy + 6, stroke(G3, 50))
+        c.drawLine(-60, hy - 330, hx - 20, hy - 6, stroke(INK, 64)); c.drawLine(-60, hy - 330, hx - 20, hy - 6, stroke(G3, 50))
         art.draw_glove(c, hx, hy, -10, "fist", 1.25)
 
 
@@ -358,7 +358,7 @@ def draw_s10(c, t, tq):
     dy, sx_, sy_ = fx2.squash_hop(t, a + 0.45, height=0, dur=0.3)
     fxp = lerp(1250, 600, ease_out(k)); fyp = 1760 - math.sin(k * math.pi) * 420
     holding = (lambda cc: P.draw_report(cc, 40, -70, 0.75, ang=-12, t=tq)) if t < T_LENS - 0.3 else None
-    footnote(c, fxp, fyp, 1.25, tq, hold=holding, squash=sy_)
+    footnote(c, fxp, fyp, 1.25, tq, hold=holding, squash=sy_, glass=t < T_LENS)
     if t >= a + 0.45:
         fx.dust_puff(c, 600, 1760, t, a + 0.45, seed=8, spread=200)
     wally(c, 240, 1660, 0.85, tq, thick=wally_thick(t), expr="worried", arms="down", look=(1, -1))
@@ -366,9 +366,16 @@ def draw_s10(c, t, tq):
         kk = ease_out_back(prog(t, S("fn_half") + 0.6, S("fn_half") + 0.95))
         c.save(); c.translate(0, lerp(-500, 0, kk)); doc_content(c); c.restore()
     if t >= T_LENS:
-        kk = ease_out(prog(t, T_LENS, T_LENS + 0.35))
-        lx, ly = lerp(1100, 700, kk), lerp(1300, 800, kk)
-        P.draw_magnifier(c, lx, ly, 1.3, ang=0, t=t, lens_r=110, content=doc_content, zoom=1.9, focus=(560, 800))
+        kk = ease_out_back(prog(t, T_LENS, T_LENS + 0.4))
+        fx_, fy_ = 752, 802                     # "~51-57%" on the card
+        gx, gy = fx_ + 0.5 * 315, fy_ + 0.866 * 315
+        gx, gy = lerp(1250, gx, kk), lerp(1700, gy, kk)
+        c.drawLine(fxp + 60, fyp - 300, gx, gy, stroke(INK, 34)); c.drawLine(fxp + 60, fyp - 300, gx, gy, stroke(G1, 22))
+        cxl, cyl, _ = P.magnifier_lens_center(gx, gy, 1.3, -30, 110)
+        P.draw_magnifier(c, gx, gy, 1.3, ang=-30, t=t, lens_r=110, content=doc_content, zoom=1.8, focus=(fx_, fy_))
+        art.draw_glove(c, gx, gy, -120, "fist", 0.9)
+        if t >= T_LENS + 0.45:
+            fx2.sparkles(c, cxl, cyl, t, T_LENS + 0.45, life=0.7, n=6, seed=10, radius=190)
 
 
 def draw_s11(c, t, tq):
@@ -399,11 +406,16 @@ def draw_s12(c, t, tq):
 def draw_s13(c, t, tq):
     """Soda demo: pour 5 parts water, 1 part syrup, drop ice."""
     counter_back(c, t, glow=0.6)
-    if t < T_SYRUP:
-        prop = lambda cc: P.draw_pitcher(cc, 0, 0, 0.9, ang=-38 * ease(prog(t, T_POUR - 0.2, T_POUR + 0.2)), t=tq, fill=0.8 - 0.5 * prog(t, T_POUR, T_SYRUP))
-    else:
-        prop = lambda cc: P.draw_syrup_bottle(cc, 0, 0, 0.9, ang=-60 * ease(prog(t, T_SYRUP - 0.1, T_SYRUP + 0.2)), t=tq)
-    markup(c, 300, 1650, 1.05, tq, markup_pose3(tq, arms="pour", holdR=prop))
+    def prop(cc):
+        cc.scale(-1, 1)   # mirror: spout faces +x, toward the cup
+        if t < T_SYRUP:
+            tip = ease(prog(t, T_POUR - 0.25, T_POUR + 0.15)) * (1 - ease(prog(t, T_SYRUP - 0.35, T_SYRUP - 0.1)))
+            P.draw_pitcher(cc, 0, 0, 0.9, ang=-40 * tip, t=tq, fill=0.8 - 0.45 * prog(t, T_POUR, T_SYRUP), pour_len=280,
+                           pour=(tip > 0.6))
+        else:
+            P.draw_syrup_bottle(cc, -10, 0, 0.95, ang=-95 * ease(prog(t, T_SYRUP - 0.1, T_SYRUP + 0.2))
+                                * (1 - ease(prog(t, T_SYRUP + 0.75, T_SYRUP + 0.95))), t=tq)
+    markup(c, 300, 1650, 1.05, tq, markup_pose3(tq, arms="pour", holdR=prop, armR=((143, -832), -60, "fist", -60)))
     counter_front(c)
     cx = 700
     lvl = 0.62 * prog(t, T_POUR, T_SYRUP - 0.1) + 0.12 * prog(t, T_SYRUP, T_SYRUP + 0.6)
@@ -419,19 +431,18 @@ def draw_s13(c, t, tq):
     fx.bubbles(c, cx - 70, cx + 70, top + 10, 1195, t, n=10)
     c.restore()
     c.drawPath(cup, stroke(INK, 7))
-    if t > T_POUR and t < T_SYRUP:  # water stream
-        c.drawLine(cx - 40, 760, cx - 10, top, stroke(G5, 14)); c.drawLine(cx - 40, 760, cx - 10, top, stroke(WHITE, 4))
-    if T_SYRUP < t < T_SYRUP + 0.6:
-        c.drawLine(cx - 20, 800, cx, top, stroke(G1, 10))
+    if T_SYRUP + 0.15 < t < T_SYRUP + 0.75:  # syrup stream
+        sp_ = skia.Path(); sp_.moveTo(578, 792); sp_.quadTo(668, 800, cx - 15, top)
+        c.drawPath(sp_, stroke(INK, 14)); c.drawPath(sp_, stroke(G1, 8))
     for i in range(3):  # ice cubes drop in
         t0 = T_ICE + i * 0.22
         if t >= t0:
             k = ease_in(prog(t, t0, t0 + 0.25))
             P.draw_ice_cube(c, cx - 40 + i * 40, lerp(300, top + 30 + i * 18, k), 0.8, ang=i * 25 + k * 60, t=tq)
     if t >= T_POUR + 0.3:
-        text(c, "5 PARTS WATER", 860, 1000, 44, "anton", WHITE, outline=INK, ow=10, alpha=int(255 * prog(t, T_POUR + 0.3, T_POUR + 0.5)))
+        text(c, "5 PARTS WATER", 915, 1110, 38, "anton", WHITE, outline=INK, ow=9, alpha=int(255 * prog(t, T_POUR + 0.3, T_POUR + 0.5)))
     if t >= T_SYRUP + 0.2:
-        text(c, "1 PART SYRUP", 860, 790, 44, "anton", WHITE, outline=INK, ow=10, alpha=int(255 * prog(t, T_SYRUP + 0.2, T_SYRUP + 0.4)))
+        text(c, "1 PART SYRUP", 915, 1170, 38, "anton", WHITE, outline=INK, ow=9, alpha=int(255 * prog(t, T_SYRUP + 0.2, T_SYRUP + 0.4)))
 
 
 def draw_s14(c, t, tq):
@@ -461,11 +472,11 @@ def draw_s14(c, t, tq):
         c.save(); c.clipRect(skia.Rect.MakeLTRB(-62, -40, -36, 40)); art.draw_bill(c, 0, 0, 1.0)
         c.drawRect(skia.Rect.MakeLTRB(-62, -32, 62, 32), fill(G3, 200)); c.restore()
         c.restore()
-        text(c, "FOOD ~20¢", 190, 1120 + drop * 380, 54, "anton", WHITE, outline=INK, ow=10)
+        text(c, "FOOD ~20¢", 150 - drop * 60, 1250 + drop * 330, 54, "anton", WHITE, outline=INK, ow=10)
     P.draw_register(c, 820, 1520, 1.0, t=tq, drawer=ease_out(prog(t, T_REG, T_REG + 0.3)), display="$0.80" if t >= T_REG else "$0.00")
     if t >= T_REG:
-        text(c, "THEATER KEEPS ~80¢", W / 2, 640, 66, "anton", MONEY_D)
-        text(c, "(before staff & rent)", W / 2, 700, 40, "mono", G2)
+        text(c, "THEATER KEEPS ~80¢", 700, 1000, 60, "anton", MONEY_D, outline=WHITE, ow=8)
+        text(c, "(before staff & rent)", 700, 1052, 36, "mono", G2)
 
 
 DECOY_X = {0: 205, 1: 535, 2: 865}
@@ -661,7 +672,8 @@ def draw_s26(c, t, tq):
     """Pro move: the phone shows FREE REFILL!, Wally gets refilled and pops back up."""
     art.stage_live(c, t, sweep=-150)
     glow = ease_out(prog(t, T_PHONE, T_PHONE + 0.4))
-    phone = lambda cc: P.draw_phone(cc, 0, -40, 0.95, ang=-8, t=t, lines=("FREE", "REFILL!"), header="THEATER APP", glow=glow)
+    phone = lambda cc: P.draw_phone(cc, 0, -125, 1.0 + 0.55 * ease_out_back(prog(t, T_PHONE - 0.3, T_PHONE + 0.1)), ang=-8, t=t,
+                                    lines=("FREE", "REFILL!"), header="THEATER APP", glow=glow)
     markup(c, 300, 1600, 0.95, tq, markup_pose3(tq, arms="phone", holdR=phone))
     refill = prog(t, T_REFILL, T_REFILL + 0.6)
     flat = 1.0 - ease_out_back(refill) if t < T_REFILL + 0.6 else 0.0
@@ -678,8 +690,7 @@ def draw_s27(c, t, tq):
     art.stage_live(c, t, sweep=math.sin(t * 1.5) * 200)
     a = shot_by("S27")["a"]
     markup(c, 540, 1600, 1.0, tq, markup_pose3(tq))
-    wally(c, 860, 1640, 0.85, tq, thick=0.8, expr="happy", arms="wave",
-          hold=lambda cc: P.draw_magnifier(cc, 0, 0, 0.5, ang=-30, t=tq, lens_r=60))
+    wally(c, 860, 1640 - abs(math.sin(tq * 6 + 1)) * 30, 0.85, tq, thick=0.8, expr="happy", arms="cheer")
     hop = abs(math.sin(tq * 6)) * 40
     footnote(c, 200, 1660 - hop, 0.8, tq, mouth="closed")
     fx.confetti_bills(c, t, a + 0.2, n=26, seed=61, life=3.2)
@@ -755,7 +766,7 @@ sfx("zip", T_XRAY[0], 0.3); flash(T_XRAY[0], 120, 0.1)
 sfx("slot", T_BUCK, 0.5); sfx("kaching", T_BUCK + 0.6, 0.45); punch(T_BUCK + 0.6, 0.08)
 word(T_BUCK + 0.62, "~$1!", 760, 700, size=110, money=True, seed=2)
 punch(T_NINE, 0.18); shake(T_NINE, 22, 0.35); flash(T_NINE, 170); sfx("slot", T_NINE - 0.02, 0.35); sfx("kaching", T_NINE + 0.45, 0.45)
-sfx("ahooga", T_NINE + 0.05, 0.35); word(T_NINE + 0.45, "NINE?!", 780, 620, size=120, money=True, seed=3)
+sfx("ahooga", T_NINE + 0.75, 0.3); word(T_NINE + 0.45, "NINE?!", 780, 620, size=120, money=True, seed=3)
 sfx("pop", S("hook3") + 0.8, 0.2)
 sfx("sting", shot_by("S05")["a"] + 0.05, 0.7)
 for k in range(3):
@@ -771,15 +782,15 @@ sfx("vacuum", T_BOOTH, 0.25); sfx("squeak", T_BOOTH + 1.0, 0.2)
 sfx("zip", T_GAUGE - 0.35, 0.3); sfx("whack", T_GAUGE, 0.45); sfx("slot", T_GAUGE, 0.3); shake(T_GAUGE, 16, 0.3)
 word(T_GAUGE + 0.55, "HALF!", 760, 820, size=100, money=False, seed=4)
 sfx("vacuum", T_VAC, 0.55); word(T_VAC + 0.3, "SLURP!", 540, 520, size=120, seed=5); punch(T_VAC + 0.1, 0.08)
-sfx("boing", T_FN_IN + 0.45, 0.35); shake(T_FN_IN + 0.45, 10, 0.25)
-sfx("typewriter", S("fn_half") + 0.6, 0.25); sfx("zip", T_LENS, 0.3)
+sfx("boing", T_FN_IN + 0.3, 0.18); shake(T_FN_IN + 0.45, 10, 0.25)
+sfx("typewriter", S("fn_half") + 0.6, 0.1); sfx("zip", T_LENS, 0.3)
 sfx("iris", shot_by("S11")["b"] - 0.35, 0.45); sfx("iris", shot_by("S12")["a"], 0.3)
 sfx("zip", T_LIFT - 0.3, 0.3); sfx("pop", T_LIFT, 0.4); punch(T_LIFT, 0.1)
-sfx("pour", T_POUR, 0.45); sfx("gulp", T_SYRUP + 0.1, 0.4)
+sfx("pour", T_POUR, 0.22); sfx("gulp", T_SYRUP + 0.1, 0.2)
 for i in range(3):
-    sfx("clink", T_ICE + i * 0.22 + 0.25, 0.4)
-sfx("tear", T_RIP, 0.65); word(T_RIP + 0.05, "RIP!", 330, 820, size=120, seed=6); shake(T_RIP, 14, 0.25)
-sfx("kaching", T_REG, 0.6); word(T_REG + 0.05, "KA-CHING!", 760, 1180, size=96, money=True, seed=7); punch(T_REG, 0.08)
+    sfx("clink", T_ICE + i * 0.22 + 0.25, 0.22)
+sfx("tear", T_RIP, 0.65); word(T_RIP + 0.05, "RIP!", 640, 760, size=120, seed=6); shake(T_RIP, 14, 0.25)
+sfx("kaching", T_REG, 0.6); word(T_REG + 0.05, "KA-CHING!", 790, 650, size=92, money=True, seed=7); punch(T_REG, 0.08)
 for i in range(3):
     sfx("stamp", shot_by("S15")["a"] + i * 0.18 + 0.3, 0.25)
 punch(S("sneaky") + 1.1, 0.08); sfx("boing", S("sneaky") + 1.1, 0.22)

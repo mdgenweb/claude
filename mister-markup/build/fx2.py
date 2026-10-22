@@ -92,7 +92,7 @@ def squash_hop(t, t0, height=60, dur=0.35):
 def impact_text_shake(t, t0, amp=18, dur=0.3):
     """Decaying shake offsets (dx, dy) for text/objects."""
     dt = t - t0
-    if dt < 0 or dt > dur:
+    if dur <= 0 or dt < 0 or dt > dur:
         return 0.0, 0.0
     dec = (1 - dt / dur) ** 2
     dx = amp * dec * math.sin(dt * 97 + 0.4)
@@ -101,21 +101,41 @@ def impact_text_shake(t, t0, amp=18, dur=0.3):
 
 
 # ------------------------------------------------------------------ 1. action_word
-def _burst_path(r, n, rx, ry, rot=0.0):
-    pts = []
+def _burst_paths(r, rx, ry, spike, inset):
+    """Comic burst around an ellipse: spikes spaced evenly by arc length and pushed out along
+    the ellipse normal (so long words get even spikes, not needles). Returns (outer, inner)
+    paths built from the same vertices; inner is inset along the normals by `inset`."""
+    m = 360
+    th = np.linspace(0, 2 * np.pi, m + 1)
+    ex, ey = rx * np.cos(th), ry * np.sin(th)
+    seg = np.hypot(np.diff(ex), np.diff(ey))
+    arc = np.concatenate([[0.0], np.cumsum(seg)])
+    per = arc[-1]
+    n = max(9, int(round(per / (spike * 1.15))))
+    off = r.uniform(0, 1)
+    outer, inner = [], []
     for i in range(n * 2):
-        a = (i + r.uniform(-0.22, 0.22)) * math.pi / n + rot
-        f = r.uniform(1.0, 1.24) if i % 2 == 0 else r.uniform(0.64, 0.75)
-        pts.append((math.cos(a) * rx * f, math.sin(a) * ry * f))
-    return path_poly(pts)
+        s = ((i + off + r.uniform(-0.18, 0.18)) / (n * 2)) % 1.0 * per
+        a = float(np.interp(s, arc, th))
+        px, py = rx * math.cos(a), ry * math.sin(a)
+        nx, ny = math.cos(a) / rx, math.sin(a) / ry
+        nl = math.hypot(nx, ny)
+        nx, ny = nx / nl, ny / nl
+        d = spike * r.uniform(0.75, 1.3) if i % 2 == 0 else -spike * r.uniform(0.02, 0.2)
+        ox, oy = px + nx * d, py + ny * d
+        outer.append((ox, oy))
+        ii = inset * (1.5 if i % 2 == 0 else 1.0)
+        inner.append((ox - nx * ii, oy - ny * ii))
+    return path_poly(outer), path_poly(inner)
 
 
 def action_word(c, x, y, word, t, t0, life=0.7, size=120, seed=1, money=False, ang=-8):
     """Comic 'POW!' pop: jagged two-tier burst + extruded Bungee word, overshoot pop-in,
     rubbery wobble, shrink/fade over the last 25% of life."""
     dt = t - t0
-    if dt < 0 or dt > life:
+    if life <= 0 or dt < 0 or dt > life:
         return
+    word = str(word)
     # --- scale envelope: 0 -> 1.25 (0.075 s) -> 1 (0.15 s) -> damped wobble -> shrink out
     if dt < 0.075:
         sc = 1.25 * math.sin(0.5 * math.pi * dt / 0.075)
@@ -132,10 +152,10 @@ def action_word(c, x, y, word, t, t0, life=0.7, size=120, seed=1, money=False, a
     r = _rng(seed)
     font = skia.Font(TF["bungee"], size)
     tw = font.measureText(word)
-    rx, ry = tw / 2 + size * 0.72, size * 1.02
-    n = int(r.integers(12, 17))
-    outer = _burst_path(r, n, rx, ry)
-    inner = _burst_path(r, n, rx * 0.8, ry * 0.78, rot=math.pi / n * 0.5)
+    rx = tw / 2 + size * 0.5
+    ry = max(size * 0.78, rx * 0.36)
+    outer, inner = _burst_paths(r, rx, ry, spike=size * 0.52, inset=size * 0.2)
+    rx_t, ry_t = rx + size * 0.5, ry + size * 0.5  # tick ring
 
     c.save(); c.translate(x, y - 26 * dt); c.rotate(rot); c.scale(sc, sc)
     c.saveLayerAlpha(None, alpha)
@@ -143,24 +163,24 @@ def action_word(c, x, y, word, t, t0, life=0.7, size=120, seed=1, money=False, a
     # flying action ticks around the burst (first 0.3 s)
     if dt < 0.3:
         kk = dt / 0.3
-        for i in range(10):
-            a = 2 * math.pi * i / 10 + r.uniform(-0.2, 0.2)
-            r0 = 1.05 + 0.55 * _ease_out_cubic(kk)
-            r1 = r0 + 0.32 * (1 - kk)
-            p0 = (math.cos(a) * rx * r0, math.sin(a) * ry * r0)
-            p1 = (math.cos(a) * rx * r1, math.sin(a) * ry * r1)
-            c.drawLine(*p0, *p1, stroke(INK, sw * 1.7 * (1 - kk) + 1))
-            c.drawLine(*p0, *p1, stroke(WHITE, sw * 0.6 * (1 - kk) + 0.5))
+        rt = _rng(seed + 77)
+        for i in range(12):
+            a = 2 * math.pi * (i + rt.uniform(-0.25, 0.25)) / 12
+            r0 = 0.95 + 0.45 * _ease_out_cubic(kk)
+            r1 = r0 + 0.35 * (1 - kk) + 0.05
+            p0 = (math.cos(a) * rx_t * r0, math.sin(a) * ry_t * r0)
+            p1 = (math.cos(a) * rx_t * r1, math.sin(a) * ry_t * r1)
+            c.drawLine(*p0, *p1, stroke(INK, sw * 2.2 * (1 - kk) + 2))
+            c.drawLine(*p0, *p1, stroke(WHITE, sw * 0.9 * (1 - kk) + 0.5))
     # hard comic drop shadow
     c.save(); c.translate(size * 0.11, size * 0.13); c.drawPath(outer, fill(INK)); c.restore()
-    inked(c, outer, MONEY if money else G5, sw)
-    inked(c, inner, MONEY_L if money else WHITE, sw * 0.7)
-    # speed-hatch inside the outer ring (grey version only)
-    if not money:
-        c.save(); c.clipPath(outer, doAntiAlias=True)
-        c.drawPath(inner, stroke(G4, sw * 2.2))
-        c.restore()
-        inked(c, inner, WHITE, sw * 0.7)
+    inked(c, outer, MONEY_D if money else G4, sw)
+    inked(c, inner, MONEY if money else WHITE, sw * 0.6)
+    # soft inner rim shading (flat tone, clipped) for a little depth
+    c.save(); c.clipPath(inner, doAntiAlias=True)
+    c.drawPath(inner, stroke(MONEY_L if money else G6, size * 0.16))
+    c.restore()
+    c.drawPath(inner, stroke(INK, sw * 0.6))
     # --- the word: per-letter rubber bounce, 3D extrude, thick outline, two-tone fill
     cap = _cap(font)
     x0, base = -tw / 2, cap / 2
@@ -188,8 +208,6 @@ def action_word(c, x, y, word, t, t0, life=0.7, size=120, seed=1, money=False, a
                 c.drawString(ch, 0, 0, font, p_out)
             else:
                 c.drawString(ch, 0, 0, font, p_fill)
-                # glint
-                c.drawLine(gw * 0.18, -cap * 0.82, gw * 0.18, -cap * 0.62, stroke(WHITE, max(3, size * 0.035)))
             c.restore()
     c.restore()
     c.restore()
@@ -200,7 +218,7 @@ def screen_crack(c, x, y, t, t0, life=1.1, seed=1, size=520):
     """Shattered-glass crack radiating from (x, y): jagged main cracks, branches, web rings,
     glassy facets, flying chips; propagates in ~0.1 s, holds, fades over the last 40%."""
     dt = t - t0
-    if dt < 0 or dt > life:
+    if life <= 0 or dt < 0 or dt > life:
         return
     k = dt / life
     alpha = int(255 * (1 - _clamp((k - 0.6) / 0.4)))
@@ -213,31 +231,31 @@ def screen_crack(c, x, y, t, t0, life=1.1, seed=1, size=520):
     for i in range(n):
         a = 2 * math.pi * (i + r.uniform(-0.3, 0.3)) / n
         L = size * r.uniform(0.55, 1.0)
-        segs = int(r.integers(5, 9))
+        segs = int(r.integers(4, 7))
         step = L / segs
         hd, px, py = a, math.cos(a) * 7, math.sin(a) * 7
         pts = [(px, py)]
         heads = [hd]
         for _ in range(segs):
-            hd += r.uniform(-0.3, 0.3)
+            hd = a + r.uniform(-0.16, 0.16)  # glass cracks run straight with small kinks
             st = step * r.uniform(0.7, 1.3)
             px, py = px + math.cos(hd) * st, py + math.sin(hd) * st
             pts.append((px, py)); heads.append(hd)
         mains.append(pts)
-        cracks.append((pts, 4.6))
+        cracks.append((pts, 6.5))
         for _ in range(int(r.integers(1, 4))):
             j = int(r.integers(2, segs))
-            bh = heads[j] + r.choice([-1, 1]) * r.uniform(0.35, 0.85)
-            bl = L * r.uniform(0.14, 0.38)
-            bs = int(r.integers(2, 5))
+            bh = heads[j] + r.choice([-1, 1]) * r.uniform(0.4, 0.9)
+            bl = L * r.uniform(0.14, 0.36)
+            bs = int(r.integers(2, 4))
             bx, by = pts[j]
             bpts = [(bx, by)]
             for _ in range(bs):
-                bh += r.uniform(-0.35, 0.35)
+                bh += r.uniform(-0.2, 0.2)
                 st = bl / bs * r.uniform(0.7, 1.3)
                 bx, by = bx + math.cos(bh) * st, by + math.sin(bh) * st
                 bpts.append((bx, by))
-            cracks.append((bpts, 2.8))
+            cracks.append((bpts, 4.0))
     # concentric "spider-web" rings + facets between neighbouring cracks
     rings, facets = [], []
     for ri, rr0 in enumerate((0.13, 0.3, 0.5)):
@@ -251,7 +269,7 @@ def screen_crack(c, x, y, t, t0, life=1.1, seed=1, size=520):
             mx, my = (pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2
             j = r.uniform(-0.12, 0.12) * rr
             mid = (mx + mx / (math.hypot(mx, my) + 1e-6) * j, my + my / (math.hypot(mx, my) + 1e-6) * j)
-            rings.append(([pa, mid, pb], 2.4))
+            rings.append(([pa, mid, pb], 3.2))
             if ri == 0 or (ri == 1 and r.random() < 0.45):
                 facets.append((pa, mid, pb, ri, r.uniform(0.0, 1.0)))
     # radial propagation: everything is revealed by a growing clip circle
@@ -277,7 +295,7 @@ def screen_crack(c, x, y, t, t0, life=1.1, seed=1, size=520):
                 w = bw * (1 - 0.6 * j / max(1, m))
                 (x0, y0), (x1, y1) = pts[j], pts[j + 1]
                 if passno == 0:
-                    c.drawLine(x0 + 3, y0 + 4, x1 + 3, y1 + 4, stroke(INK, w + 3.5, a=170))
+                    c.drawLine(x0 + 2.5, y0 + 3.5, x1 + 2.5, y1 + 3.5, stroke(INK, w + 4, a=190))
                 else:
                     c.drawLine(x0, y0, x1, y1, stroke(WHITE, w))
     c.restore()
@@ -301,7 +319,8 @@ def screen_crack(c, x, y, t, t0, life=1.1, seed=1, size=520):
             s = rc.uniform(7, 15) * (1 - kk * 0.6)
             c.save(); c.translate(cx, cy); c.rotate(rc.uniform(0, 360) + dt * rc.uniform(-900, 900))
             chip = path_poly([(-s, -s * 0.5), (s, -s * 0.8), (s * 0.3, s)])
-            c.drawPath(chip, fill(WHITE, int(255 * (1 - kk)))); c.drawPath(chip, stroke(INK, 2.5, a=int(255 * (1 - kk))))
+            ca = int(255 * (1 - kk) ** 0.5)
+            c.drawPath(chip, fill(WHITE, ca)); c.drawPath(chip, stroke(INK, 3, a=ca))
             c.restore()
     c.restore()
     c.restore()
@@ -313,20 +332,31 @@ def slot_roll(c, x, y, values, t, t0, dur=0.8, size=110, font="bungee", color=WH
     decelerate, clunk onto values[-1] at t0+dur with a bounce, then stay there."""
     if t < t0 or not values:
         return
+    values = [str(v) for v in values]
     N = len(values)
     f = skia.Font(TF[font], size)
     cap = _cap(f)
     bw = max(f.measureText(v) for v in values) + size * 0.7
     bh = size * 1.5
     pitch = size * 1.22
-    k = _clamp((t - t0) / dur)
     tau = t - t0 - dur
     total = N - 1
-    p = total * _ease_out_cubic(k)
-    vel = total * 3 * (1 - k) ** 2 / dur if k < 1 else 0.0  # items / s
+    # reel position in items. f(k) = 1 - (1-A)(1-k)^3 - A(1-k): fast start, decelerates, but still
+    # carries speed A when it reaches values[-1] exactly at t0+dur, so the clunk lands on time.
+    A = 0.4
+    if dur > 0 and tau < 0:
+        k = _clamp((t - t0) / dur)
+        u = 1 - k
+        p = total * (1 - (1 - A) * u ** 3 - A * u)
+        vel = total * (3 * (1 - A) * u * u + A) / dur  # items / s
+    else:
+        p, vel = float(total), 0.0
     punch = 1.0
     if tau >= 0:
-        p = total + 0.16 * math.sin(tau * 30) * math.exp(-tau * 13)
+        w_b = 28.0
+        v_arr = total * A / dur if dur > 0 else 0.0
+        amp = _clamp(v_arr / w_b, 0.07, 0.2)  # overshoot matches arrival speed, always a visible clunk
+        p = total + amp * math.sin(tau * w_b) * math.exp(-tau * 11)
         punch = 1 + 0.09 * math.sin(tau * 26) * math.exp(-tau * 10)
     win = skia.Rect.MakeLTRB(-bw / 2, -bh / 2, bw / 2, bh / 2)
     rad = size * 0.24
@@ -336,12 +366,16 @@ def slot_roll(c, x, y, values, t, t0, dur=0.8, size=110, font="bungee", color=WH
         c.drawRRect(skia.RRect.MakeRectXY(win.makeOffset(size * 0.07, size * 0.09), rad, rad), fill(INK))
         c.drawRRect(rr, fill("#1b1b1b"))
     c.save(); c.clipRRect(rr, doAntiAlias=True)
-    sig = min(size * 0.35, vel * pitch / 24 / 3)
+    if not box:  # no drum: fade the rows out at the window edges instead of a hard cut
+        c.saveLayer(None, None)
+    sig = min(size * 0.1, vel * pitch / 24 / 7)
     if sig > 0.6:
         lp = skia.Paint(ImageFilter=skia.ImageFilters.Blur(0.01, sig))
         c.saveLayer(None, lp)
-    p_o = skia.Paint(AntiAlias=True, Color=hexc(outline), Style=skia.Paint.kStroke_Style, StrokeWidth=max(6.0, size * 0.12),
-                     StrokeJoin=skia.Paint.kRound_Join)
+    p_o = None
+    if outline:
+        p_o = skia.Paint(AntiAlias=True, Color=hexc(outline), Style=skia.Paint.kStroke_Style,
+                         StrokeWidth=max(6.0, size * 0.12), StrokeJoin=skia.Paint.kRound_Join)
     p_f = skia.Paint(AntiAlias=True, Color=hexc(color))
     base_i = int(math.floor(p))
     for i in range(base_i - 2, base_i + 3):
@@ -350,10 +384,16 @@ def slot_roll(c, x, y, values, t, t0, dur=0.8, size=110, font="bungee", color=WH
             continue
         s = values[i % N]
         sx = -f.measureText(s) / 2
-        if outline:
+        if p_o is not None:
             c.drawString(s, sx, yc + cap / 2, f, p_o)
         c.drawString(s, sx, yc + cap / 2, f, p_f)
     if sig > 0.6:
+        c.restore()
+    if not box:
+        gm = skia.GradientShader.MakeLinear([skia.Point(0, -bh / 2), skia.Point(0, bh / 2)],
+                                            [hexc("#000000", 0), hexc("#000000"), hexc("#000000"), hexc("#000000", 0)],
+                                            [0.0, 0.2, 0.8, 1.0])
+        c.drawRect(win, skia.Paint(Shader=gm, BlendMode=skia.BlendMode.kDstIn))
         c.restore()
     if box:
         # drum shading: dark top/bottom, glossy highlight band
@@ -385,8 +425,9 @@ def typewriter(c, s, x, y, t, t0, cps=28, size=40, font="mono", color=INK, align
     f = skia.Font(TF[font], size)
     cap = _cap(f)
     lh = size * 1.28
-    prog = (t - t0) * cps
-    n = int(min(len(s), math.floor(prog)))
+    s = str(s)
+    prog = (t - t0) * cps if cps > 0 else float(len(s))
+    n = int(_clamp(math.floor(prog), 0, len(s)))
     full_lines = s.split("\n")
     shown_lines = s[:n].split("\n")
     paint = skia.Paint(AntiAlias=True, Color=hexc(color))
@@ -415,7 +456,7 @@ def typewriter(c, s, x, y, t, t0, cps=28, size=40, font="mono", color=INK, align
         li = len(shown_lines) - 1
         bx, by = x0_of(li), y + li * lh
         cx = bx + f.measureText(shown_lines[-1])
-        t_done = t0 + len(s) / cps
+        t_done = t0 + (len(s) / cps if cps > 0 else 0.0)
         on = typing or int((t - t_done) * 3.2) % 2 == 0
         if on:
             c.drawRect(skia.Rect.MakeLTRB(cx + size * 0.06, by - cap * 1.08, cx + size * 0.62, by + size * 0.14), paint)
@@ -435,8 +476,8 @@ def zoom_lines(c, cx, cy, t, strength=1.0, seed=0, inner=380, n=56):
     a_wht = int(_clamp(200 * st, 0, 255))
     for i in range(n):
         a = 2 * math.pi * (i + r.uniform(-0.45, 0.45)) / n
-        rin = inner * r.uniform(1.0, 1.55)
-        hw = r.uniform(4, 22) * (0.6 + 0.4 * st)
+        rin = inner * (r.uniform(1.0, 1.25) if r.random() < 0.6 else r.uniform(1.3, 1.9))
+        hw = r.uniform(6, 30) * (0.6 + 0.4 * st)
         ca, sa = math.cos(a), math.sin(a)
         tip = (cx + ca * rin, cy + sa * rin)
         b0 = (cx + ca * R - sa * hw, cy + sa * R + ca * hw)
@@ -450,6 +491,7 @@ def contact_shadow(c, x, y, w, alpha=110, squash=0.18):
     """Soft floor shadow (radial gradient ellipse, no hard edge) centred at (x, y), width w."""
     if w <= 0 or alpha <= 0:
         return
+    alpha = _clamp(alpha, 0, 255)
     rad = w / 2
     g = skia.GradientShader.MakeRadial(skia.Point(0, 0), rad,
                                        [hexc("#000000", int(alpha)), hexc("#000000", int(alpha * 0.75)),
@@ -464,7 +506,7 @@ def halftone_wipe(c, t, t0, dur=0.35, direction=1, color=INK):
     """Transition: hex grid of halftone dots grows in sweeping across the screen (left->right for
     direction=1), covers it completely at the midpoint, then shrinks away in the same direction."""
     dt = t - t0
-    if dt < 0 or dt > dur:
+    if dur <= 0 or dt < 0 or dt > dur:
         return
     k = dt / dur
     g = 64.0
@@ -495,7 +537,7 @@ def halftone_wipe(c, t, t0, dur=0.35, direction=1, color=INK):
 def money_flash(c, t, t0, dur=0.25, alpha=90):
     """Brief full-screen money-green tint: snappy attack, quadratic fade."""
     dt = t - t0
-    if dt < 0 or dt > dur:
+    if dur <= 0 or dt < 0 or dt > dur:
         return
     k = dt / dur
     env = k / 0.12 if k < 0.12 else (1 - (k - 0.12) / 0.88) ** 2
@@ -510,7 +552,9 @@ def afterimages(c, draw_fn, positions, alpha0=110):
     last entry via draw_fn(c, x, y, extra) inside saveLayerAlpha, newest ghost strongest."""
     ghosts = list(positions)[:-1]
     m = len(ghosts)
-    for i, (gx, gy, extra) in enumerate(ghosts):
+    for i, pos in enumerate(ghosts):
+        gx, gy = pos[0], pos[1]
+        extra = pos[2] if len(pos) > 2 else None
         a = int(_clamp(alpha0 * ((i + 1) / m) ** 1.3, 0, 255))
         if a <= 0:
             continue
@@ -523,7 +567,7 @@ def afterimages(c, draw_fn, positions, alpha0=110):
 def sparkles(c, x, y, t, t0, life=0.8, n=7, seed=2, radius=160):
     """White 4-point stars bursting outward from (x, y), twinkling and spinning, plus a pop ring."""
     dt = t - t0
-    if dt < 0 or dt > life:
+    if life <= 0 or dt < 0 or dt > life:
         return
     r = _rng(seed)
     if dt < 0.16:
@@ -547,7 +591,7 @@ def sparkles(c, x, y, t, t0, life=0.8, n=7, seed=2, radius=160):
         px, py = x + math.cos(a) * d, y + math.sin(a) * d
         c.save(); c.translate(px, py); c.rotate(spin0 + spin * dt)
         st = _star4(s)
-        c.drawPath(st, fill(WHITE)); c.drawPath(st, stroke(INK, max(2.5, s * 0.16)))
+        c.drawPath(st, fill(WHITE)); c.drawPath(st, stroke(INK, max(3.0, s * 0.18)))
         c.restore()
         # little companion dot
         c.drawCircle(px + math.cos(a + 1.3) * s * 0.9, py + math.sin(a + 1.3) * s * 0.9, max(1.5, s * 0.16), fill(WHITE))
