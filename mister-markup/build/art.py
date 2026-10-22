@@ -230,6 +230,10 @@ def draw_markup(c, x, y, s, pose=None, t=0.0, boil=None, price=None, price_pop=0
         "wave":    (((-150, -470), 40, "fist", 120), ((250, -980), -40, "open", -80)),
         "think":   (((-150, -470), 40, "fist", 120), ((40, -800), -80, "fist", 200)),
     }
+    if arms == "walk":
+        sw_ = math.sin((walk or 0) * 2 * math.pi) * 70
+        arm_targets["walk"] = (((-170 - sw_ * 0.3, -470 + abs(sw_) * 0.2), 30, "fist", 100 + sw_ * 0.3),
+                               ((170 + sw_ * 0.3, -470 + abs(sw_) * 0.2), -30, "fist", 80 + sw_ * 0.3))
     (lt, lb, lk, la), (rt, rb, rk, ra) = arm_targets.get(arms, arm_targets["hips"])
     wob = math.sin(t * 6.0) * 6
     lt = (lt[0], lt[1] + wob * (0 if arms == "hips" else 1))
@@ -626,16 +630,17 @@ def bg_stage(c, spot=True):
 BULBS = [(130 + i * 32.5, by) for i in range(26) for by in (232, 718)]
 
 
-def bg_counter(c, part="all"):
-    if part in ("all", "back"):
+def bg_counter(c, part="all", rot=0.0):
+    if part in ("all", "back", "wall"):
         c.drawRect(skia.Rect.MakeWH(W, H), fill("#cfcfcb"))
         cx, cy = W / 2, 470
         for k in range(36):
-            a0, a1 = k * 10, k * 10 + 5
+            a0, a1 = k * 10 + rot, k * 10 + 5 + rot
             p = skia.Path(); p.moveTo(cx, cy)
             p.lineTo(cx + 1600 * math.cos(math.radians(a0)), cy + 1600 * math.sin(math.radians(a0)))
             p.lineTo(cx + 1600 * math.cos(math.radians(a1)), cy + 1600 * math.sin(math.radians(a1)))
             p.close(); c.drawPath(p, fill("#bdbdb8"))
+    if part in ("all", "back", "board"):
         board = skia.Rect.MakeLTRB(110, 250, 970, 700)
         c.drawRoundRect(board, 24, 24, fill("#1c1c1c")); c.drawRoundRect(board, 24, 24, stroke(INK, 10))
         for bx, by in BULBS:
@@ -659,7 +664,7 @@ def bg_counter(c, part="all"):
         c.drawRect(skia.Rect.MakeLTRB(0, 1250, W, 1262), fill("#262626"))
 
 
-def bg_vault(c):
+def bg_vault(c, wheel=True):
     c.drawRect(skia.Rect.MakeWH(W, H), fill("#bcbcb7"))
     for yy in range(0, 1500, 60):  # brick rows
         off = 0 if (yy // 60) % 2 else 60
@@ -675,8 +680,10 @@ def bg_vault(c):
         a = k * math.pi / 8
         c.drawCircle(cx + math.cos(a) * (r - 30), cy + math.sin(a) * (r - 30), 12, fill(G5))
         c.drawCircle(cx + math.cos(a) * (r - 30), cy + math.sin(a) * (r - 30), 12, stroke(INK, 3))
-    c.drawCircle(cx, cy, 90, stroke(INK, 14)); c.drawCircle(cx, cy, 90, stroke(G6, 6))
-    for k in range(3):
+    if wheel:
+        draw_vault_wheel(c, 0.0)
+    if False:
+      for k in range(3):
         a = k * math.pi / 3
         c.drawLine(cx - math.cos(a) * 110, cy - math.sin(a) * 110, cx + math.cos(a) * 110, cy + math.sin(a) * 110, stroke(INK, 18))
         c.drawLine(cx - math.cos(a) * 110, cy - math.sin(a) * 110, cx + math.cos(a) * 110, cy + math.sin(a) * 110, stroke(G6, 8))
@@ -884,3 +891,54 @@ def vignette_paint():
                                        [hexc("#000000", 0), hexc("#000000", 0), hexc("#000000", 120), hexc("#000000", 200)],
                                        [0, 0.55, 0.85, 1.0])
     return skia.Paint(AntiAlias=True, Shader=g)
+
+
+def draw_vault_wheel(c, ang, cx=760, cy=1060):
+    c.save(); c.translate(cx, cy); c.rotate(ang)
+    c.drawCircle(0, 0, 90, stroke(INK, 14)); c.drawCircle(0, 0, 90, stroke(G6, 6))
+    for k in range(3):
+        a = k * math.pi / 3
+        c.drawLine(-math.cos(a) * 110, -math.sin(a) * 110, math.cos(a) * 110, math.sin(a) * 110, stroke(INK, 18))
+        c.drawLine(-math.cos(a) * 110, -math.sin(a) * 110, math.cos(a) * 110, math.sin(a) * 110, stroke(G6, 8))
+    c.drawCircle(0, 0, 22, fill(G2)); c.drawCircle(0, 0, 22, stroke(INK, 5))
+    c.restore()
+
+
+def stage_live(c, t, sweep=0.0):
+    """Stage with swaying curtains and a sweeping spotlight (drawn every frame)."""
+    c.drawRect(skia.Rect.MakeWH(W, H), fill("#1d1d1d"))
+    for i in range(-90, W + 90, 90):
+        off = math.sin(t * 1.3 + i * 0.02) * 10
+        g = skia.GradientShader.MakeLinear([skia.Point(i + off, 0), skia.Point(i + 90 + off, 0)],
+                                           [hexc("#2c2c2c"), hexc("#6a6a6a"), hexc("#2c2c2c")])
+        c.drawRect(skia.Rect.MakeLTRB(i + off, 0, i + 92 + off, 1500), skia.Paint(AntiAlias=True, Shader=g))
+    val = skia.Path(); val.moveTo(0, 0); val.lineTo(W, 0); val.lineTo(W, 170)
+    for i in range(12, -1, -1):
+        val.quadTo(i * 90 + 45, 230, i * 90, 170)
+    val.close()
+    inked(c, val, "#3a3a3a", 6)
+    for i in range(0, W, 30):
+        on = (i // 30 + int(t * 6)) % 3 == 0
+        c.drawCircle(i + 15, 196 if (i // 30) % 3 else 214, 7, fill(WHITE if on else G4))
+    c.drawRect(skia.Rect.MakeLTRB(0, 1500, W, H), fill("#5b5b5b"))
+    for yy in range(1500, H, 70):
+        c.drawLine(0, yy, W, yy, stroke("#3f3f3f", 4))
+    for k in range(-6, 8):
+        c.drawLine(W / 2 + k * 70, 1500, W / 2 + k * 260, H, stroke("#474747", 3))
+    c.drawLine(0, 1500, W, 1500, stroke(INK, 8))
+    sx = W / 2 + sweep
+    g = skia.GradientShader.MakeRadial(skia.Point(sx, 1580), 620,
+                                       [hexc("#ffffff", 120), hexc("#ffffff", 40), hexc("#ffffff", 0)], [0, 0.6, 1])
+    c.drawOval(skia.Rect.MakeLTRB(sx - 560, 1440, sx + 560, 1730), skia.Paint(AntiAlias=True, Shader=g))
+    cone = path_poly([(W / 2 - 80, 0), (W / 2 + 80, 0), (sx + 520, 1590), (sx - 520, 1590)])
+    g2 = skia.GradientShader.MakeLinear([skia.Point(0, 0), skia.Point(0, 1590)], [hexc("#ffffff", 10), hexc("#ffffff", 60)])
+    c.drawPath(cone, skia.Paint(AntiAlias=True, Shader=g2))
+
+
+def bulb_glow(c, t, speed=8, chase=True, strength=1.0):
+    ph = int(t * speed)
+    for i, (bx, by) in enumerate(BULBS):
+        on = ((i // 2) + ph) % 3 == 0 if chase else True
+        if on:
+            g = skia.GradientShader.MakeRadial(skia.Point(bx, by), 34, [hexc("#ffffff", int(255 * strength)), hexc("#ffffff", 0)])
+            c.drawCircle(bx, by, 34, skia.Paint(AntiAlias=True, Shader=g))

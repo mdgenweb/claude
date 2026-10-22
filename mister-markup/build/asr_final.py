@@ -3,7 +3,7 @@ import numpy as np, soundfile as sf, sherpa_onnx
 sys.path.insert(0, os.path.dirname(__file__))
 from script import LINES
 TL = json.load(open("audio/timeline.json")); LN = {l["id"]: l for l in TL["lines"]}
-subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", "out/mister_markup_racket001_popcorn.mp4", "-ac", "1", "-ar", "16000", "audio/final16k.wav"], check=True)
+subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", "out/MisterMarkup_Racket001_Popcorn_FINAL_9x16.mp4", "-ac", "1", "-ar", "16000", "audio/final16k.wav"], check=True)
 a, sr = sf.read("audio/final16k.wav")
 M = "assets/sherpa-onnx-whisper-tiny.en/"
 rec = sherpa_onnx.OfflineRecognizer.from_whisper(encoder=M + "tiny.en-encoder.int8.onnx", decoder=M + "tiny.en-decoder.int8.onnx", tokens=M + "tiny.en-tokens.txt", num_threads=4)
