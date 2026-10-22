@@ -148,6 +148,43 @@ def noodle(c, p0, p1, bend, w, col, boil=None, ow=7):
 # ------------------------------------------------------------------ MISTER MARKUP
 MOUTHS = ("closed", "grin", "A", "E", "O", "outrage", "guilty")
 
+# arm pose table: ((hand_x, hand_y), bend, glove_kind, glove_angle) for (left, right), Markup-local coords
+ARM_POSES = {
+    "hips":    (((-150, -470), 40, "fist", 120), ((150, -470), -40, "fist", 60)),
+    "whisper": (((-150, -470), 40, "fist", 120), ((58, -835), -60, "open", 200)),
+    "wide":    (((-300, -930), 50, "open", -130), ((300, -930), -50, "open", -50)),
+    "shrug":   (((-250, -760), 60, "open", -150), ((250, -760), -60, "open", -30)),
+    "point":   (((-150, -470), 40, "fist", 120), ((330, -760), -30, "point", -10)),
+    "present": (((-150, -470), 40, "fist", 120), ((300, -640), -50, "open", -20)),
+    "hold":    (((-90, -560), 60, "open", 30), ((90, -560), -60, "open", 150)),
+    "wave":    (((-150, -470), 40, "fist", 120), ((250, -980), -40, "open", -80)),
+    "think":   (((-150, -470), 40, "fist", 120), ((40, -800), -80, "fist", 200)),
+    "hold_up": (((-150, -470), 40, "fist", 120), ((210, -720), -70, "fist", -60)),
+    "offer":   (((-150, -470), 40, "fist", 120), ((270, -560), -40, "fist", -10)),
+    "tear":    (((-150, -640), 50, "fist", -160), ((150, -640), -50, "fist", -20)),
+    "slam_up": (((-150, -470), 40, "fist", 120), ((180, -1080), -30, "fist", -90)),
+    "slam":    (((-150, -470), 40, "fist", 120), ((260, -520), -60, "fist", 60)),
+    "switch":  (((-150, -470), 40, "fist", 120), ((380, -720), -20, "point", 0)),
+    "phone":   (((-150, -470), 40, "fist", 120), ((235, -800), -70, "fist", -100)),
+    "pour":    (((-210, -700), 50, "fist", -150), ((200, -900), -60, "fist", -80)),
+    "cheer":   (((-260, -1000), 40, "open", -110), ((260, -1000), -40, "open", -70)),
+    "arm_around": (((-360, -640), 30, "open", -175), ((150, -470), -40, "fist", 60)),
+}
+
+
+def markup_arm_targets(arms, walk=None):
+    if arms == "walk":
+        sw_ = math.sin((walk or 0) * 2 * math.pi) * 70
+        return (((-170 - sw_ * 0.3, -470 + abs(sw_) * 0.2), 30, "fist", 100 + sw_ * 0.3),
+                ((170 + sw_ * 0.3, -470 + abs(sw_) * 0.2), -30, "fist", 80 + sw_ * 0.3))
+    return ARM_POSES.get(arms, ARM_POSES["hips"])
+
+
+def blend_arm(a, b, k):
+    """Blend two ((x,y), bend, kind, ang) arm tuples; glove kind switches at the midpoint."""
+    (pa, ba, ka, aa), (pb, bb, kb, ab) = a, b
+    return ((pa[0] + (pb[0] - pa[0]) * k, pa[1] + (pb[1] - pa[1]) * k), ba + (bb - ba) * k, kb if k > 0.5 else ka, aa + (ab - aa) * k)
+
 
 def draw_markup(c, x, y, s, pose=None, t=0.0, boil=None, price=None, price_pop=0.0, upper_only=False):
     pose = pose or {}
@@ -219,29 +256,26 @@ def draw_markup(c, x, y, s, pose=None, t=0.0, boil=None, price=None, price_pop=0
 
     # ---- arms
     SL, SR = (-138, -706), (138, -706)
-    arm_targets = {
-        "hips":    (((-150, -470), 40, "fist", 120), ((150, -470), -40, "fist", 60)),
-        "whisper": (((-150, -470), 40, "fist", 120), ((58, -835), -60, "open", 200)),
-        "wide":    (((-300, -930), 50, "open", -130), ((300, -930), -50, "open", -50)),
-        "shrug":   (((-250, -760), 60, "open", -150), ((250, -760), -60, "open", -30)),
-        "point":   (((-150, -470), 40, "fist", 120), ((330, -760), -30, "point", -10)),
-        "present": (((-150, -470), 40, "fist", 120), ((300, -640), -50, "open", -20)),
-        "hold":    (((-90, -560), 60, "open", 30), ((90, -560), -60, "open", 150)),
-        "wave":    (((-150, -470), 40, "fist", 120), ((250, -980), -40, "open", -80)),
-        "think":   (((-150, -470), 40, "fist", 120), ((40, -800), -80, "fist", 200)),
-    }
-    if arms == "walk":
-        sw_ = math.sin((walk or 0) * 2 * math.pi) * 70
-        arm_targets["walk"] = (((-170 - sw_ * 0.3, -470 + abs(sw_) * 0.2), 30, "fist", 100 + sw_ * 0.3),
-                               ((170 + sw_ * 0.3, -470 + abs(sw_) * 0.2), -30, "fist", 80 + sw_ * 0.3))
-    (lt, lb, lk, la), (rt, rb, rk, ra) = arm_targets.get(arms, arm_targets["hips"])
-    wob = math.sin(t * 6.0) * 6
+    (lt, lb, lk, la), (rt, rb, rk, ra) = markup_arm_targets(arms, walk)
+    if "armL" in pose:
+        lt, lb, lk, la = pose["armL"]
+    if "armR" in pose:
+        rt, rb, rk, ra = pose["armR"]
+    wob = math.sin(t * 6.0) * 6 * pose.get("wobble", 1.0)
     lt = (lt[0], lt[1] + wob * (0 if arms == "hips" else 1))
     rt = (rt[0], rt[1] - wob * (0 if arms in ("hips", "whisper") else 1))
     noodle(c, SL, lt, lb, 50, G3, boil)
     noodle(c, SR, rt, rb, 50, G3, boil)
+    for side, (hp, ha, hk) in (("L", (lt, la, lk)), ("R", (rt, ra, rk))):
+        fn = pose.get("hold" + side)
+        if fn is not None:
+            c.save(); c.translate(*hp); fn(c); c.restore()
     draw_glove(c, lt[0], lt[1], la, lk, 1.05, boil)
     draw_glove(c, rt[0], rt[1], ra, rk, 1.05, boil)
+    for side, hp in (("L", lt), ("R", rt)):
+        fn = pose.get("hold" + side + "_front")
+        if fn is not None:
+            c.save(); c.translate(*hp); fn(c); c.restore()
     if stick:
         ang = math.radians(ra)
         sx, sy = rt[0] + math.cos(ang) * 40, rt[1] + math.sin(ang) * 40
@@ -252,7 +286,7 @@ def draw_markup(c, x, y, s, pose=None, t=0.0, boil=None, price=None, price_pop=0
     # ---- head: price tag
     c.save(); c.translate(0, -755)
     hb = math.sin(t * 7.0) * 2.0
-    c.rotate(hb * 0.6)
+    c.rotate(hb * 0.6 + pose.get("tilt", 0.0))
     tag = path_poly([(-125, 0), (-125, -290), (-70, -350), (70, -350), (125, -290), (125, 0)])
     c.drawPath(tag, fill("#e3e1da"))
     # paper fibre shading on one side
@@ -310,7 +344,8 @@ def draw_markup(c, x, y, s, pose=None, t=0.0, boil=None, price=None, price_pop=0
         # brows
         bt = {"sly": (8, -6), "proud": (4, -2), "whisper": (6, -4), "outrage": (-16, 14), "guilty": (16, -14), "shock": (18, 0)}.get(expr, (6, -4))
         inner, outer = bt
-        c.drawLine(cx - side * 22, ey - 44 - inner * (1 if side < 0 else 1) * 0.6, cx + side * 22, ey - 44 - outer * 0.6,
+        br = pose.get("brow", 0.0)
+        c.drawLine(cx - side * 22, ey - 44 - inner * 0.6 - br, cx + side * 22, ey - 44 - outer * 0.6 - br,
                    stroke(INK, 8))
     # nose hint
     c.drawArc(skia.Rect.MakeLTRB(-10, -120, 14, -96), 300, 160, False, stroke(INK, 4))
@@ -364,8 +399,8 @@ def draw_markup(c, x, y, s, pose=None, t=0.0, boil=None, price=None, price_pop=0
 
 
 # ------------------------------------------------------------------ FOOTNOTE (walking asterisk)
-def draw_footnote(c, x, y, s, t=0.0, mouth="closed", boil=None, hold_card=False, glass=True, blink=False):
-    c.save(); c.translate(x, y); c.scale(s, s)
+def draw_footnote(c, x, y, s, t=0.0, mouth="closed", boil=None, hold_card=False, glass=True, blink=False, hold=None, swing=0.0, squash=1.0):
+    c.save(); c.translate(x, y); c.scale(s / squash ** 0.5, s * squash)
     sw = 6
     cy = -230
     # legs + spats
@@ -402,6 +437,13 @@ def draw_footnote(c, x, y, s, t=0.0, mouth="closed", boil=None, hold_card=False,
         c.drawOval(skia.Rect.MakeLTRB(-11, cy + 26, 11, cy + 44), fill(G1))
     else:
         c.drawLine(-14, cy + 34, 14, cy + 32, stroke(INK, 4))
+    # held prop on the right spoke (replaces the magnifier)
+    if hold is not None:
+        a = math.radians(-30 + swing)
+        hx, hy = math.cos(a) * 118, cy - math.sin(a) * 118
+        c.save(); c.translate(hx, hy); c.rotate(-swing); hold(c); c.restore()
+        draw_glove(c, hx, hy, -(-30 + swing), "fist", 0.7)
+        glass = False
     # magnifying glass in right spoke hand
     if glass:
         hx, hy = 112 * math.cos(math.radians(-30)), cy + 56
@@ -412,58 +454,97 @@ def draw_footnote(c, x, y, s, t=0.0, mouth="closed", boil=None, hold_card=False,
 
 
 # ------------------------------------------------------------------ WALLY (silent wallet)
-def draw_wally(c, x, y, s, thick=1.0, t=0.0, boil=None, expr="nervous", flat=0.0, walk=None):
-    c.save(); c.translate(x, y); c.scale(s, s)
+WALLY_ARMS = {
+    "down": ((-1.05, 0.35), (1.05, 0.35)), "up": ((-1.1, -0.9), (1.1, -0.9)), "cheer": ((-1.2, -1.3), (1.2, -1.3)),
+    "wave": ((-1.05, 0.35), (1.15, -1.2)), "hold": ((-1.05, 0.35), (0.95, -0.25)), "grab": ((-0.7, -0.45), (0.7, -0.45)),
+    "shield": ((-0.45, -0.75), (0.45, -0.75)),
+}
+
+
+def draw_wally(c, x, y, s, thick=1.0, t=0.0, boil=None, expr="nervous", flat=0.0, walk=None, arms=None, eye_pop=0.0,
+               hold=None, squash=1.0, look=(0, 0)):
+    """Wally the wallet. expr: nervous | shock | happy | worried | x (flattened eyes) ; arms: None or a WALLY_ARMS key."""
+    c.save(); c.translate(x, y); c.scale(s / squash ** 0.5, s * squash)
     hgt = 150 * thick * (1 - 0.75 * flat) + 18
     wid = 230 * (1 + 0.35 * flat)
     by = -70 if flat < 0.5 else -26
-    # legs
     if flat < 0.6:
         ph = (walk or 0) * 2 * math.pi
         for side in (-1, 1):
             fx = side * 44 + (side * 18 * math.sin(ph) if walk is not None else 0)
-            noodle(c, (side * 40, by), (fx, -10), side * 8, 12, INK, boil, ow=0)
-            sh = skia.Path(); sh.addOval(skia.Rect.MakeLTRB(fx - 24 + side * 6, -22, fx + 24 + side * 6, 4))
+            fy = -10 - (abs(18 * math.sin(ph + (0 if side < 0 else math.pi))) if walk is not None else 0)
+            noodle(c, (side * 40, by), (fx, fy), side * 8, 12, INK, boil, ow=0)
+            sh = skia.Path(); sh.addOval(skia.Rect.MakeLTRB(fx - 24 + side * 6, fy - 12, fx + 24 + side * 6, fy + 14))
             inked(c, sh, WHITE, 4)
-    # bills peeking out (green — money)
     nb = max(0, int(round(3 * thick))) if flat < 0.5 else 0
     for i in range(nb):
         bx = -70 + i * 50
         r = skia.Rect.MakeLTRB(bx, by - hgt - 46 + i * 6, bx + 110, by - hgt + 30)
-        c.save(); c.rotate(-8 + i * 7, bx + 55, by - hgt)
+        c.save(); c.rotate(-8 + i * 7 + math.sin(t * 5 + i) * 3, bx + 55, by - hgt)
         p = skia.Path(); p.addRect(r)
         inked(c, p, MONEY, 4)
         c.drawRect(skia.Rect.MakeLTRB(r.left() + 8, r.top() + 8, r.right() - 8, r.bottom() - 8), stroke(MONEY_D, 3))
         text(c, "$", r.centerX(), r.top() + 42, 34, "slab", MONEY_D)
         c.restore()
+    # arms (behind the body edge)
+    hands = []
+    if arms and flat < 0.5:
+        sy_ = by - hgt * 0.5
+        for side, (ax, ay) in zip((-1, 1), WALLY_ARMS.get(arms, WALLY_ARMS["down"])):
+            sh_ = (side * (wid / 2 - 14), sy_)
+            hp = (sh_[0] + ax * 70 * side * side + (ax * 0 if True else 0), sy_ + ay * 70)
+            hp = (side * (wid / 2) + (abs(ax) - 1) * 70 * side + side * 46, sy_ + ay * 70)
+            if arms == "grab" or arms == "shield":
+                hp = (side * (wid / 2) - side * (1 - abs(ax)) * 120, sy_ + ay * 70)
+            hands.append((side, hp))
+            noodle(c, sh_, hp, -side * 10, 12, INK, boil, ow=0)
     body = skia.Path(); body.addRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(-wid / 2, by - hgt, wid / 2, by), 26, 26))
     inked(c, body, "#3a3a3a", 7, boil)
     st = stroke(G5, 3); st.setPathEffect(skia.DashPathEffect.Make([10, 8], 0))
     inner = skia.Path(); inner.addRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(-wid / 2 + 12, by - hgt + 12, wid / 2 - 12, by - 12), 18, 18))
     c.drawPath(inner, st)
     c.drawLine(0, by - hgt + 6, 0, by - 6, stroke("#262626", 5))
-    # face
     fy = by - hgt * 0.55
-    if flat < 0.5:
+    if flat < 0.5 and expr != "x":
+        er = 1.0 + 0.9 * eye_pop
         for side in (-1, 1):
-            r = skia.Rect.MakeLTRB(side * 46 - 18, fy - 24, side * 46 + 18, fy + 24)
+            ex_, ey_ = side * 46 * (1 + 0.25 * eye_pop), fy - 120 * eye_pop
+            if eye_pop > 0.05:  # stalks
+                c.drawLine(side * 40, fy, ex_, ey_ + 22 * er, stroke(INK, 7))
+            r = skia.Rect.MakeLTRB(ex_ - 18 * er, ey_ - 24 * er, ex_ + 18 * er, ey_ + 24 * er)
             c.drawOval(r, fill(WHITE)); c.drawOval(r, stroke(INK, 4))
-            c.drawOval(skia.Rect.MakeLTRB(side * 46 - 8, fy - 6, side * 46 + 8, fy + 16), fill(INK))
-            c.drawPath(path_poly([(side * 46 + 1, fy - 6), (side * 46 + 8, fy - 3), (side * 46 + 3, fy + 4)]), fill(WHITE))
-            if expr == "nervous":
-                c.drawLine(side * 46 - 18, fy - 34 - side * 4, side * 46 + 18, fy - 34 + side * 4, stroke(G6, 5))
-        mp = skia.Path(); mp.moveTo(-26, fy + 42)
-        for i in range(1, 5):
-            mp.lineTo(-26 + i * 13, fy + 42 + (6 if i % 2 else -4))
-        c.drawPath(mp, stroke(G6, 4))
-        # sweat drop
-        if expr == "nervous":
-            d = skia.Path(); d.moveTo(wid / 2 - 30, fy - 50); d.quadTo(wid / 2 - 16, fy - 26, wid / 2 - 30, fy - 20)
-            d.quadTo(wid / 2 - 44, fy - 26, wid / 2 - 30, fy - 50); inked(c, d, WHITE, 3)
+            pr = 0.6 if expr == "shock" else 1.0
+            px, py = ex_ + look[0] * 7 * er, ey_ + 5 * er + look[1] * 7 * er
+            c.drawOval(skia.Rect.MakeLTRB(px - 8 * er * pr, py - 11 * er * pr, px + 8 * er * pr, py + 11 * er * pr), fill(INK))
+            c.drawPath(path_poly([(px + 1, py - 11 * er * pr), (px + 8 * er * pr, py - 8 * er * pr), (px + 3, py - 1)]), fill(WHITE))
+            if expr in ("nervous", "worried"):
+                c.drawLine(ex_ - 18, ey_ - 34 * er - side * 4, ex_ + 18, ey_ - 34 * er + side * 4, stroke(G6, 5))
+            if expr == "happy":
+                c.drawArc(skia.Rect.MakeLTRB(ex_ - 18, ey_ - 44 * er, ex_ + 18, ey_ - 24 * er), 200, 140, False, stroke(G6, 5))
+        if expr == "shock":
+            c.drawOval(skia.Rect.MakeLTRB(-22, fy + 26, 22, fy + 76), fill(G1)); c.drawOval(skia.Rect.MakeLTRB(-22, fy + 26, 22, fy + 76), stroke(G6, 4))
+        elif expr == "happy":
+            mp = skia.Path(); mp.moveTo(-34, fy + 36); mp.cubicTo(-14, fy + 70, 14, fy + 70, 34, fy + 36); mp.close()
+            c.drawPath(mp, fill(G1)); c.drawPath(mp, stroke(G6, 4))
+        else:
+            mp = skia.Path(); mp.moveTo(-26, fy + 42)
+            for i in range(1, 5):
+                mp.lineTo(-26 + i * 13, fy + 42 + (6 if i % 2 else -4))
+            c.drawPath(mp, stroke(G6, 4))
+        if expr in ("nervous", "worried"):
+            k_ = (t * 1.5) % 1.0
+            d = skia.Path(); yy = fy - 50 + k_ * 40
+            d.moveTo(wid / 2 - 30, yy); d.quadTo(wid / 2 - 16, yy + 24, wid / 2 - 30, yy + 30)
+            d.quadTo(wid / 2 - 44, yy + 24, wid / 2 - 30, yy); inked(c, d, WHITE, 3)
     else:
-        for side in (-1, 1):  # x_x flattened eyes
+        for side in (-1, 1):
             cx = side * 50
             c.drawLine(cx - 12, fy - 8, cx + 12, fy + 8, stroke(G6, 5)); c.drawLine(cx - 12, fy + 8, cx + 12, fy - 8, stroke(G6, 5))
+    for side, hp in hands:
+        if hold is not None and side == 1:
+            c.save(); c.translate(*hp); hold(c); c.restore()
+        r = skia.Rect.MakeLTRB(hp[0] - 17, hp[1] - 17, hp[0] + 17, hp[1] + 17)
+        c.drawOval(r, fill(WHITE)); c.drawOval(r, stroke(INK, 4))
     c.restore()
 
 

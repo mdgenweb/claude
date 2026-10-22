@@ -313,7 +313,113 @@ def music(total=95.0, bpm=116):
     sf.write(os.path.join(OUT, "music.wav"), norm(mix, 0.8).astype(np.float32), SR)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--v3" not in __import__("sys").argv:
     kaching(); stamp(); printer(); tear(); whoosh(); slide_whistle(); slide_whistle(up=False, name="slide_down")
     honk(); squeak(); pop(); drumroll(); iris(); boing(); sting(); crackle_bed(); music()
+    print(sorted(os.listdir(OUT)))
+
+
+# ---------------------------------------------------------------- v3 extra SFX
+def pour(d=1.2):
+    t = t_(d); n = len(t)
+    x = np.zeros(n)
+    k = 0.0
+    while k < d - 0.05:
+        i = int(k * SR); m = int(0.04 * SR)
+        f = rng.uniform(500, 1400)
+        tt = np.arange(m) / SR
+        x[i:i + m] += np.sin(2 * np.pi * f * (1 + 2 * tt) * tt) * np.exp(-tt / 0.012) * rng.uniform(0.3, 1)
+        k += rng.uniform(0.015, 0.04)
+    x += bp(rng.standard_normal(n), 300, 2500) * 0.25
+    save("pour", x * np.clip(t / 0.05, 0, 1) * np.clip((d - t) / 0.15, 0, 1), 0.6)
+
+
+def clink():
+    d = 0.5; t = t_(d)
+    x = sum(a * np.sin(2 * np.pi * f * t) * np.exp(-t / tau) for f, a, tau in [(3200, 1, .08), (4700, .6, .05), (6100, .4, .04)])
+    save("clink", x, 0.5)
+
+
+def vacuum(d=1.4):
+    t = t_(d); n = len(t)
+    f = 90 + 60 * np.clip(t / 0.3, 0, 1)
+    motor = np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR)) * 0.3
+    air = bp(rng.standard_normal(n), 800, 6000) * (0.4 + 0.3 * np.sin(2 * np.pi * 3 * t))
+    x = lp(motor, 1200) + air
+    save("vacuum", x * np.clip(t / 0.1, 0, 1) * np.clip((d - t) / 0.2, 0, 1), 0.55)
+
+
+def click():
+    d = 0.12; t = t_(d); n = len(t)
+    x = bp(rng.standard_normal(n), 1500, 8000) * np.exp(-t / 0.004) + np.sin(2 * np.pi * 1800 * t) * np.exp(-t / 0.01) * 0.5
+    save("click", x, 0.7)
+
+
+def whack():
+    d = 0.45; t = t_(d); n = len(t)
+    body = np.sin(2 * np.pi * np.cumsum(220 * np.exp(-t / 0.08) + 70) / SR) * np.exp(-t / 0.1)
+    slap = bp(rng.standard_normal(n), 400, 7000) * np.exp(-t / 0.02)
+    save("whack", body + slap * 1.2, 0.9)
+
+
+def ahooga():
+    d = 0.9; t = t_(d)
+    f = np.where(t < 0.38, 240 + 160 * (t / 0.38), 420 - 200 * ((t - 0.38) / 0.52))
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    saw = 2 * ((ph / (2 * np.pi)) % 1) - 1
+    x = bp(saw, 300, 2600) * (1 - 0.6 * (np.abs(t - 0.38) < 0.04))
+    save("ahooga", x * adsr(len(t), 0.02, 0.05, 0.9, 0.1), 0.6)
+
+
+def ding():
+    d = 0.9; t = t_(d)
+    x = np.sin(2 * np.pi * 1318.5 * t) * np.exp(-t / 0.3) + 0.5 * np.sin(2 * np.pi * 1975.5 * np.clip(t - 0.12, 0, None)) * np.exp(-np.clip(t - 0.12, 0, None) / 0.35) * (t > 0.12)
+    save("ding", x, 0.5)
+
+
+def shatter(d=1.0):
+    t = t_(d); n = len(t)
+    x = hp(rng.standard_normal(n), 2500) * np.exp(-t / 0.15)
+    for _ in range(40):
+        i = int(rng.uniform(0, 0.6) * SR); m = int(0.03 * SR)
+        x[i:i + m] += sum(np.sin(2 * np.pi * rng.uniform(2500, 7000) * np.arange(m) / SR) for _ in range(2)) * np.exp(-np.arange(m) / SR / 0.008) * 0.4
+    save("shatter", x, 0.7)
+
+
+def slot(d=0.8):
+    t = t_(d); n = len(t)
+    x = np.zeros(n); k = 0.0; step = 0.03
+    while k < d - 0.05:
+        i = int(k * SR); m = int(0.01 * SR)
+        x[i:i + m] += np.sin(2 * np.pi * 2400 * np.arange(m) / SR) * np.exp(-np.arange(m) / SR / 0.003)
+        k += step; step *= 1.08
+    save("slot", x, 0.5)
+
+
+def typewriter(d=1.2):
+    t = t_(d); n = len(t)
+    x = np.zeros(n); k = 0.0
+    while k < d - 0.03:
+        i = int(k * SR); m = int(0.02 * SR)
+        x[i:i + m] += bp(rng.standard_normal(m), 1500, 6000) * np.exp(-np.arange(m) / SR / 0.004)
+        k += rng.uniform(0.035, 0.07)
+    save("typewriter", x, 0.55)
+
+
+def zip_(d=0.25):
+    t = t_(d)
+    f = 400 + 2400 * (t / d)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.4 + bp(rng.standard_normal(len(t)), 2000, 8000) * 0.4
+    save("zip", x * np.sin(np.pi * t / d), 0.5)
+
+
+def gulp():
+    d = 0.35; t = t_(d)
+    f = 300 * np.exp(-t / 0.1) + 120
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.12)
+    save("gulp", x, 0.6)
+
+
+if __name__ == "__main__" and "--v3" in __import__("sys").argv:
+    pour(); clink(); vacuum(); click(); whack(); ahooga(); ding(); shatter(); slot(); typewriter(); zip_(); gulp()
     print(sorted(os.listdir(OUT)))
