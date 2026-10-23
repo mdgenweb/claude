@@ -12,6 +12,7 @@ local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Shine = require(script.Parent.Shine)
 local Tooltip = require(script.Parent.Tooltip)
+local Icon = require(script.Parent.Icon)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type TileProps = {
@@ -32,7 +33,7 @@ export type TileProps = {
 export type Tile = {
 	Instance: TextButton,
 	Face: Frame,
-	Icon: TextLabel,
+	Icon: GuiObject, -- 3D icon image (emoji until uploaded), see Components/Icon
 	Label: TextLabel?,
 	SetBadge: (Tile, number) -> (),
 	SetCaption: (Tile, string?) -> (),
@@ -128,15 +129,12 @@ function HudTile.new(props: TileProps): Tile
 	end
 
 	local hasLabel = props.Label ~= nil and props.Label ~= ""
-	local icon = Create.Text({
+	local icon = Icon.new({
+		Icon = props.Icon,
 		Name = "Icon",
-		Text = props.Icon,
 		Size = if hasLabel then UDim2.fromScale(0.66, 0.6) else UDim2.fromScale(0.68, 0.68),
 		Position = if hasLabel then UDim2.fromScale(0.5, 0.4) else UDim2.fromScale(0.5, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Font = Theme.Fonts.Display,
 		TextSize = 64,
-		Scaled = true,
 		ZIndex = 3,
 		Parent = face,
 	})

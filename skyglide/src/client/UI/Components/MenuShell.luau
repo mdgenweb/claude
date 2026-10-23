@@ -16,6 +16,7 @@ local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Panel = require(script.Parent.Panel)
 local Pattern = require(script.Parent.Pattern)
+local Icon = require(script.Parent.Icon)
 local UIController = require(UI.Parent.Controllers.UIController)
 
 export type ShellProps = {
@@ -41,6 +42,7 @@ export type Shell = {
 	Open: (Shell, ...any) -> (),
 	Close: (Shell) -> (),
 	IsOpen: (Shell) -> boolean,
+	SetTitle: (Shell, string) -> (), -- the title text; the shell keeps its icon
 }
 
 local MenuShell = {}
@@ -117,10 +119,15 @@ end
 
 function MenuShell.new(props: ShellProps): Shell
 	local accent = props.Accent or Theme.Colors.PanelEdge
+	-- an uploaded icon image sits left of the title; an emoji icon stays inline in the text
+	local iconImage = if props.Icon then Icon.Image(props.Icon) else nil
+	local function titleText(text: string): string
+		return (if props.Icon and not iconImage then props.Icon .. " " else "") .. text
+	end
 	local panel = Panel.new({
 		Parent = UIController.Layer("Menus"),
 		Name = props.Name,
-		Title = (if props.Icon then props.Icon .. " " else "") .. string.upper(props.Title),
+		Title = titleText(string.upper(props.Title)),
 		Size = props.Size,
 		MinHeight = props.MinHeight,
 		OnResize = props.OnResize,
@@ -209,8 +216,19 @@ function MenuShell.new(props: ShellProps): Shell
 	local title = panel.Title
 	if title then
 		title.Size = UDim2.new(0.6, 0, 0, 58)
-		title.Position = UDim2.fromOffset(26, 9)
+		title.Position = UDim2.fromOffset(if iconImage then 94 else 26, 9)
 		title.ZIndex = 2
+		if props.Icon and iconImage then
+			Icon.new({
+				Icon = props.Icon,
+				Name = "TitleIcon",
+				Size = UDim2.fromOffset(64, 64),
+				Position = UDim2.fromOffset(22, 5),
+				AnchorPoint = Vector2.zero,
+				ZIndex = 3,
+				Parent = body,
+			})
+		end
 		Create.Gradient(title, Color3.new(1, 1, 1), Color3.fromHex("#FFE48A"), 90)
 		local stroke = title:FindFirstChildOfClass("UIStroke")
 		if stroke then
@@ -258,6 +276,10 @@ function MenuShell.new(props: ShellProps): Shell
 
 	function self.IsOpen(_: any): boolean
 		return panel.Visible
+	end
+
+	function self.SetTitle(_: any, text: string)
+		panel:SetTitle(titleText(text))
 	end
 
 	function self.Open(this: any, ...: any)

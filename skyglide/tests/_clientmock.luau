@@ -486,6 +486,11 @@ local GUI_DEFAULTS = {
 	TextBounds = function()
 		return Vector2.new(80, 20)
 	end,
+	-- images load at once in the mock (an empty Image never does), as they do once Roblox fetched them
+	IsLoaded = function(i)
+		local image = rawget(i, "_props").Image
+		return type(image) == "string" and image ~= ""
+	end,
 }
 local baseNewIndex = Imt.__newindex
 Imt.__newindex = function(i, k, v)

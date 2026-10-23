@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
+local Icon = require(script.Parent.Icon)
 
 export type PillProps = {
 	Parent: Instance,
@@ -61,15 +62,11 @@ function HudStatPill.new(props: PillProps): Pill
 	Create.Round(badge)
 	Create.Gradient(badge, props.Badge:Lerp(Color3.new(1, 1, 1), 0.35), props.Badge, 90)
 	Create.Stroke(badge, Theme.Colors.Stroke, 3, 0, true)
-	Create.Text({
+	Icon.new({
+		Icon = props.Icon,
 		Name = "Icon",
-		Text = props.Icon,
-		Size = UDim2.fromScale(0.68, 0.68),
-		Position = UDim2.fromScale(0.5, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Font = Theme.Fonts.Display,
+		Size = UDim2.fromScale(0.74, 0.74),
 		TextSize = 40,
-		Scaled = true,
 		ZIndex = 3,
 		Parent = badge,
 	})

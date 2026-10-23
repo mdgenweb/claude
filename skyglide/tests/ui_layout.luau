@@ -5,6 +5,12 @@
 -- Drives the real client + server into every screen state and dumps the GUI tree on each device
 -- (see tests/ui_render.py, which lays the dumps out like Roblox, draws them and lints them).
 -- Not a spec: run it through ui_render.py.
+-- render the uploaded-icon look: every icon gets a test content string that ui_render.py maps to
+-- the PNG in assets/icons (the live game gets rbxthumb/rbxassetid strings from the uploader)
+local AssetIds = MODULE("ReplicatedStorage/Shared/Config/AssetIds")
+for key in AssetIds.Icons do
+	AssetIds.Icons[key] = "testasset://" .. key
+end
 local Map = MODULE("ReplicatedStorage/Shared/Config/Map")
 local Flight = MODULE("ReplicatedStorage/Shared/Config/Flight")
 local Eggs = MODULE("ReplicatedStorage/Shared/Definitions/Eggs")

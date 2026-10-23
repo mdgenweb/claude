@@ -2,15 +2,15 @@
 -- "Rewards fly into the counter", the genre's payout feedback: a burst of reward icons pops out
 -- around a start point, then each one arcs into a target GuiObject (e.g. the Wins counter). The
 -- first arrival calls onArrive (bump the counter); every arrival ticks a coin sound. Icons are
--- pooled TextLabels in an "FxRewards" frame on the Toasts layer, so the burst also plays above
--- open menus.
+-- pooled Components/Icon objects (3D icon images, emoji until uploaded) in an "FxRewards" frame on
+-- the Toasts layer, so the burst also plays above open menus.
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
-local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local UIController = require(UI.Parent.Controllers.UIController)
 local AudioController = require(UI.Parent.Controllers.AudioController)
+local Icon = require(script.Parent.Icon)
 
 local RewardFly = {}
 
@@ -25,8 +25,8 @@ RewardFly.ArriveTime = POP_TIME + FLY_TIME
 local POP = TweenInfo.new(POP_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local FLY = TweenInfo.new(FLY_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
-local pool: { TextLabel } = {}
-local free: { TextLabel } = {}
+local pool: { GuiObject } = {}
+local free: { GuiObject } = {}
 local rng = Random.new()
 
 local holder: Frame? = nil
@@ -56,22 +56,20 @@ local function centreOf(gui: GuiObject, root: Frame): Vector2
 	return (gui.AbsolutePosition + gui.AbsoluteSize / 2 - root.AbsolutePosition) / s
 end
 
-local function take(root: Frame): TextLabel?
+local function take(root: Frame, icon: string): GuiObject?
 	local reused = table.remove(free)
 	if reused then
+		Icon.Set(reused, icon)
 		return reused
 	end
 	if #pool >= POOL then
 		return nil
 	end
-	local label = Create.Text({
+	local label = Icon.new({
+		Icon = icon,
 		Name = "RewardIcon",
-		Text = "",
 		Size = UDim2.fromOffset(SIZE, SIZE),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Font = Theme.Fonts.Display,
 		TextSize = SIZE,
-		Scaled = true,
 		Parent = root,
 	})
 	table.insert(pool, label)
@@ -92,18 +90,16 @@ function RewardFly.Burst(icon: string, from: GuiObject?, to: GuiObject, count: n
 	local goal = centreOf(to, root)
 	local arrived = false
 	for i = 1, math.clamp(count, 1, POOL) do
-		local label = take(root)
+		local label = take(root, icon)
 		if label == nil then
 			break
 		end
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local spread = Vector2.new(math.cos(angle), math.sin(angle)) * rng:NextNumber(60, 150)
 		local burst = start + spread
-		label.Text = icon
 		label.Rotation = rng:NextNumber(-25, 25)
 		label.Size = UDim2.fromOffset(SIZE * 0.4, SIZE * 0.4)
 		label.Position = UDim2.fromOffset(start.X, start.Y)
-		label.TextTransparency = 0
 		label.Visible = true
 		TweenService:Create(label, POP, { Position = UDim2.fromOffset(burst.X, burst.Y), Size = UDim2.fromOffset(SIZE, SIZE) }):Play()
 		task.delay(POP_TIME + (i - 1) * STAGGER, function()

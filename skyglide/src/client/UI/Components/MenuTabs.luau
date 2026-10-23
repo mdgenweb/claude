@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 local Components = script.Parent
 local Create = require(Components.Parent.Create)
 local Button = require(Components.Button)
+local Icon = require(Components.Icon)
 
 export type TabSpec = { Key: string, Text: string, Icon: string?, Style: string? }
 
@@ -63,18 +64,34 @@ function MenuTabs.new(props: TabsProps): Tabs
 		scale.Scale = 0.94
 		scale.Parent = holder
 		scales[key] = scale
+		-- an uploaded icon image sits left of the text; an emoji icon stays inline
+		local image = if spec.Icon then Icon.Image(spec.Icon) else nil
 		local b = Button.new({
 			Parent = holder,
 			Name = "Tab",
 			Size = UDim2.fromScale(1, 1),
 			Style = "Dark",
-			Text = (if spec.Icon then spec.Icon .. " " else "") .. spec.Text,
+			Text = (if spec.Icon and not image then spec.Icon .. " " else "") .. spec.Text,
 			TextSize = 30,
 			Corner = 12,
 			OnClick = function()
 				self:Select(key)
 			end,
 		})
+		if spec.Icon and image then
+			Icon.new({
+				Icon = spec.Icon,
+				Size = UDim2.fromScale(0.78, 0.78),
+				Position = UDim2.new(0, 10, 0.5, 0),
+				AnchorPoint = Vector2.new(0, 0.5),
+				ZIndex = b.Label.ZIndex,
+				Parent = b.Content,
+			})
+			local aspect = Instance.new("UIAspectRatioConstraint")
+			aspect.Parent = b.Content:FindFirstChild("Icon")
+			b.Label.Size = UDim2.new(1, -66, 1, -6)
+			b.Label.Position = UDim2.new(0.5, 26, 0.5, 0)
+		end
 		self.Buttons[key] = b
 	end
 

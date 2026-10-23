@@ -456,7 +456,11 @@ def draw_node(img, dump, node, W, H):
         else:
             d.rounded_rectangle(box, radius=radius, fill=rgba(fill, bt))
     if node.cls in ("ImageLabel", "ImageButton") and num(p.get("ImageTransparency"), 0) < 1 and p.get("Image"):
-        d.rounded_rectangle(box, radius=radius, outline=(255, 255, 255, 120), width=1)
+        icon = test_image(str(p.get("Image")))
+        if icon is not None and node.w >= 1 and node.h >= 1:
+            draw_image(layer, node, icon)
+        else:
+            d.rounded_rectangle(box, radius=radius, outline=(255, 255, 255, 120), width=1)
     if node.cls == "ViewportFrame":
         d.rounded_rectangle(box, radius=radius, outline=(255, 255, 255, 90), width=2)
         d.text((node.x + 4, node.y + 4), "3D", fill=(255, 255, 255, 140), font=font(max(8, min(18, node.h / 5))))
@@ -480,6 +484,45 @@ def draw_node(img, dump, node, W, H):
         ImageDraw.Draw(mask).rectangle((clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]), fill=255)
         layer.putalpha(Image.composite(layer.getchannel("A"), Image.new("L", (W, H), 0), mask))
     img.alpha_composite(layer)
+
+
+_manifest = None
+_images = {}
+
+
+def test_image(content):
+    """The PNG for a "testasset://<icon key>" image (tests/ui_layout.luau sets those), else None."""
+    global _manifest
+    if not content.startswith("testasset://"):
+        return None
+    key = content[len("testasset://"):]
+    if key not in _images:
+        if _manifest is None:
+            _manifest = json.loads((HERE.parent / "assets" / "manifest.json").read_text())
+        entry = _manifest["icons"].get(key)
+        _images[key] = Image.open(HERE.parent / "assets" / entry["file"]).convert("RGBA") if entry else None
+    return _images[key]
+
+
+def draw_image(layer, node, src):
+    """ImageLabel drawing: ScaleType Fit (centred) or Stretch, ImageColor3 tint, ImageTransparency."""
+    p = node.props
+    w, h = node.w, node.h
+    if enum(p.get("ScaleType"), "Stretch") == "Fit":
+        k = min(w / src.width, h / src.height)
+        dw, dh = max(1, int(src.width * k)), max(1, int(src.height * k))
+    else:
+        dw, dh = max(1, int(w)), max(1, int(h))
+    img = src.resize((dw, dh), Image.LANCZOS)
+    tint = color(p.get("ImageColor3"), (255, 255, 255))
+    alpha = 1 - max(0.0, min(1.0, num(p.get("ImageTransparency"), 0)))
+    if tint != (255, 255, 255) or alpha < 1:
+        arr = np.asarray(img).astype(np.float32)
+        for j in range(3):
+            arr[..., j] *= tint[j] / 255
+        arr[..., 3] *= alpha
+        img = Image.fromarray(arr.clip(0, 255).astype(np.uint8), "RGBA")
+    layer.alpha_composite(img, (int(node.x + (w - dw) / 2), int(node.y + (h - dh) / 2)))
 
 
 def stroke_gradient(dump, nid):

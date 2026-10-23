@@ -93,7 +93,8 @@ Theme.Rainbow = ColorSequence.new({
 	ColorSequenceKeypoint.new(1, hex("#B65CFF")),
 })
 
--- Emoji icons (rendered by Roblox's emoji font; no image assets needed).
+-- Emoji icons. Components show them through Components/Icon, which swaps in the matching 3D icon
+-- image (assets/icons, Config/AssetIds) once it is uploaded; the emoji stays as the fallback.
 Theme.Icons = {
 	Skill = "⚡",
 	Wins = "🏆",
@@ -117,6 +118,17 @@ Theme.Icons = {
 	World = "🌍",
 	Glider = "🪁",
 	Relic = "🔥",
+	Admin = "🛠️",
+	Index = "📖",
+	Pass = "💎",
+	Pad = "🏋️",
+	Info = "💬",
+	Error = "⛔",
+	Sparkles = "✨",
+	Sound = "🔊",
+	Camera = "🎥",
+	Stats = "📊",
+	Crown = "👑",
 	Robux = "R$",
 }
 

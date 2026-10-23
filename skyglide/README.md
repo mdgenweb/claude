@@ -11,8 +11,9 @@ The core action is new. Instead of skipping stones, you **throw paper gliders th
 * the glider lands in a distance zone that pays **Wins**.
 
 Everything is built from code and config (map, props, UI, VFX), so this folder is the whole game.
+The one exception is the UI icon set: 3D icons downloaded from Microsoft's **Fluent Emoji** (MIT licence, [assets/CREDITS.md](assets/CREDITS.md)). Each icon shows its emoji until you upload the images (see "Icons" below).
 
-The UI follows the look of the genre's big simulators, rebuilt with original code-drawn art:
+The UI follows the look of the genre's big simulators:
 
 * raised 3D buttons that sink when pressed;
 * shine sweeps on calls to action;
@@ -24,7 +25,8 @@ The UI follows the look of the genre's big simulators, rebuilt with original cod
 * hover tooltips;
 * striped header bars;
 * cards that pop in one by one;
-* a Pet Index (collection book) with silhouettes for pets not found yet.
+* a Pet Index (collection book) with silhouettes for pets not found yet;
+* glossy 3D icons on tiles, counters, cards, tabs, menu titles, toasts and the reward burst.
 
 ## Play it in Roblox Studio
 
@@ -47,8 +49,36 @@ Before publishing:
 * Set your pass and product ids in `src/shared/Config/Monetization.luau`. Ids left at 0 are free test grants in Studio and are shown as "SOON" in live games.
 * Set your admin user ids in `src/shared/Config/Admin.luau`, and set `StudioAll = false` if you don't want every Studio tester to get the admin panel (live servers never give it to normal players).
 * In *Game Settings*, set Max Players to 10, as in the reference game.
+* Upload the icons (below).
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
+## Icons
+
+The 33 PNGs in `assets/icons` are listed in `assets/manifest.json`. Roblox only shows images uploaded to Roblox, so until you upload them the UI shows the matching emoji. Pick one of these ways to upload.
+
+**Option A: one command (Open Cloud).**
+
+1. Create an API key at <https://create.roblox.com/dashboard/credentials>. Give it the *Assets API* with read and write access. If you restrict IP addresses, allow your own.
+2. Run:
+
+   ```bash
+   python3 scripts/upload_assets.py --api-key YOUR_KEY --user-id YOUR_USER_ID     # or --group-id
+   ```
+
+   * The script uploads each icon as a Decal and waits for Roblox to process it.
+   * It saves each id in the manifest and regenerates `src/shared/Config/AssetIds.luau`.
+   * A re-run only uploads what is missing.
+3. Rebuild the place (or let `rojo serve` sync it).
+
+**Option B: Studio by hand.**
+
+1. Open *Asset Manager*, then *Bulk Import*, and import `assets/icons`.
+2. Right-click each image and choose *Copy Asset ID*.
+3. In `assets/manifest.json`, set that icon's `"content"` to `"rbxassetid://<id>"`.
+4. Run `python3 scripts/upload_assets.py --write-only`.
+
+New uploads can take a few minutes to pass moderation. Until then, the emoji shows in their place.
 
 ## How it plays
 
@@ -99,7 +129,9 @@ src/client/   Main.client.luau, Controllers/* (state, UI, camera, flight, throw,
               pets, tutorial, audio), UI (Theme, Create, Components, Screens), VFX
 tests/        run_tests.py + specs: flight, progression/economy, services, world, client, and the
               end-to-end playthrough (real server + real client); ui_render.py (GUI on 6 devices),
-              map_render.py, perf.py (frame and traffic budget), api_lint.py
+              map_render.py, perf.py (frame and traffic budget), api_lint.py, upload_assets_test.py
+assets/       icons/*.png (Fluent Emoji 3D, MIT), manifest.json, CREDITS.md
+scripts/      upload_assets.py (Open Cloud icon upload -> Config/AssetIds.luau)
 ```
 
 ## Roadmap

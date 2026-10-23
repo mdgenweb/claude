@@ -281,6 +281,33 @@ SERVER_FIRE("WorldChanged", 2)
 STEP(1)
 check(#CLIENT_ERRORS == 0, "late session without errors")
 
+-- icons: the uploaded 3D image when there is one, the emoji until then
+do
+	local Icon = MODULE(CLIENT .. "UI/Components/Icon")
+	local Theme = MODULE(CLIENT .. "UI/Theme")
+	local AssetIds = MODULE("ReplicatedStorage/Shared/Config/AssetIds")
+	local manifestKeys = 0
+	for key in AssetIds.Icons do
+		manifestKeys += 1
+		check(Theme.Icons[key] ~= nil, "AssetIds key has an emoji fallback: " .. key)
+	end
+	check(manifestKeys >= 30, "AssetIds lists the icon set (" .. manifestKeys .. ")")
+	local saved = AssetIds.Icons.Wins
+	AssetIds.Icons.Wins = ""
+	local plain = Icon.new({ Icon = Theme.Icons.Wins, Size = UDim2.fromOffset(40, 40) })
+	check(plain:IsA("TextLabel") and plain.Text == Theme.Icons.Wins, "not uploaded: the emoji label")
+	AssetIds.Icons.Wins = "rbxthumb://type=Asset&id=123&w=420&h=420"
+	local image = Icon.new({ Icon = Theme.Icons.Wins, Size = UDim2.fromOffset(40, 40) })
+	local fallback = image:FindFirstChild("Emoji")
+	check(image:IsA("ImageLabel") and image.Image == AssetIds.Icons.Wins and image.ScaleType == Enum.ScaleType.Fit, "uploaded: an image label")
+	check(fallback ~= nil and fallback.Text == Theme.Icons.Wins and fallback.Visible == false, "a loaded image hides the emoji fallback")
+	local byKey = Icon.new({ Icon = "Wins", Size = UDim2.fromOffset(40, 40) })
+	check(byKey:IsA("ImageLabel"), "icons can be named by key")
+	check(Icon.KeyFor("⚙") == "Settings" and Icon.KeyFor(Theme.Icons.Settings) == "Settings", "emoji with or without the variation selector map to the key")
+	check(Icon.Image("R$") == nil and Icon.new({ Icon = "R$", Size = UDim2.fromOffset(40, 40) }):IsA("TextLabel"), "text that is not an icon stays text")
+	AssetIds.Icons.Wins = saved
+end
+
 for _, e in CLIENT_ERRORS do
 	print("CLIENT ERROR: " .. e)
 end

@@ -565,7 +565,7 @@ function EggScreen.Init()
 				currentEgg = Eggs.Get(eggId)
 			end
 			if currentEgg then
-				shell.Panel:SetTitle(Theme.Icons.Egg .. " " .. string.upper(currentEgg.Name))
+				shell:SetTitle(string.upper(currentEgg.Name))
 			end
 			refresh()
 		end,

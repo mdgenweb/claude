@@ -18,6 +18,7 @@ local Signal = require(Shared.Util.Signal)
 local Client = script.Parent.Parent
 local Theme = require(Client.UI.Theme)
 local Create = require(Client.UI.Create)
+local Icon = require(Client.UI.Components.Icon)
 local AudioController = require(script.Parent.AudioController)
 
 export type Screen = {
@@ -199,15 +200,11 @@ function UIController.Toast(text: string, kind: string?)
 	})
 	Create.Round(chip)
 	Create.Stroke(chip, style.Border, 2.5, 0, true)
-	Create.Text({
+	Icon.new({
+		Icon = spec.Icon,
 		Name = "Icon",
-		Text = spec.Icon,
-		Size = UDim2.fromScale(0.7, 0.7),
-		Position = UDim2.fromScale(0.5, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Font = Theme.Fonts.Display,
+		Size = UDim2.fromScale(0.78, 0.78),
 		TextSize = 30,
-		Scaled = true,
 		Parent = chip,
 	})
 	Create.Text({

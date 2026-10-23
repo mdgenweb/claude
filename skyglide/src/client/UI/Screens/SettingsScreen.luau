@@ -19,6 +19,7 @@ local Create = require(Client.UI.Create)
 local Components = Client.UI.Components
 local MenuShell = require(Components.MenuShell)
 local MenuToggle = require(Components.MenuToggle)
+local Icon = require(Components.Icon)
 
 local SettingsScreen = {}
 
@@ -108,13 +109,12 @@ function SettingsScreen.Init()
 		})
 		Create.Corner(14, frame)
 		Create.Stroke(frame, Theme.Colors.PanelBorder, 2, 0, true)
-		Create.Text({
-			Text = row.Icon,
+		Icon.new({
+			Icon = row.Icon,
 			Size = UDim2.fromOffset(64, 64),
 			Position = UDim2.new(0, 14, 0.5, 0),
 			AnchorPoint = Vector2.new(0, 0.5),
 			TextSize = 46,
-			Scaled = true,
 			Parent = frame,
 		})
 		Create.Text({

@@ -6,6 +6,7 @@
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
+local Icon = require(script.Parent.Icon)
 local Button = require(script.Parent.Button)
 
 export type CardProps = {
@@ -104,15 +105,11 @@ function MenuCard.new(props: CardProps): Card
 		Create.Gradient(plate, tint(accent, 0.35), shade(accent, 0.6), 90)
 	end
 	Create.Stroke(plate, Theme.Colors.Stroke, 3, 0, true)
-	local icon = Create.Text({
+	local icon = Icon.new({
+		Icon = props.Icon,
 		Name = "Icon",
-		Text = props.Icon,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(0.74, 0.74),
-		Font = Theme.Fonts.Display,
+		Size = UDim2.fromScale(0.8, 0.8),
 		TextSize = 64,
-		Scaled = true,
 		Parent = plate,
 	})
 	icon.Rotation = 4
@@ -220,7 +217,7 @@ function MenuCard.new(props: CardProps): Card
 		description.Text = text
 	end
 	function self.SetIcon(_: any, text: string)
-		icon.Text = text
+		Icon.Set(icon, text)
 	end
 	function self.SetBadge(_: any, text: string?, color: Color3?)
 		if text == nil or text == "" then

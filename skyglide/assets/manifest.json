@@ -1,0 +1,236 @@
+{
+  "about": "Icon images shown by Components/Icon. Fluent Emoji 3D by Microsoft (MIT licence, see assets/CREDITS.md). scripts/upload_assets.py uploads each file to Roblox, stores its asset id here and regenerates src/shared/Config/AssetIds.luau.",
+  "icons": {
+    "Skill": {
+      "emoji": "⚡",
+      "file": "icons/high_voltage.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/High%20voltage/3D/high_voltage_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Wins": {
+      "emoji": "🏆",
+      "file": "icons/trophy.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Trophy/3D/trophy_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Rebirth": {
+      "emoji": "🌀",
+      "file": "icons/cyclone.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Cyclone/3D/cyclone_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Shop": {
+      "emoji": "🛒",
+      "file": "icons/shopping_cart.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Shopping%20cart/3D/shopping_cart_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Pets": {
+      "emoji": "🐾",
+      "file": "icons/paw_prints.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Paw%20prints/3D/paw_prints_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Trails": {
+      "emoji": "💫",
+      "file": "icons/dizzy.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Dizzy/3D/dizzy_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Inventory": {
+      "emoji": "🎒",
+      "file": "icons/backpack.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Backpack/3D/backpack_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Gifts": {
+      "emoji": "🎁",
+      "file": "icons/wrapped_gift.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Wrapped%20gift/3D/wrapped_gift_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Settings": {
+      "emoji": "⚙️",
+      "file": "icons/gear.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Gear/3D/gear_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Codes": {
+      "emoji": "🎟️",
+      "file": "icons/admission_tickets.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Admission%20tickets/3D/admission_tickets_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Daily": {
+      "emoji": "📅",
+      "file": "icons/calendar.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Calendar/3D/calendar_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Egg": {
+      "emoji": "🥚",
+      "file": "icons/egg.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Egg/3D/egg_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Lock": {
+      "emoji": "🔒",
+      "file": "icons/locked.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Locked/3D/locked_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Check": {
+      "emoji": "✅",
+      "file": "icons/check_mark_button.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Check%20mark%20button/3D/check_mark_button_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Potion": {
+      "emoji": "🧪",
+      "file": "icons/test_tube.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Test%20tube/3D/test_tube_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Luck": {
+      "emoji": "🍀",
+      "file": "icons/four_leaf_clover.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Four%20leaf%20clover/3D/four_leaf_clover_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Star": {
+      "emoji": "⭐",
+      "file": "icons/star.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Star/3D/star_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Friends": {
+      "emoji": "👥",
+      "file": "icons/busts_in_silhouette.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Busts%20in%20silhouette/3D/busts_in_silhouette_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Auto": {
+      "emoji": "🔁",
+      "file": "icons/repeat_button.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Repeat%20button/3D/repeat_button_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "World": {
+      "emoji": "🌍",
+      "file": "icons/globe_showing_europe_africa.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Globe%20showing%20europe-africa/3D/globe_showing_europe-africa_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Glider": {
+      "emoji": "🪁",
+      "file": "icons/kite.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Kite/3D/kite_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Relic": {
+      "emoji": "🔥",
+      "file": "icons/fire.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/3D/fire_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Admin": {
+      "emoji": "🛠️",
+      "file": "icons/hammer_and_wrench.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Hammer%20and%20wrench/3D/hammer_and_wrench_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Index": {
+      "emoji": "📖",
+      "file": "icons/open_book.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Open%20book/3D/open_book_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Pass": {
+      "emoji": "💎",
+      "file": "icons/gem_stone.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Gem%20stone/3D/gem_stone_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Pad": {
+      "emoji": "🏋️",
+      "file": "icons/person_lifting_weights.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Person%20lifting%20weights/Default/3D/person_lifting_weights_3d_default.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Info": {
+      "emoji": "💬",
+      "file": "icons/speech_balloon.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Speech%20balloon/3D/speech_balloon_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Error": {
+      "emoji": "⛔",
+      "file": "icons/no_entry.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/No%20entry/3D/no_entry_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Sparkles": {
+      "emoji": "✨",
+      "file": "icons/sparkles.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Sparkles/3D/sparkles_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Sound": {
+      "emoji": "🔊",
+      "file": "icons/speaker_high_volume.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Speaker%20high%20volume/3D/speaker_high_volume_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Camera": {
+      "emoji": "🎥",
+      "file": "icons/movie_camera.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Movie%20camera/3D/movie_camera_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Stats": {
+      "emoji": "📊",
+      "file": "icons/bar_chart.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Bar%20chart/3D/bar_chart_3d.png",
+      "assetId": "",
+      "content": ""
+    },
+    "Crown": {
+      "emoji": "👑",
+      "file": "icons/crown.png",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Crown/3D/crown_3d.png",
+      "assetId": "",
+      "content": ""
+    }
+  }
+}

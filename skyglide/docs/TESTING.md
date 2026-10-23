@@ -143,6 +143,8 @@ python3 tests/ui_render.py --luau /path/to/luau   # PNGs and report.txt in tests
 
 The script lays the dumps out like Roblox does: UDim2, AnchorPoint, UIScale, UIPadding, list and grid layouts, aspect constraints, text-size constraints, ScrollingFrame canvases, clipping, ZIndex and safe-area insets.
 
+`ui_layout.luau` gives every icon a `testasset://<key>` content string, and the renderer draws the matching PNG from `assets/icons`. The renders therefore show the game as it looks after the icons are uploaded. The playthrough runs with no icons uploaded, so it covers the emoji fallback.
+
 It draws a PNG for each state and device. The drawing covers:
 
 * UIGradients with colour and transparency keypoints, Rotation and Offset (so shine bands and fading ribbons look as they do in game);
@@ -158,6 +160,24 @@ It reports:
 * **cut-off:** fixed-size text wider than its box.
 
 It also reports any client error raised while driving the screens. The current result is 128 screens and 0 issues.
+
+### Icon upload: `tests/upload_assets_test.py`
+
+```bash
+python3 tests/upload_assets_test.py
+```
+
+This runs `scripts/upload_assets.py` on a copy of the project against a local stand-in for the Roblox Open Cloud Assets API. The stand-in follows Roblox's documented flow: a multipart `POST /assets/v1/assets` with an `x-api-key` header, then polling `GET /assets/v1/operations/{id}`. The test checks:
+
+* the request shape (asset type, creator, PNG part);
+* the retry after a 429;
+* the polling;
+* that a rejected upload is reported and retried on the next run;
+* that already-uploaded icons are skipped;
+* that a hand-set `content` is used as is;
+* the generated `AssetIds.luau`.
+
+It cannot prove the live API behaves exactly the same; the first real upload is that test.
 
 ### Maps: `tests/map_render.py`
 
@@ -188,6 +208,7 @@ python3 tests/api_lint.py --defs globalTypes.d.luau src
 python3 tests/ui_render.py --luau /path/to/luau
 python3 tests/map_render.py --luau /path/to/luau
 python3 tests/perf.py --luau /path/to/luau
+python3 tests/upload_assets_test.py
 rojo build default.project.json -o build/SkyGlide.rbxlx
 ```
 
@@ -229,6 +250,7 @@ The code type-checks in strict mode, and misspelled Roblox properties are caught
 
 The game has **not** been run in a Roblox client from this environment. These still need a person in Studio or on a device:
 
+* **Icon upload:** a real Open Cloud upload (it needs your API key) and how the uploaded icons look in game.
 * **3D look:** materials, lighting, particles, the glider and pet models. The renders above show layout, not Roblox's renderer; fonts and emoji differ.
 * **Feel:** camera feel, the meter and tap timing feel, sound mix (built-in `rbxasset://` sounds), and the timing of the UI motion: press-down, shine sweeps, reward fly-in, count-up. The renders show one frame of each.
 * **Hardware:** real device frame rate and memory, especially low-end phones (4 worlds of about 2–2.4K parts each are loaded at once).
