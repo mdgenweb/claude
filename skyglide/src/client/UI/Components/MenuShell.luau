@@ -1,7 +1,8 @@
 --!strict
 -- Shared shell for the menu screens (Shop, Rebirth, Gifts, Settings, Admin). Builds a Panel in the
--- "Menus" layer and dresses it in the menu style: deep-blue gradient body, coloured inner edge,
--- accent header ribbon and a chunky emoji + display-font title with a heavy stroke. It implements
+-- "Menus" layer and dresses it in the simulator menu style: deep-blue gradient body, a solid accent
+-- header bar with a gloss and a dark divider, coloured inner edge and a chunky emoji +
+-- display-font title with a heavy stroke. It implements
 -- the UIController Screen contract (Open/Close/IsOpen), keeps gamepad selection inside the panel,
 -- closes on gamepad B and forwards L1/R1 (or Q/E) to OnShoulder for tab cycling.
 local ContextActionService = game:GetService("ContextActionService")
@@ -80,14 +81,60 @@ function MenuShell.new(props: ShellProps): Shell
 	body.BackgroundColor3 = Color3.new(1, 1, 1)
 	body.BackgroundTransparency = 0
 	Create.Gradient(body, Theme.Colors.PanelLight, Theme.Colors.PanelDeep, 90)
-	local corner = body:FindFirstChildOfClass("UICorner")
-	if corner then
-		corner.CornerRadius = UDim.new(0, 18)
+	local shadow: Instance = holder:FindFirstChild("Shadow") or body
+	for _, frame in { body :: Instance, shadow } do
+		local corner = frame:FindFirstChildOfClass("UICorner")
+		if corner then
+			corner.CornerRadius = UDim.new(0, 18)
+		end
 	end
 	local outer = body:FindFirstChildOfClass("UIStroke")
 	if outer then
 		outer.Thickness = 4
 	end
+	-- solid accent header bar: rounded top (the body's corner), square bottom, gloss, dark divider
+	local HEADER = 74 -- + 4 px divider = the panel's content top (title 56 + 22)
+	local header: Frame = Create("Frame", {
+		Name = "Header",
+		BackgroundColor3 = accent,
+		Size = UDim2.new(1, 0, 0, HEADER),
+		ZIndex = 0,
+		Parent = body,
+	})
+	Create.Corner(18, header)
+	Create("Frame", {
+		Name = "Square",
+		BackgroundColor3 = accent,
+		Position = UDim2.new(0, 0, 1, -20),
+		Size = UDim2.new(1, 0, 0, 20),
+		Parent = header,
+	})
+	local gloss: Frame = Create("Frame", {
+		Name = "Gloss",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.78,
+		Position = UDim2.fromOffset(8, 5),
+		Size = UDim2.new(1, -16, 0, HEADER * 0.42),
+		ZIndex = 2,
+		Parent = header,
+	})
+	Create.Corner(12, gloss)
+	Create("Frame", {
+		Name = "Shade",
+		BackgroundColor3 = MenuShell.Shade(accent, 0.6),
+		Position = UDim2.new(0, 0, 1, -8),
+		Size = UDim2.new(1, 0, 0, 8),
+		ZIndex = 2,
+		Parent = header,
+	})
+	Create("Frame", {
+		Name = "Divider",
+		BackgroundColor3 = Theme.Colors.Stroke,
+		Position = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.new(1, 0, 0, 4),
+		ZIndex = 2,
+		Parent = header,
+	})
 	-- bright inner edge
 	local edge: Frame = Create("Frame", {
 		Name = "Edge",
@@ -99,30 +146,13 @@ function MenuShell.new(props: ShellProps): Shell
 	})
 	Create.Corner(14, edge)
 	Create.Stroke(edge, accent, 2, 0.35, true)
-	-- accent header ribbon behind the title
-	local ribbon: Frame = Create("Frame", {
-		Name = "Ribbon",
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.25,
-		Position = UDim2.fromOffset(5, 5),
-		Size = UDim2.new(1, -10, 0, 72),
-		ZIndex = 0,
-		Parent = body,
-	})
-	Create.Corner(14, ribbon)
-	local ribbonGradient = Create.Gradient(ribbon, accent, MenuShell.Shade(accent, 0.45), 0)
-	ribbonGradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.1),
-		NumberSequenceKeypoint.new(0.7, 0.75),
-		NumberSequenceKeypoint.new(1, 1),
-	})
 	local title = panel.Title
 	if title then
-		title.Size = UDim2.new(0.6, 0, 0, 56)
-		title.Position = UDim2.fromOffset(26, 12)
+		title.Size = UDim2.new(0.6, 0, 0, 58)
+		title.Position = UDim2.fromOffset(26, 9)
 		local stroke = title:FindFirstChildOfClass("UIStroke")
 		if stroke then
-			stroke.Thickness = 4
+			stroke.Thickness = 4.5
 			stroke.Color = Theme.Colors.Stroke
 		end
 	end

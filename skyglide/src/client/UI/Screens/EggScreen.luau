@@ -31,6 +31,7 @@ local Components = Client.UI.Components
 local Button = require(Components.Button)
 local MenuShell = require(Components.MenuShell)
 local Viewport = require(Components.Viewport)
+local Rays = require(Components.Rays)
 
 local EggScreen = {}
 
@@ -304,26 +305,7 @@ local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, w
 		Parent = card,
 	})
 	Create.Round(glow)
-	local rays: Frame = Create("Frame", {
-		Name = "Rays",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.fromOffset(width * 1.05, width * 1.05),
-		BackgroundTransparency = 1,
-		Parent = card,
-	})
-	for i = 0, 5 do
-		local ray: Frame = Create("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.new(1, 0, 0, 26),
-			Rotation = i * 30,
-			BackgroundColor3 = Theme.RarityLight(pet.Rarity),
-			BackgroundTransparency = 1,
-			Parent = rays,
-		})
-		Create.Corner(13, ray)
-	end
+	local rays = Rays.new(card, width * 1.2, 8, nil, UDim2.fromScale(0.5, 0.42))
 	local view: Frame = Create("Frame", {
 		Name = "View",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -429,12 +411,7 @@ local function play(payload: HatchPayload)
 		scale.Parent = c.View
 		TweenService:Create(scale, TweenInfo.new(0.45, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 		TweenService:Create(c.Glow, TweenInfo.new(0.4), { BackgroundTransparency = 0.55 }):Play()
-		for _, ray in c.Rays:GetChildren() do
-			if ray:IsA("Frame") then
-				TweenService:Create(ray, TweenInfo.new(0.4), { BackgroundTransparency = if Rarity.Order(c.Pet.Rarity) >= 4 then 0.45 else 0.75 }):Play()
-			end
-		end
-		TweenService:Create(c.Rays, TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), { Rotation = 360 }):Play()
+		c.Rays:Show(Theme.RarityLight(c.Pet.Rarity), if Rarity.Order(c.Pet.Rarity) >= 4 then 1 else 0.6)
 		TweenService:Create(c.Name, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 		TweenService:Create(c.Info, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 	end
@@ -608,6 +585,7 @@ function EggScreen.Init()
 		Position = UDim2.new(0, 12, 1, -94),
 		AnchorPoint = Vector2.new(0, 1),
 		Style = "Green",
+		Shine = true,
 		Text = "HATCH 1",
 		TextSize = 30,
 		OnClick = function()
@@ -621,6 +599,7 @@ function EggScreen.Init()
 		Position = UDim2.new(0, 12, 1, -12),
 		AnchorPoint = Vector2.new(0, 1),
 		Style = "Purple",
+		Shine = true,
 		Text = "HATCH 3",
 		TextSize = 30,
 		OnClick = function()

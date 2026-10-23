@@ -67,6 +67,13 @@ function encode(v)
 			table.insert(items, e or "null")
 		end
 		return '{"_t":"' .. esc(v.__kind) .. '","a":[' .. table.concat(items, ",") .. "]}"
+	elseif t == "table" and #v > 0 then
+		-- keypoint lists (ColorSequence.new({ ... }), NumberSequence.new({ ... }))
+		local items = {}
+		for _, x in v do
+			table.insert(items, encode(x) or "null")
+		end
+		return "[" .. table.concat(items, ",") .. "]"
 	end
 	return nil -- functions, instances, signals: not part of the picture
 end

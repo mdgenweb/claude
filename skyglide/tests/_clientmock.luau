@@ -363,12 +363,125 @@ function ABSOLUTE_SIZE(inst)
 	local w, h, scale = measure(inst)
 	return Vector2.new(w * scale, h * scale)
 end
+-- Absolute (pixel) top-left corners: the parent's content origin (after UIPadding) plus Position,
+-- less AnchorPoint * size, or the slot a UIListLayout / UIGridLayout assigns (LayoutOrder, then
+-- creation order; visible GuiObjects only).
+local function layoutOf(inst)
+	for _, c in rawget(inst, "_children") do
+		local cp = rawget(c, "_props")
+		if cp.ClassName == "UIListLayout" or cp.ClassName == "UIGridLayout" then
+			return cp
+		end
+	end
+	return nil
+end
+local function paddingStartOf(inst, contentW, contentH)
+	for _, c in rawget(inst, "_children") do
+		local cp = rawget(c, "_props")
+		if cp.ClassName == "UIPadding" then
+			local function u(v, total)
+				return if v then v.Scale * total + v.Offset else 0
+			end
+			return u(cp.PaddingLeft, contentW), u(cp.PaddingTop, contentH)
+		end
+	end
+	return 0, 0
+end
+local function laidSiblings(parent)
+	local list, index = {}, {}
+	for n, c in rawget(parent, "_children") do
+		local cp = rawget(c, "_props")
+		if c:IsA("GuiObject") and cp.Visible ~= false then
+			table.insert(list, c)
+			index[c] = n
+		end
+	end
+	table.sort(list, function(a, b)
+		local la, lb = rawget(a, "_props").LayoutOrder or 0, rawget(b, "_props").LayoutOrder or 0
+		if la ~= lb then
+			return la < lb
+		end
+		return index[a] < index[b]
+	end)
+	return list
+end
+function ABSOLUTE_POSITION(inst)
+	local props = rawget(inst, "_props")
+	local cn = props.ClassName
+	if cn == "ScreenGui" then
+		if props.IgnoreGuiInset ~= true then
+			return Vector2.new(GUI_INSETS.Left, GUI_INSETS.Top)
+		end
+		return Vector2.zero
+	end
+	local parent = props.Parent
+	if parent == nil or typeof(parent) ~= "Instance" or not parent:IsA("GuiBase2d") then
+		return Vector2.zero
+	end
+	local origin = ABSOLUTE_POSITION(parent)
+	local pw, ph, pscale = measure(parent)
+	local padL, padT = paddingStartOf(parent, pw, ph)
+	local padW, padH = paddingOf(parent, pw, ph)
+	origin += Vector2.new(padL, padT) * pscale
+	local cw, ch = pw - padW, ph - padH
+	local own = ABSOLUTE_SIZE(inst)
+	local layout = layoutOf(parent)
+	if layout and layout.ClassName == "UIListLayout" then
+		local horizontal = layout.FillDirection == Enum.FillDirection.Horizontal
+		local pad = layout.Padding or UDim.new(0, 0)
+		local gap = (if horizontal then cw else ch) * pad.Scale + pad.Offset
+		local before, total = 0, 0
+		local siblings = laidSiblings(parent)
+		for i, s in siblings do
+			local size = ABSOLUTE_SIZE(s) / pscale
+			local along = if horizontal then size.X else size.Y
+			if s == inst then
+				before = total
+			end
+			total += along + (if i < #siblings then gap else 0)
+		end
+		local mine = own / pscale
+		local function align(free: number, alignment, low, high)
+			if alignment == low then
+				return 0
+			elseif alignment == high then
+				return free
+			end
+			return free / 2
+		end
+		local x, y
+		if horizontal then
+			x = align(cw - total, layout.HorizontalAlignment or Enum.HorizontalAlignment.Left, Enum.HorizontalAlignment.Left, Enum.HorizontalAlignment.Right) + before
+			y = align(ch - mine.Y, layout.VerticalAlignment or Enum.VerticalAlignment.Top, Enum.VerticalAlignment.Top, Enum.VerticalAlignment.Bottom)
+		else
+			x = align(cw - mine.X, layout.HorizontalAlignment or Enum.HorizontalAlignment.Left, Enum.HorizontalAlignment.Left, Enum.HorizontalAlignment.Right)
+			y = align(ch - total, layout.VerticalAlignment or Enum.VerticalAlignment.Top, Enum.VerticalAlignment.Top, Enum.VerticalAlignment.Bottom) + before
+		end
+		return origin + Vector2.new(x, y) * pscale
+	elseif layout and layout.ClassName == "UIGridLayout" then
+		local cell = layout.CellSize or UDim2.fromOffset(100, 100)
+		local cpad = layout.CellPadding or UDim2.fromOffset(5, 5)
+		local cellW, cellH = cw * cell.X.Scale + cell.X.Offset, ch * cell.Y.Scale + cell.Y.Offset
+		local gapX, gapY = cw * cpad.X.Scale + cpad.X.Offset, ch * cpad.Y.Scale + cpad.Y.Offset
+		local cols = math.max(1, math.floor((cw + gapX) / math.max(1, cellW + gapX)))
+		if (layout.FillDirectionMaxCells or 0) > 0 then
+			cols = math.min(cols, layout.FillDirectionMaxCells)
+		end
+		local index = table.find(laidSiblings(parent), inst) or 1
+		local row, col = (index - 1) // cols, (index - 1) % cols
+		return origin + Vector2.new(col * (cellW + gapX), row * (cellH + gapY)) * pscale
+	end
+	local pos = props.Position or UDim2.new()
+	local anchor = props.AnchorPoint or Vector2.zero
+	local at = Vector2.new(cw * pos.X.Scale + pos.X.Offset, ch * pos.Y.Scale + pos.Y.Offset)
+	return origin + at * pscale - anchor * own
+end
 local GUI_DEFAULTS = {
 	AbsoluteSize = function(i)
 		return ABSOLUTE_SIZE(i)
 	end,
-	AbsolutePosition = function()
-		return Vector2.zero
+	AbsolutePosition = function(i)
+		return ABSOLUTE_POSITION(i)
 	end,
 	TextBounds = function()
 		return Vector2.new(80, 20)

@@ -173,6 +173,7 @@ local function buildDaily(parent: Frame)
 		Position = UDim2.new(1, -14, 0, 8),
 		AnchorPoint = Vector2.new(1, 0),
 		Style = "Green",
+		Shine = true,
 		Text = "CLAIM",
 		TextSize = 26,
 		OnClick = function()

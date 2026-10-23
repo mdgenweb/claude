@@ -39,6 +39,7 @@ local HudThrowPanel = require(Components.HudThrowPanel)
 local HudFlightOverlay = require(Components.HudFlightOverlay)
 local HudLandingCard = require(Components.HudLandingCard)
 local HudFlightState = require(Components.HudFlightState)
+local RewardFly = require(Components.RewardFly)
 
 local HUD = {}
 
@@ -301,18 +302,19 @@ local function buildBottom(root: Frame): (HudLevelBar.LevelBar, { PackRef })
 			Text = "",
 			TextSize = 34,
 			Corner = 14,
+			Shine = true,
 			LayoutOrder = i,
 			OnClick = function()
 				purchase("Product", key)
 			end,
 		})
-		button.Label.Size = UDim2.new(1, -16, 0.56, 0)
-		button.Label.Position = UDim2.fromScale(0.5, 0.36)
+		button.Label.Size = UDim2.new(1, -16, 0.52, 0)
+		button.Label.Position = UDim2.fromScale(0.5, 0.33)
 		local price = Create.Text({
 			Name = "Price",
 			Text = "",
-			Size = UDim2.new(1, -16, 0.34, 0),
-			Position = UDim2.fromScale(0.5, 0.78),
+			Size = UDim2.new(1, -16, 0.38, 0),
+			Position = UDim2.fromScale(0.5, 0.77),
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Font = Theme.Fonts.Display,
 			TextSize = 22,
@@ -324,12 +326,9 @@ local function buildBottom(root: Frame): (HudLevelBar.LevelBar, { PackRef })
 		})
 		local rainbow: UIGradient? = nil
 		if spec.Rainbow then
-			local gradient = button.Instance:FindFirstChildOfClass("UIGradient")
-			if gradient then
-				gradient.Color = Theme.Rainbow
-				gradient.Rotation = 0
-				rainbow = gradient
-			end
+			button.Gradient.Color = Theme.Rainbow
+			button.Gradient.Rotation = 0
+			rainbow = button.Gradient
 		end
 		if not purchaseAvailable(product.Id) then
 			button:SetEnabled(false)
@@ -353,6 +352,7 @@ local function buildAuto(root: Frame, onClick: () -> ()): AutoRefs
 		Text = Theme.Icons.Auto .. " AUTO THROW",
 		TextSize = 36,
 		Corner = 16,
+		Shine = true,
 		ZIndex = 3,
 		OnClick = onClick,
 	})
@@ -442,6 +442,7 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 			Top = hex(if available then top else "#8C93A3"),
 			Bottom = hex(if available then bottom else "#5A6070"),
 			LayoutOrder = order,
+			Shine = available,
 			OnClick = function()
 				if available then
 					purchase(kind, key)
@@ -452,11 +453,10 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 		})
 		priceChip(tile.Instance, if available then Theme.Icons.Robux .. tostring(robux) else "SOON")
 		-- the price chip sits on the bottom edge: lift the icon and label above it
-		local iconText = tile.Instance:FindFirstChild("Icon") :: TextLabel?
-		local labelText = tile.Instance:FindFirstChild("Label") :: TextLabel?
-		if iconText and labelText then
-			iconText.Position = UDim2.fromScale(0.5, 0.33)
-			iconText.Size = UDim2.fromScale(0.6, 0.5)
+		tile.Icon.Position = UDim2.fromScale(0.5, 0.33)
+		tile.Icon.Size = UDim2.fromScale(0.6, 0.5)
+		local labelText = tile.Label
+		if labelText then
 			labelText.Position = UDim2.new(0.5, 0, 1, -15)
 			labelText.Size = UDim2.new(1, 4, 0.26, 0)
 		end
@@ -550,6 +550,12 @@ function HUD.Init()
 	HudThrowPanel.new(root, HUD.ContextBottom)
 	local overlay = HudFlightOverlay.new(root)
 	HudLandingCard.new(root)
+	-- Wins from a landing fly out of the landing card's "+N" line
+	local function landingWins(): GuiObject?
+		local card = root:FindFirstChild("LandingCard") :: Frame?
+		local line = if card and card.Visible then card:FindFirstChild("Wins") :: TextLabel? else nil
+		return line
+	end
 
 	-- AUTO THROW: buy prompt until owned, then an ON/OFF toggle (optimistic until the next sync)
 	local pendingAuto: boolean? = nil
@@ -668,6 +674,7 @@ function HUD.Init()
 			count += 1
 		end
 		menu.Gifts:SetBadge(count)
+		menu.Gifts:SetAttention(count > 0)
 		-- potion timers
 		local derived = if type(data.Derived) == "table" then data.Derived else {}
 		local now = (tonumber(derived.ServerTime) or os.time()) + since
@@ -695,13 +702,17 @@ function HUD.Init()
 		menu.Rebirth:SetGlow(progress >= 1)
 		menu.Admin.Instance.Visible = data.IsAdmin == true
 
-		-- counters
-		counters.Rebirths:SetText(Format.Commas(tonumber(data.Rebirths) or 0))
-		counters.Wins:SetText(Format.Short(tonumber(data.Wins) or 0))
+		-- counters (Wins earned fly into the counter, which then rolls up)
+		local wins = tonumber(data.Wins) or 0
+		local gained = if previous then wins - (tonumber(previous.Wins) or 0) else 0
+		counters.Rebirths:SetValue(tonumber(data.Rebirths) or 0, Format.Commas)
+		counters.Wins:SetValue(wins, Format.Short, if gained > 0 then RewardFly.ArriveTime else nil)
 		counters.Friends:SetText(string.format("Friends +%d%%", math.floor((tonumber(derived.FriendBoost) or 0) * 100 + 0.5)))
 		if previous then
-			if (tonumber(data.Wins) or 0) > (tonumber(previous.Wins) or 0) then
-				counters.Wins:Bump()
+			if gained > 0 then
+				RewardFly.Burst(Theme.Icons.Wins, landingWins(), counters.Wins.Badge, math.clamp(3 + math.floor(math.log10(gained + 1) * 2), 4, 10), function()
+					counters.Wins:Bump()
+				end)
 			end
 			if (tonumber(data.Rebirths) or 0) > (tonumber(previous.Rebirths) or 0) then
 				counters.Rebirths:Bump()
@@ -756,6 +767,7 @@ function HUD.Init()
 			animAcc = 0
 			local t = os.clock()
 			menu.Rebirth:Animate(t)
+			menu.Gifts:Animate(t)
 			levelBar:Animate(t)
 			for _, pack in packs do
 				local rainbow = pack.Rainbow

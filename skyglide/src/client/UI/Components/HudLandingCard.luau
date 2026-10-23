@@ -1,7 +1,8 @@
 --!strict
 -- Landing result card for the local player's throws (Bus.FlightLanded owner payload): zone name in
 -- the zone colour, distance, +Wins / +Skill, perfect catches, special-throw tag and a "NEW BEST!" /
--- "NEW ZONE!" ribbon. Pops for ~2.5 s. A landing that opened a world (payload.UnlockedWorld) also
+-- "NEW ZONE!" ribbon. Pops for ~2.5 s; a new best or a special throw also lights a spinning sunburst
+-- behind it (under the HUD buttons). A landing that opened a world (payload.UnlockedWorld) also
 -- plays a big "NEW WORLD UNLOCKED" celebration with pooled confetti.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,6 +21,7 @@ local Create = require(UI.Create)
 local AudioController = require(Client.Controllers.AudioController)
 local Bus = require(Client.Controllers.Bus)
 local UIController = require(Client.Controllers.UIController)
+local Rays = require(script.Parent.Rays)
 
 local HudLandingCard = {}
 
@@ -32,6 +34,10 @@ local CONFETTI = 28
 
 function HudLandingCard.new(root: Frame)
 	local localPlayer = Players.LocalPlayer
+
+	-- sunburst behind the card (ZIndex 1: under the HUD groups, which sit at 2+)
+	local rays = Rays.new(root, 900, 10, 1)
+	rays.Instance.Name = "LandingCardRays"
 
 	-- card ------------------------------------------------------------------------------------
 	local card: Frame = Create("Frame", {
@@ -336,6 +342,14 @@ function HudLandingCard.new(root: Frame)
 			TweenService:Create(ribbonScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0.25), { Scale = 1 }):Play()
 		end
 
+		if newBest or info then
+			rays.Instance.Position = card.Position
+			rays.Instance.Size = UDim2.fromOffset(900 * cardSize, 900 * cardSize)
+			rays:Show(if info then Color3.fromHex(info.Color) else Theme.Colors.Skill, if info then 1 else 0.7)
+		else
+			rays:Hide()
+		end
+
 		cardToken += 1
 		local token = cardToken
 		card.Visible = true
@@ -355,6 +369,7 @@ function HudLandingCard.new(root: Frame)
 			out.Completed:Wait()
 			if token == cardToken then
 				card.Visible = false
+				rays:Hide()
 			end
 		end)
 
@@ -373,6 +388,7 @@ function HudLandingCard.new(root: Frame)
 			out.Completed:Once(function()
 				if token == cardToken then
 					card.Visible = false
+					rays:Hide()
 				end
 			end)
 		end

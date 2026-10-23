@@ -12,6 +12,15 @@ The core action is new. Instead of skipping stones, you **throw paper gliders th
 
 Everything is built from code and config (map, props, UI, VFX), so this folder is the whole game.
 
+The UI follows the look of the genre's big simulators, rebuilt with original code-drawn art:
+
+* raised 3D buttons that sink when pressed;
+* shine sweeps on calls to action;
+* bold header bars on menus;
+* trophies that fly into the Wins counter and roll it up;
+* colour-coded toasts;
+* sunbursts behind big rewards.
+
 ## Play it in Roblox Studio
 
 **Option A: open the prebuilt place**

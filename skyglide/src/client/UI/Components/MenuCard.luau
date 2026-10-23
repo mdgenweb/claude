@@ -167,6 +167,7 @@ function MenuCard.new(props: CardProps): Card
 			Position = UDim2.new(0.5, 0, 1, if compact then -8 else -12),
 			Size = UDim2.new(1, -24, 0, buttonH),
 			Style = props.ButtonStyle or "Green",
+			Shine = true,
 			Text = props.ButtonText,
 			TextSize = 30,
 			Corner = 12,

@@ -22,6 +22,7 @@ Audio.Sounds = {
 	Error = s("rbxasset://sounds/clickfast.wav", 0.5, 0.55, 0.6),
 	Purchase = s("rbxasset://sounds/electronicpingshort.wav", 0.5, 1.5, 1.5),
 	Reward = s("rbxasset://sounds/victory.wav", 0.45, 1.1, 1.1),
+	Coin = s("rbxasset://sounds/electronicpingshort.wav", 0.28, 1.9, 2.2), -- reward lands in a counter
 	Open = s("rbxasset://sounds/swoosh.wav", 0.3, 1.2, 1.3),
 	Close = s("rbxasset://sounds/swoosh.wav", 0.22, 0.9, 1.0),
 	LevelUp = s("rbxasset://sounds/victory.wav", 0.55, 1.4, 1.4),

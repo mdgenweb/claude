@@ -82,6 +82,7 @@ Audio.Sounds = {
 	Error = s("rbxasset://sounds/clickfast.wav", 0.5, 0.55, 0.6),
 	Purchase = s("rbxasset://sounds/electronicpingshort.wav", 0.5, 1.5, 1.5),
 	Reward = s("rbxasset://sounds/victory.wav", 0.45, 1.1, 1.1),
+	Coin = s("rbxasset://sounds/electronicpingshort.wav", 0.28, 1.9, 2.2), -- reward lands in a counter
 	Open = s("rbxasset://sounds/swoosh.wav", 0.3, 1.2, 1.3),
 	Close = s("rbxasset://sounds/swoosh.wav", 0.22, 0.9, 1.0),
 	LevelUp = s("rbxasset://sounds/victory.wav", 0.55, 1.4, 1.4),
@@ -13704,13 +13705,8 @@ function UIController.CloseMenus()
 	end
 end
 
-local TOAST_COLORS = {
-	Error = Color3.fromHex("#FF5A6A"),
-	Info = Color3.fromHex("#9FD8FF"),
-	Success = Color3.fromHex("#7CFF6B"),
-	Level = Color3.fromHex("#7FD8FF"),
-	Rare = Color3.fromHex("#FF8FF0"),
-}
+-- Toasts: colour-coded raised pills (Theme.Toasts) with an icon chip, popping in under the top bar.
+local TOAST_W, TOAST_H = 600, 60
 
 function UIController.Toast(text: string, kind: string?)
 	if not toastHolder then
@@ -13722,26 +13718,67 @@ function UIController.Toast(text: string, kind: string?)
 	elseif k == "Level" or k == "Success" or k == "Rare" then
 		AudioController.Play("Reward", nil, 0.5)
 	end
+	local spec = Theme.Toasts[k] or Theme.Toasts.Info
+	local style = Theme.Buttons[spec.Style] or Theme.Buttons.Blue
 	local pill: Frame = Create("Frame", {
 		Name = "Toast",
-		BackgroundColor3 = Theme.Colors.PanelDeep,
-		BackgroundTransparency = 0.08,
-		Size = UDim2.fromOffset(560, 50),
+		BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(TOAST_W, TOAST_H),
 		Parent = toastHolder,
 	})
-	Create.Corner(10, pill)
-	Create.Stroke(pill, TOAST_COLORS[k] or TOAST_COLORS.Info, 2, 0, true)
+	local base: Frame = Create("Frame", {
+		Name = "Base",
+		BackgroundColor3 = Theme.Darken(style.Bottom, 0.55),
+		Position = UDim2.fromOffset(0, 5),
+		Size = UDim2.new(1, 0, 1, -5),
+		Parent = pill,
+	})
+	Create.Corner(16, base)
+	Create.Stroke(base, style.Border, Theme.Outline, 0, true)
+	local face: Frame = Create("Frame", {
+		Name = "Face",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.new(1, 0, 1, -5),
+		ZIndex = 2,
+		Parent = pill,
+	})
+	Create.Corner(16, face)
+	Create.Gradient(face, style.Top, style.Bottom, 90)
+	Create.Stroke(face, style.Border, Theme.Outline, 0, true)
+	local chip: Frame = Create("Frame", {
+		Name = "IconChip",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 6, 0.5, 0),
+		Size = UDim2.fromOffset(TOAST_H - 15, TOAST_H - 15),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.15,
+		Parent = face,
+	})
+	Create.Round(chip)
+	Create.Stroke(chip, style.Border, 2.5, 0, true)
 	Create.Text({
-		Text = text,
-		Size = UDim2.new(1, -24, 1, -8),
+		Name = "Icon",
+		Text = spec.Icon,
+		Size = UDim2.fromScale(0.7, 0.7),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Font = Theme.Fonts.Body,
-		TextSize = 28,
+		Font = Theme.Fonts.Display,
+		TextSize = 30,
 		Scaled = true,
-		Color = TOAST_COLORS[k] or Color3.new(1, 1, 1),
-		Stroke = 1.5,
-		Parent = pill,
+		Parent = chip,
+	})
+	Create.Text({
+		Name = "Text",
+		Text = text,
+		Size = UDim2.new(1, -(TOAST_H + 10), 1, -12),
+		Position = UDim2.new(0, TOAST_H - 2, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Font = Theme.Fonts.Display,
+		TextSize = 30,
+		Scaled = true,
+		Color = style.Text,
+		Stroke = 2.6,
+		Parent = face,
 	})
 	local scale = Instance.new("UIScale")
 	scale.Scale = 0.6
@@ -13786,7 +13823,7 @@ function UIController.Init()
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 176), -- below AUTO THROW and the tutorial bar
-		Size = UDim2.fromOffset(560, 400),
+		Size = UDim2.fromOffset(TOAST_W, 400),
 		Parent = layers.Toasts,
 	})
 	Create.List(toastHolder, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)
@@ -14315,13 +14352,19 @@ end
               <Properties>
                 <string name="Name">Button</string>
                 <string name="Source"><![CDATA[--!strict
--- Chunky reference-style button: vertical gradient, dark border, bottom shade, stroked label.
--- Feedback: hover grow, press squash, disabled grey, click/hover sounds.
+-- Chunky simulator-style button: a gradient face with a thick dark outline, a gloss highlight and
+-- a stroked label, raised on a darker base (Theme.Depth) like a 3D key. Hover grows it, pressing
+-- sinks the face into the base, disabled turns it grey; click/hover sounds. Calls to action can
+-- carry a glint sweep (Shine = true).
+--
+-- Instance is the transparent hit box (face + base); Content is the face's content frame (it
+-- moves with the face), so extra labels go there.
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
+local Shine = require(script.Parent.Shine)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type ButtonProps = {
@@ -14337,12 +14380,16 @@ export type ButtonProps = {
 	LayoutOrder: number?,
 	ZIndex: number?,
 	Corner: number?,
+	Depth: number?, -- base height under the face (default Theme.Depth)
+	Shine: boolean?, -- glint sweep for calls to action
 	OnClick: (() -> ())?,
 	Silent: boolean?,
 }
 
 export type Button = {
 	Instance: TextButton,
+	Face: Frame,
+	Gradient: UIGradient, -- the face gradient
 	Label: TextLabel,
 	Content: Frame,
 	SetText: (Button, string) -> (),
@@ -14355,61 +14402,74 @@ export type Button = {
 
 local Button = {}
 
-local QUICK = TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local QUICK = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local MUTED: { [string]: boolean } = { Grey = true, Dark = true, Disabled = true }
 
 function Button.new(props: ButtonProps): Button
 	local styleName = props.Style or "Grey"
 	local style = Theme.Buttons[styleName] or Theme.Buttons.Grey
-	local corner = props.Corner or 8
+	local corner = props.Corner or 10
+	local depth = props.Depth or Theme.Depth
+	local z = props.ZIndex or 1
 
 	local root: TextButton = Create("TextButton", {
 		Name = props.Name or "Button",
 		Size = props.Size,
 		Position = props.Position or UDim2.new(),
 		AnchorPoint = props.AnchorPoint or Vector2.zero,
-		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
 		LayoutOrder = props.LayoutOrder or 0,
-		ZIndex = props.ZIndex or 1,
+		ZIndex = z,
 		Selectable = true,
 	})
-	Create.Corner(corner, root)
-	local gradient = Create.Gradient(root, style.Top, style.Bottom, 90)
-	local border = Create.Stroke(root, style.Border, 2.5, 0, true)
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
+
+	-- darker base: shows as a lip under the face
+	local base: Frame = Create("Frame", {
+		Name = "Base",
+		BackgroundColor3 = Theme.Darken(style.Bottom, 0.55),
+		Position = UDim2.fromOffset(0, depth),
+		Size = UDim2.new(1, 0, 1, -depth),
+		ZIndex = z,
+		Parent = root,
+	})
+	Create.Corner(corner, base)
+	local baseStroke = Create.Stroke(base, style.Border, Theme.Outline, 0, true)
+
+	local face: Frame = Create("Frame", {
+		Name = "Face",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.new(1, 0, 1, -depth),
+		ZIndex = z + 1,
+		Parent = root,
+	})
+	Create.Corner(corner, face)
+	local gradient = Create.Gradient(face, style.Top, style.Bottom, 90)
+	local border = Create.Stroke(face, style.Border, Theme.Outline, 0, true)
 
 	-- glossy top highlight
 	local gloss = Create("Frame", {
 		Name = "Gloss",
 		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.82,
-		Size = UDim2.new(1, -8, 0.42, 0),
+		BackgroundTransparency = 0.8,
+		Size = UDim2.new(1, -8, 0.44, 0),
 		Position = UDim2.fromOffset(4, 3),
-		ZIndex = root.ZIndex,
-		Parent = root,
+		ZIndex = z + 1,
+		Parent = face,
 	})
-	Create.Corner(corner - 2, gloss)
-	-- bottom shade (3D lip)
-	local shade = Create("Frame", {
-		Name = "Shade",
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.78,
-		Size = UDim2.new(1, 0, 0, 5),
-		Position = UDim2.new(0, 0, 1, -5),
-		ZIndex = root.ZIndex,
-		Parent = root,
-	})
-	Create.Corner(corner, shade)
+	Create.Corner(math.max(corner - 2, 0), gloss)
+	local shine = if props.Shine then Shine.Add(face, UDim.new(0, corner), z + 2) else nil
 
 	local content: Frame = Create("Frame", {
 		Name = "Content",
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
-		ZIndex = root.ZIndex + 1,
-		Parent = root,
+		ZIndex = z + 3,
+		Parent = face,
 	})
 	local label = Create.Text({
 		Name = "Label",
@@ -14421,13 +14481,15 @@ function Button.new(props: ButtonProps): Button
 		TextSize = props.TextSize or 28,
 		Scaled = true,
 		Color = style.Text,
-		Stroke = 2.2,
-		ZIndex = root.ZIndex + 2,
+		Stroke = 2.6,
+		ZIndex = z + 2,
 		Parent = content,
 	})
 
 	local self = {
 		Instance = root,
+		Face = face,
+		Gradient = gradient,
 		Label = label,
 		Content = content,
 		Enabled = true,
@@ -14438,8 +14500,14 @@ function Button.new(props: ButtonProps): Button
 		local s = Theme.Buttons[name] or Theme.Buttons.Grey
 		gradient.Color = ColorSequence.new(s.Top, s.Bottom)
 		border.Color = s.Border
+		baseStroke.Color = s.Border
+		base.BackgroundColor3 = Theme.Darken(s.Bottom, 0.55)
 		label.TextColor3 = s.Text
+		if shine then
+			shine.Visible = not MUTED[name] -- no glint on grey / disabled keys
+		end
 	end
+	setStyle(styleName)
 
 	function self.SetText(_: any, text: string)
 		label.Text = text
@@ -14460,6 +14528,8 @@ function Button.new(props: ButtonProps): Button
 		root:Destroy()
 	end
 
+	local UP = UDim2.new()
+	local DOWN = UDim2.fromOffset(0, depth - 1)
 	root.MouseEnter:Connect(function()
 		if self.Enabled then
 			TweenService:Create(scale, QUICK, { Scale = 1.05 }):Play()
@@ -14470,13 +14540,16 @@ function Button.new(props: ButtonProps): Button
 	end)
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
+		TweenService:Create(face, QUICK, { Position = UP }):Play()
 	end)
 	root.MouseButton1Down:Connect(function()
 		if self.Enabled then
-			TweenService:Create(scale, QUICK, { Scale = 0.94 }):Play()
+			TweenService:Create(face, QUICK, { Position = DOWN }):Play()
+			TweenService:Create(scale, QUICK, { Scale = 0.97 }):Play()
 		end
 	end)
 	root.MouseButton1Up:Connect(function()
+		TweenService:Create(face, SPRING, { Position = UP }):Play()
 		TweenService:Create(scale, SPRING, { Scale = 1 }):Play()
 	end)
 	root.Activated:Connect(function()
@@ -14496,7 +14569,8 @@ function Button.new(props: ButtonProps): Button
 	return self :: Button
 end
 
--- Square close button in the reference style (light grey block, heavy stroked X).
+-- Close button in the simulator style: red raised key with a heavy white X, breaking out of the
+-- panel's top-right corner.
 function Button.Close(parent: Instance, onClick: () -> (), position: UDim2?, size: number?): Button
 	local s = size or 64
 	local b = Button.new({
@@ -14505,13 +14579,14 @@ function Button.Close(parent: Instance, onClick: () -> (), position: UDim2?, siz
 		Size = UDim2.fromOffset(s, s),
 		Position = position or UDim2.new(1, -s * 0.35, 0, -s * 0.35),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Style = "Grey",
+		Style = "Red",
 		Text = "X",
 		Font = Theme.Fonts.Display,
+		Corner = 14,
 		ZIndex = 20,
 		OnClick = onClick,
 	})
-	b.Label.Size = UDim2.fromScale(0.62, 0.62)
+	b.Label.Size = UDim2.fromScale(0.6, 0.6)
 	return b
 end
 
@@ -15060,7 +15135,8 @@ return HudFlightState
                 <string name="Source"><![CDATA[--!strict
 -- Landing result card for the local player's throws (Bus.FlightLanded owner payload): zone name in
 -- the zone colour, distance, +Wins / +Skill, perfect catches, special-throw tag and a "NEW BEST!" /
--- "NEW ZONE!" ribbon. Pops for ~2.5 s. A landing that opened a world (payload.UnlockedWorld) also
+-- "NEW ZONE!" ribbon. Pops for ~2.5 s; a new best or a special throw also lights a spinning sunburst
+-- behind it (under the HUD buttons). A landing that opened a world (payload.UnlockedWorld) also
 -- plays a big "NEW WORLD UNLOCKED" celebration with pooled confetti.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15079,6 +15155,7 @@ local Create = require(UI.Create)
 local AudioController = require(Client.Controllers.AudioController)
 local Bus = require(Client.Controllers.Bus)
 local UIController = require(Client.Controllers.UIController)
+local Rays = require(script.Parent.Rays)
 
 local HudLandingCard = {}
 
@@ -15091,6 +15168,10 @@ local CONFETTI = 28
 
 function HudLandingCard.new(root: Frame)
 	local localPlayer = Players.LocalPlayer
+
+	-- sunburst behind the card (ZIndex 1: under the HUD groups, which sit at 2+)
+	local rays = Rays.new(root, 900, 10, 1)
+	rays.Instance.Name = "LandingCardRays"
 
 	-- card ------------------------------------------------------------------------------------
 	local card: Frame = Create("Frame", {
@@ -15395,6 +15476,14 @@ function HudLandingCard.new(root: Frame)
 			TweenService:Create(ribbonScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0.25), { Scale = 1 }):Play()
 		end
 
+		if newBest or info then
+			rays.Instance.Position = card.Position
+			rays.Instance.Size = UDim2.fromOffset(900 * cardSize, 900 * cardSize)
+			rays:Show(if info then Color3.fromHex(info.Color) else Theme.Colors.Skill, if info then 1 else 0.7)
+		else
+			rays:Hide()
+		end
+
 		cardToken += 1
 		local token = cardToken
 		card.Visible = true
@@ -15414,6 +15503,7 @@ function HudLandingCard.new(root: Frame)
 			out.Completed:Wait()
 			if token == cardToken then
 				card.Visible = false
+				rays:Hide()
 			end
 		end)
 
@@ -15432,6 +15522,7 @@ function HudLandingCard.new(root: Frame)
 			out.Completed:Once(function()
 				if token == cardToken then
 					card.Visible = false
+					rays:Hide()
 				end
 			end)
 		end
@@ -15724,7 +15815,9 @@ return HudLevelBar
                 <string name="Name">HudStatPill</string>
                 <string name="Source"><![CDATA[--!strict
 -- Bottom-left HUD counter pill: round emoji badge on the left, chunky stroked value text on a
--- dark translucent pill. Bump() pops it when the value goes up.
+-- dark translucent pill. Bump() pops it when the value goes up; SetValue can count up to a new
+-- value after a delay (rewards flying into the counter land first, then the number rolls up).
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
@@ -15744,14 +15837,17 @@ export type PillProps = {
 
 export type Pill = {
 	Instance: Frame,
+	Badge: Frame,
 	Value: TextLabel,
 	SetText: (Pill, string) -> (),
+	SetValue: (Pill, number, (number) -> string, number?) -> (),
 	Bump: (Pill) -> (),
 }
 
 local HudStatPill = {}
 
 local POP = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local COUNT_TIME = 0.7
 
 function HudStatPill.new(props: PillProps): Pill
 	local height = props.Height or 52
@@ -15808,12 +15904,61 @@ function HudStatPill.new(props: PillProps): Pill
 		Parent = root,
 	})
 
-	local self = { Instance = root, Value = value } :: any
+	local self = { Instance = root, Badge = badge, Value = value } :: any
 
-	function self.SetText(_: any, text: string)
+	local function show(text: string)
 		if value.Text ~= text then
 			value.Text = text
 		end
+	end
+	function self.SetText(_: any, text: string)
+		show(text)
+	end
+
+	-- Numeric counters: with a delay and a higher value, the text holds, then rolls up (ease-out)
+	-- over COUNT_TIME; anything else (first value, a drop, no delay) shows at once. A sync that
+	-- repeats the value being counted to leaves the roll alone.
+	local shown: number? = nil
+	local from, target, startAt = 0, 0, 0
+	local format: (number) -> string = tostring
+	local rolling: RBXScriptConnection? = nil
+	local function stopRoll()
+		if rolling then
+			rolling:Disconnect()
+			rolling = nil
+		end
+	end
+	function self.SetValue(_: any, n: number, fmt: (number) -> string, delay: number?)
+		format = fmt
+		if rolling and n == target then
+			return
+		end
+		local current = shown
+		if current == nil or delay == nil or n <= current then
+			stopRoll()
+			shown, target = n, n
+			show(fmt(n))
+			return
+		end
+		from, target, startAt = current, n, os.clock() + delay
+		if rolling then
+			return
+		end
+		rolling = RunService.Heartbeat:Connect(function()
+			local a = (os.clock() - startAt) / COUNT_TIME
+			if a < 0 then
+				return
+			end
+			if a >= 1 then
+				stopRoll()
+				shown = target
+				show(format(target))
+				return
+			end
+			local v = from + (target - from) * (1 - (1 - a) ^ 3)
+			shown = v
+			show(format(math.floor(v)))
+		end)
 	end
 
 	function self.Bump(_: any)
@@ -16165,14 +16310,17 @@ return HudThrowPanel
               <Properties>
                 <string name="Name">HudTile</string>
                 <string name="Source"><![CDATA[--!strict
--- Square HUD menu tile (left grid): bright gradient face, big emoji icon, chunky stroked label,
--- optional caption over the icon ("83%"), a red count badge, and a gold "ready" glow that the
--- HUD ticker animates. Gamepad-selectable; hover grows, press squashes.
+-- Square HUD menu tile (left grid, right offers) in the simulator style: a bright gradient face
+-- with a thick dark outline and gloss, raised on a darker base (pressing sinks it), big emoji
+-- icon, chunky stroked label, optional caption over the icon ("83%"), a red count badge, a gold
+-- "ready" glow, an attention wiggle (e.g. gifts waiting) and an optional glint sweep. The HUD
+-- ticker drives the glow and wiggle through Animate. Gamepad-selectable; hover grows it.
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
+local Shine = require(script.Parent.Shine)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type TileProps = {
@@ -16180,63 +16328,93 @@ export type TileProps = {
 	Name: string,
 	Icon: string,
 	Label: string?,
-	Size: number?, -- side in design px (default 92)
+	Size: number?, -- side in design px (default 92), base included
 	Top: Color3,
 	Bottom: Color3,
 	LayoutOrder: number?,
 	Round: boolean?,
+	Shine: boolean?,
 	OnClick: () -> (),
 }
 
 export type Tile = {
 	Instance: TextButton,
+	Face: Frame,
+	Icon: TextLabel,
+	Label: TextLabel?,
 	SetBadge: (Tile, number) -> (),
 	SetCaption: (Tile, string?) -> (),
 	SetGlow: (Tile, boolean) -> (),
+	SetAttention: (Tile, boolean) -> (),
 	Animate: (Tile, number) -> (),
 	Glowing: boolean,
+	Attention: boolean,
 }
 
 local HudTile = {}
 
-local QUICK = TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local QUICK = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local GOLD = Color3.fromHex("#FFD447")
 local GOLD_HOT = Color3.fromHex("#FFF6C2")
+local WIGGLE_EVERY = 2.4 -- seconds between attention wiggles
+local WIGGLE_TIME = 0.6
 
 function HudTile.new(props: TileProps): Tile
 	local side = props.Size or 92
+	local depth = Theme.Depth
+	local function rounding(target: GuiObject, radius: number)
+		if props.Round then
+			Create.Round(target)
+		else
+			Create.Corner(radius, target)
+		end
+	end
+
 	local root: TextButton = Create("TextButton", {
 		Name = props.Name,
 		Size = UDim2.fromOffset(side, side),
-		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
 		Selectable = true,
 		LayoutOrder = props.LayoutOrder or 0,
 	})
-	if props.Round then
-		Create.Round(root)
-	else
-		Create.Corner(16, root)
-	end
-	Create.Gradient(root, props.Top, props.Bottom, 90)
-	local border = Create.Stroke(root, Theme.Colors.Stroke, 3, 0, true)
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
+
+	local base: Frame = Create("Frame", {
+		Name = "Base",
+		BackgroundColor3 = Theme.Darken(props.Bottom, 0.5),
+		Position = UDim2.fromOffset(0, depth),
+		Size = UDim2.new(1, 0, 1, -depth),
+		Parent = root,
+	})
+	rounding(base, 16)
+	Create.Stroke(base, Theme.Colors.Stroke, Theme.Outline, 0, true)
+
+	local face: Frame = Create("Frame", {
+		Name = "Face",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.new(1, 0, 1, -depth),
+		ZIndex = 2,
+		Parent = root,
+	})
+	rounding(face, 16)
+	Create.Gradient(face, props.Top, props.Bottom, 90)
+	local border = Create.Stroke(face, Theme.Colors.Stroke, Theme.Outline, 0, true)
 
 	local gloss: Frame = Create("Frame", {
 		Name = "Gloss",
 		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.8,
-		Size = UDim2.new(1, -10, 0.4, 0),
+		BackgroundTransparency = 0.78,
+		Size = UDim2.new(1, -10, 0.42, 0),
 		Position = UDim2.fromOffset(5, 4),
-		Parent = root,
+		Parent = face,
 	})
-	if props.Round then
-		Create.Round(gloss)
-	else
-		Create.Corner(12, gloss)
+	rounding(gloss, 12)
+	if props.Shine then
+		Shine.Add(face, if props.Round then UDim.new(0.5, 0) else UDim.new(0, 16), 2)
 	end
 
 	local hasLabel = props.Label ~= nil and props.Label ~= ""
@@ -16249,11 +16427,12 @@ function HudTile.new(props: TileProps): Tile
 		Font = Theme.Fonts.Display,
 		TextSize = 64,
 		Scaled = true,
-		ZIndex = 2,
-		Parent = root,
+		ZIndex = 3,
+		Parent = face,
 	})
+	local label: TextLabel? = nil
 	if hasLabel then
-		Create.Text({
+		label = Create.Text({
 			Name = "Label",
 			Text = props.Label or "",
 			Size = UDim2.new(1, 4, 0.3, 0),
@@ -16262,9 +16441,9 @@ function HudTile.new(props: TileProps): Tile
 			Font = Theme.Fonts.Display,
 			TextSize = 24,
 			Scaled = true,
-			Stroke = 2.5,
-			ZIndex = 3,
-			Parent = root,
+			Stroke = 2.8,
+			ZIndex = 4,
+			Parent = face,
 		})
 	end
 	local caption = Create.Text({
@@ -16276,9 +16455,9 @@ function HudTile.new(props: TileProps): Tile
 		Font = Theme.Fonts.Display,
 		TextSize = 26,
 		Scaled = true,
-		Stroke = 2.5,
-		ZIndex = 4,
-		Parent = root,
+		Stroke = 2.8,
+		ZIndex = 5,
+		Parent = face,
 	})
 	caption.Visible = false
 
@@ -16287,12 +16466,13 @@ function HudTile.new(props: TileProps): Tile
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -6, 0, 6),
 		Size = UDim2.fromOffset(32, 32),
-		BackgroundColor3 = Theme.Colors.Danger,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		Visible = false,
 		ZIndex = 5,
 		Parent = root,
 	})
 	Create.Round(badge)
+	Create.Gradient(badge, Color3.fromHex("#FF7A85"), Theme.Colors.Danger, 90)
 	Create.Stroke(badge, Theme.Colors.Stroke, 2.5, 0, true)
 	local badgeText = Create.Text({
 		Name = "Count",
@@ -16303,14 +16483,18 @@ function HudTile.new(props: TileProps): Tile
 		Font = Theme.Fonts.Display,
 		TextSize = 22,
 		Scaled = true,
-		Stroke = 1.5,
+		Stroke = 1.8,
 		ZIndex = 6,
 		Parent = badge,
 	})
 
 	local self = {
 		Instance = root,
+		Face = face,
+		Icon = icon,
+		Label = label,
 		Glowing = false,
+		Attention = false,
 	} :: any
 
 	function self.SetBadge(_: any, count: number)
@@ -16334,42 +16518,72 @@ function HudTile.new(props: TileProps): Tile
 		end
 	end
 
+	local function rest()
+		if not self.Glowing then
+			border.Color = Theme.Colors.Stroke
+			border.Thickness = Theme.Outline
+			caption.TextColor3 = Theme.Colors.Text
+		end
+		if not self.Glowing and not self.Attention then
+			icon.Rotation = 0
+			badge.Rotation = 0
+		end
+	end
+
 	function self.SetGlow(this: any, on: boolean)
 		if this.Glowing == on then
 			return
 		end
 		this.Glowing = on
-		if not on then
-			border.Color = Theme.Colors.Stroke
-			border.Thickness = 3
-			icon.Rotation = 0
-			caption.TextColor3 = Theme.Colors.Text
-		end
+		rest()
 	end
 
-	-- Called ~20x per second by the HUD ticker; only does work while glowing.
-	function self.Animate(this: any, t: number)
-		if not this.Glowing then
+	function self.SetAttention(this: any, on: boolean)
+		if this.Attention == on then
 			return
 		end
-		local w = (math.sin(t * 6) + 1) / 2
-		border.Color = GOLD:Lerp(GOLD_HOT, w)
-		border.Thickness = 3 + w * 2
-		icon.Rotation = math.sin(t * 4) * 9
-		caption.TextColor3 = GOLD:Lerp(GOLD_HOT, w)
+		this.Attention = on
+		rest()
 	end
 
+	-- Called ~20x per second by the HUD ticker; only does work while glowing or asking for attention.
+	function self.Animate(this: any, t: number)
+		if this.Glowing then
+			local w = (math.sin(t * 6) + 1) / 2
+			border.Color = GOLD:Lerp(GOLD_HOT, w)
+			border.Thickness = Theme.Outline + w * 2
+			icon.Rotation = math.sin(t * 4) * 9
+			caption.TextColor3 = GOLD:Lerp(GOLD_HOT, w)
+		elseif this.Attention then
+			-- a short shake every few seconds, then still (reads as "something is waiting")
+			local phase = t % WIGGLE_EVERY
+			if phase < WIGGLE_TIME then
+				local fade = 1 - phase / WIGGLE_TIME
+				icon.Rotation = math.sin(phase * 38) * 14 * fade
+				badge.Rotation = math.sin(phase * 38 + 1) * 12 * fade
+			elseif icon.Rotation ~= 0 then
+				icon.Rotation = 0
+				badge.Rotation = 0
+			end
+		end
+	end
+
+	local UP = UDim2.new()
+	local DOWN = UDim2.fromOffset(0, depth - 1)
 	root.MouseEnter:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1.07 }):Play()
 		AudioController.Play("Hover", nil, 0.05)
 	end)
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
+		TweenService:Create(face, QUICK, { Position = UP }):Play()
 	end)
 	root.MouseButton1Down:Connect(function()
-		TweenService:Create(scale, QUICK, { Scale = 0.92 }):Play()
+		TweenService:Create(face, QUICK, { Position = DOWN }):Play()
+		TweenService:Create(scale, QUICK, { Scale = 0.96 }):Play()
 	end)
 	root.MouseButton1Up:Connect(function()
+		TweenService:Create(face, SPRING, { Position = UP }):Play()
 		TweenService:Create(scale, SPRING, { Scale = 1 }):Play()
 	end)
 	root.Activated:Connect(function()
@@ -16748,6 +16962,7 @@ function MenuCard.new(props: CardProps): Card
 			Position = UDim2.new(0.5, 0, 1, if compact then -8 else -12),
 			Size = UDim2.new(1, -24, 0, buttonH),
 			Style = props.ButtonStyle or "Green",
+			Shine = true,
 			Text = props.ButtonText,
 			TextSize = 30,
 			Corner = 12,
@@ -16898,8 +17113,9 @@ return MenuGrid
                 <string name="Name">MenuShell</string>
                 <string name="Source"><![CDATA[--!strict
 -- Shared shell for the menu screens (Shop, Rebirth, Gifts, Settings, Admin). Builds a Panel in the
--- "Menus" layer and dresses it in the menu style: deep-blue gradient body, coloured inner edge,
--- accent header ribbon and a chunky emoji + display-font title with a heavy stroke. It implements
+-- "Menus" layer and dresses it in the simulator menu style: deep-blue gradient body, a solid accent
+-- header bar with a gloss and a dark divider, coloured inner edge and a chunky emoji +
+-- display-font title with a heavy stroke. It implements
 -- the UIController Screen contract (Open/Close/IsOpen), keeps gamepad selection inside the panel,
 -- closes on gamepad B and forwards L1/R1 (or Q/E) to OnShoulder for tab cycling.
 local ContextActionService = game:GetService("ContextActionService")
@@ -16978,14 +17194,60 @@ function MenuShell.new(props: ShellProps): Shell
 	body.BackgroundColor3 = Color3.new(1, 1, 1)
 	body.BackgroundTransparency = 0
 	Create.Gradient(body, Theme.Colors.PanelLight, Theme.Colors.PanelDeep, 90)
-	local corner = body:FindFirstChildOfClass("UICorner")
-	if corner then
-		corner.CornerRadius = UDim.new(0, 18)
+	local shadow: Instance = holder:FindFirstChild("Shadow") or body
+	for _, frame in { body :: Instance, shadow } do
+		local corner = frame:FindFirstChildOfClass("UICorner")
+		if corner then
+			corner.CornerRadius = UDim.new(0, 18)
+		end
 	end
 	local outer = body:FindFirstChildOfClass("UIStroke")
 	if outer then
 		outer.Thickness = 4
 	end
+	-- solid accent header bar: rounded top (the body's corner), square bottom, gloss, dark divider
+	local HEADER = 74 -- + 4 px divider = the panel's content top (title 56 + 22)
+	local header: Frame = Create("Frame", {
+		Name = "Header",
+		BackgroundColor3 = accent,
+		Size = UDim2.new(1, 0, 0, HEADER),
+		ZIndex = 0,
+		Parent = body,
+	})
+	Create.Corner(18, header)
+	Create("Frame", {
+		Name = "Square",
+		BackgroundColor3 = accent,
+		Position = UDim2.new(0, 0, 1, -20),
+		Size = UDim2.new(1, 0, 0, 20),
+		Parent = header,
+	})
+	local gloss: Frame = Create("Frame", {
+		Name = "Gloss",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.78,
+		Position = UDim2.fromOffset(8, 5),
+		Size = UDim2.new(1, -16, 0, HEADER * 0.42),
+		ZIndex = 2,
+		Parent = header,
+	})
+	Create.Corner(12, gloss)
+	Create("Frame", {
+		Name = "Shade",
+		BackgroundColor3 = MenuShell.Shade(accent, 0.6),
+		Position = UDim2.new(0, 0, 1, -8),
+		Size = UDim2.new(1, 0, 0, 8),
+		ZIndex = 2,
+		Parent = header,
+	})
+	Create("Frame", {
+		Name = "Divider",
+		BackgroundColor3 = Theme.Colors.Stroke,
+		Position = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.new(1, 0, 0, 4),
+		ZIndex = 2,
+		Parent = header,
+	})
 	-- bright inner edge
 	local edge: Frame = Create("Frame", {
 		Name = "Edge",
@@ -16997,30 +17259,13 @@ function MenuShell.new(props: ShellProps): Shell
 	})
 	Create.Corner(14, edge)
 	Create.Stroke(edge, accent, 2, 0.35, true)
-	-- accent header ribbon behind the title
-	local ribbon: Frame = Create("Frame", {
-		Name = "Ribbon",
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.25,
-		Position = UDim2.fromOffset(5, 5),
-		Size = UDim2.new(1, -10, 0, 72),
-		ZIndex = 0,
-		Parent = body,
-	})
-	Create.Corner(14, ribbon)
-	local ribbonGradient = Create.Gradient(ribbon, accent, MenuShell.Shade(accent, 0.45), 0)
-	ribbonGradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.1),
-		NumberSequenceKeypoint.new(0.7, 0.75),
-		NumberSequenceKeypoint.new(1, 1),
-	})
 	local title = panel.Title
 	if title then
-		title.Size = UDim2.new(0.6, 0, 0, 56)
-		title.Position = UDim2.fromOffset(26, 12)
+		title.Size = UDim2.new(0.6, 0, 0, 58)
+		title.Position = UDim2.fromOffset(26, 9)
 		local stroke = title:FindFirstChildOfClass("UIStroke")
 		if stroke then
-			stroke.Thickness = 4
+			stroke.Thickness = 4.5
 			stroke.Color = Theme.Colors.Stroke
 		end
 	end
@@ -17355,8 +17600,8 @@ return MenuToggle
               <Properties>
                 <string name="Name">Panel</string>
                 <string name="Source"><![CDATA[--!strict
--- Modal panel in the reference style: dark navy body, thin bright border, big display-font
--- title, close button breaking out of the top-right corner, pop-in animation.
+-- Modal panel in the reference style: dark navy body on a soft drop shadow, thin bright border,
+-- big display-font title, red close key breaking out of the top-right corner, pop-in animation.
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -17439,11 +17684,22 @@ function Panel.new(props: PanelProps): Panel
 		end
 		return math.min(byWidth, screen.Y * 0.95 / (height * s))
 	end
+	local shadow: Frame = Create("Frame", {
+		Name = "Shadow",
+		BackgroundColor3 = Theme.Shadow.Color,
+		BackgroundTransparency = Theme.Shadow.Transparency,
+		Position = UDim2.fromOffset(0, Theme.Shadow.Offset),
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 0,
+		Parent = holder,
+	})
+	Create.Corner(4, shadow)
 	local body: Frame = Create("Frame", {
 		Name = "Body",
 		BackgroundColor3 = Theme.Colors.Panel,
 		BackgroundTransparency = 0.04,
 		Size = UDim2.fromScale(1, 1),
+		ZIndex = 1,
 		Parent = holder,
 	})
 	Create.Corner(4, body)
@@ -17536,6 +17792,324 @@ return Panel
             </Item>
             <Item class="ModuleScript" referent="114">
               <Properties>
+                <string name="Name">Rays</string>
+                <string name="Source"><![CDATA[--!strict
+-- Sunburst behind big rewards (hatch reveals, special landings): long beams through the centre,
+-- bright in the middle and fading toward their tips, alternating wide and thin, slowly spinning.
+-- Purely decorative; Show/Hide fade it.
+local TweenService = game:GetService("TweenService")
+
+local UI = script.Parent.Parent
+local Create = require(UI.Create)
+
+export type Rays = {
+	Instance: Frame,
+	Show: (Rays, Color3, number?) -> (),
+	Hide: (Rays) -> (),
+}
+
+local Rays = {}
+
+local FADE = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local SPIN = TweenInfo.new(16, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1)
+local BEAM = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.18, 0.75),
+	NumberSequenceKeypoint.new(0.5, 0.2),
+	NumberSequenceKeypoint.new(0.82, 0.75),
+	NumberSequenceKeypoint.new(1, 1),
+})
+
+-- `size` is the beam length (design px); `beams` full-length beams give 2x as many rays.
+function Rays.new(parent: Instance, size: number, beams: number?, zIndex: number?, position: UDim2?): Rays
+	local holder: Frame = Create("Frame", {
+		Name = "Rays",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = position or UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(size, size),
+		BackgroundTransparency = 1,
+		Visible = false,
+		ZIndex = zIndex or 1,
+		Parent = parent,
+	})
+	local n = beams or 8
+	local list: { Frame } = {}
+	for i = 1, n do
+		local wide = i % 2 == 1
+		local beam: Frame = Create("Frame", {
+			Name = "Beam",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(1, 0, 0, size * (if wide then 0.1 else 0.05)),
+			Rotation = (i - 1) * 180 / n,
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 1,
+			ZIndex = zIndex or 1,
+			Parent = holder,
+		})
+		Create.Round(beam)
+		local gradient = Instance.new("UIGradient")
+		gradient.Transparency = BEAM
+		gradient.Parent = beam
+		table.insert(list, beam)
+	end
+
+	local self = { Instance = holder } :: any
+	local spin: Tween? = nil
+
+	-- `strength` 0..1 (default 1): how solid the beams get.
+	function self.Show(_: any, color: Color3, strength: number?)
+		local alpha = 1 - 0.75 * math.clamp(strength or 1, 0, 1)
+		holder.Visible = true
+		for _, beam in list do
+			beam.BackgroundColor3 = color
+			beam.BackgroundTransparency = 1
+			TweenService:Create(beam, FADE, { BackgroundTransparency = alpha }):Play()
+		end
+		if spin == nil then
+			holder.Rotation = 0
+			local tween = TweenService:Create(holder, SPIN, { Rotation = 360 })
+			tween:Play()
+			spin = tween
+		end
+	end
+
+	function self.Hide(_: any)
+		if spin then
+			spin:Cancel()
+			spin = nil
+		end
+		holder.Visible = false
+	end
+
+	return self :: Rays
+end
+
+return Rays
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="115">
+              <Properties>
+                <string name="Name">RewardFly</string>
+                <string name="Source"><![CDATA[--!strict
+-- "Rewards fly into the counter", the genre's payout feedback: a burst of reward icons pops out
+-- around a start point, then each one arcs into a target GuiObject (e.g. the Wins counter). The
+-- first arrival calls onArrive (bump the counter); every arrival ticks a coin sound. Icons are
+-- pooled TextLabels in an "FxRewards" frame on the Toasts layer, so the burst also plays above
+-- open menus.
+local TweenService = game:GetService("TweenService")
+
+local UI = script.Parent.Parent
+local Theme = require(UI.Theme)
+local Create = require(UI.Create)
+local UIController = require(UI.Parent.Controllers.UIController)
+local AudioController = require(UI.Parent.Controllers.AudioController)
+
+local RewardFly = {}
+
+local POOL = 12
+local SIZE = 54
+local POP_TIME = 0.28
+local FLY_TIME = 0.5
+local STAGGER = 0.05
+-- When the first icon lands (counters start rolling up then).
+RewardFly.ArriveTime = POP_TIME + FLY_TIME
+
+local POP = TweenInfo.new(POP_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local FLY = TweenInfo.new(FLY_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+local pool: { TextLabel } = {}
+local free: { TextLabel } = {}
+local rng = Random.new()
+
+local holder: Frame? = nil
+local function layer(): Frame?
+	local current = holder
+	if current and current.Parent then
+		return current
+	end
+	local toasts: Frame? = UIController.Layer("Toasts") -- nil until UIController.Init
+	if toasts == nil then
+		return nil
+	end
+	local fx: Frame = Create("Frame", {
+		Name = "FxRewards",
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 5,
+		Parent = toasts,
+	})
+	holder = fx
+	return fx
+end
+
+-- Centre of a GuiObject in the layer's design pixels.
+local function centreOf(gui: GuiObject, root: Frame): Vector2
+	local s = math.max(UIController.Scale, 0.01)
+	return (gui.AbsolutePosition + gui.AbsoluteSize / 2 - root.AbsolutePosition) / s
+end
+
+local function take(root: Frame): TextLabel?
+	local reused = table.remove(free)
+	if reused then
+		return reused
+	end
+	if #pool >= POOL then
+		return nil
+	end
+	local label = Create.Text({
+		Name = "RewardIcon",
+		Text = "",
+		Size = UDim2.fromOffset(SIZE, SIZE),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Font = Theme.Fonts.Display,
+		TextSize = SIZE,
+		Scaled = true,
+		Parent = root,
+	})
+	table.insert(pool, label)
+	return label
+end
+
+-- Flies `count` icons (max 12) from `from` (a GuiObject, or the screen centre) into `to`.
+function RewardFly.Burst(icon: string, from: GuiObject?, to: GuiObject, count: number, onArrive: (() -> ())?)
+	local root = layer()
+	if root == nil or root.AbsoluteSize.X <= 0 then
+		if onArrive then
+			onArrive()
+		end
+		return
+	end
+	local s = math.max(UIController.Scale, 0.01)
+	local start = if from and from.Visible then centreOf(from, root) else root.AbsoluteSize / (2 * s)
+	local goal = centreOf(to, root)
+	local arrived = false
+	for i = 1, math.clamp(count, 1, POOL) do
+		local label = take(root)
+		if label == nil then
+			break
+		end
+		local angle = rng:NextNumber(0, math.pi * 2)
+		local spread = Vector2.new(math.cos(angle), math.sin(angle)) * rng:NextNumber(60, 150)
+		local burst = start + spread
+		label.Text = icon
+		label.Rotation = rng:NextNumber(-25, 25)
+		label.Size = UDim2.fromOffset(SIZE * 0.4, SIZE * 0.4)
+		label.Position = UDim2.fromOffset(start.X, start.Y)
+		label.TextTransparency = 0
+		label.Visible = true
+		TweenService:Create(label, POP, { Position = UDim2.fromOffset(burst.X, burst.Y), Size = UDim2.fromOffset(SIZE, SIZE) }):Play()
+		task.delay(POP_TIME + (i - 1) * STAGGER, function()
+			local fly = TweenService:Create(label, FLY, {
+				Position = UDim2.fromOffset(goal.X, goal.Y),
+				Size = UDim2.fromOffset(SIZE * 0.6, SIZE * 0.6),
+				Rotation = 0,
+			})
+			fly:Play()
+			fly.Completed:Once(function()
+				label.Visible = false
+				table.insert(free, label)
+				AudioController.Play("Coin", nil, 0.04)
+				if not arrived then
+					arrived = true
+					if onArrive then
+						onArrive()
+					end
+				end
+			end)
+		end)
+	end
+end
+
+return RewardFly
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="116">
+              <Properties>
+                <string name="Name">Shine</string>
+                <string name="Source"><![CDATA[--!strict
+-- Glint sweep for calls to action (buy / hatch / claim buttons, offer tiles): a white overlay whose
+-- UIGradient is transparent except for one bright diagonal band, swept across by tweening the
+-- gradient Offset every few seconds. One shared scheduler drives every shine, each starting at a
+-- random phase so the screen never glints in lockstep. Overlays that leave the game are dropped.
+local TweenService = game:GetService("TweenService")
+
+local Shine = {}
+
+type Entry = { Gradient: UIGradient, Overlay: Frame, Period: number, Next: number }
+
+local SWEEP = TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+local BAND = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.36, 1),
+	NumberSequenceKeypoint.new(0.46, 0.6),
+	NumberSequenceKeypoint.new(0.5, 0.3),
+	NumberSequenceKeypoint.new(0.54, 0.6),
+	NumberSequenceKeypoint.new(0.64, 1),
+	NumberSequenceKeypoint.new(1, 1),
+})
+local START = Vector2.new(-1, 0) -- band left of the face
+local FINISH = Vector2.new(1, 0) -- band right of the face (also the resting state)
+
+local entries: { Entry } = {}
+local running = false
+local rng = Random.new()
+
+local function loop()
+	while #entries > 0 do
+		local now = os.clock()
+		for i = #entries, 1, -1 do
+			local e = entries[i]
+			if e.Overlay.Parent == nil then
+				table.remove(entries, i)
+			elseif now >= e.Next then
+				e.Next = now + e.Period
+				if e.Overlay.Visible then
+					e.Gradient.Offset = START
+					TweenService:Create(e.Gradient, SWEEP, { Offset = FINISH }):Play()
+				end
+			end
+		end
+		task.wait(0.25)
+	end
+	running = false
+end
+
+-- Puts a shine overlay on `face`, above its background and gloss; give it a ZIndex below the
+-- face's text. `corner` should match the face's rounding. Returns the overlay (hide it to pause).
+function Shine.Add(face: GuiObject, corner: UDim, zIndex: number, period: number?): Frame
+	local overlay = Instance.new("Frame")
+	overlay.Name = "Shine"
+	overlay.BackgroundColor3 = Color3.new(1, 1, 1)
+	overlay.BorderSizePixel = 0
+	overlay.Size = UDim2.fromScale(1, 1)
+	overlay.ZIndex = zIndex
+	local c = Instance.new("UICorner")
+	c.CornerRadius = corner
+	c.Parent = overlay
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 20
+	gradient.Transparency = BAND
+	gradient.Offset = FINISH
+	gradient.Parent = overlay
+	overlay.Parent = face
+	local p = period or 3.4
+	table.insert(entries, { Gradient = gradient, Overlay = overlay, Period = p, Next = os.clock() + rng:NextNumber(0.4, p) })
+	if not running then
+		running = true
+		task.spawn(loop)
+	end
+	return overlay
+end
+
+return Shine
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="117">
+              <Properties>
                 <string name="Name">Viewport</string>
                 <string name="Source"><![CDATA[--!strict
 -- ViewportFrame previews of part-built models (gacha machine, crates, flyers). Optional slow
@@ -17619,7 +18193,7 @@ return Viewport
               </Properties>
             </Item>
           </Item>
-          <Item class="ModuleScript" referent="115">
+          <Item class="ModuleScript" referent="118">
             <Properties>
               <string name="Name">Create</string>
               <string name="Source"><![CDATA[--!strict
@@ -17803,11 +18377,11 @@ return Create
 ]]></string>
             </Properties>
           </Item>
-          <Item class="Folder" referent="116">
+          <Item class="Folder" referent="119">
             <Properties>
               <string name="Name">Screens</string>
             </Properties>
-            <Item class="ModuleScript" referent="117">
+            <Item class="ModuleScript" referent="120">
               <Properties>
                 <string name="Name">AdminScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18039,7 +18613,7 @@ return AdminScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="118">
+            <Item class="ModuleScript" referent="121">
               <Properties>
                 <string name="Name">EggScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18075,6 +18649,7 @@ local Components = Client.UI.Components
 local Button = require(Components.Button)
 local MenuShell = require(Components.MenuShell)
 local Viewport = require(Components.Viewport)
+local Rays = require(Components.Rays)
 
 local EggScreen = {}
 
@@ -18348,26 +18923,7 @@ local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, w
 		Parent = card,
 	})
 	Create.Round(glow)
-	local rays: Frame = Create("Frame", {
-		Name = "Rays",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.fromOffset(width * 1.05, width * 1.05),
-		BackgroundTransparency = 1,
-		Parent = card,
-	})
-	for i = 0, 5 do
-		local ray: Frame = Create("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.new(1, 0, 0, 26),
-			Rotation = i * 30,
-			BackgroundColor3 = Theme.RarityLight(pet.Rarity),
-			BackgroundTransparency = 1,
-			Parent = rays,
-		})
-		Create.Corner(13, ray)
-	end
+	local rays = Rays.new(card, width * 1.2, 8, nil, UDim2.fromScale(0.5, 0.42))
 	local view: Frame = Create("Frame", {
 		Name = "View",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -18473,12 +19029,7 @@ local function play(payload: HatchPayload)
 		scale.Parent = c.View
 		TweenService:Create(scale, TweenInfo.new(0.45, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 		TweenService:Create(c.Glow, TweenInfo.new(0.4), { BackgroundTransparency = 0.55 }):Play()
-		for _, ray in c.Rays:GetChildren() do
-			if ray:IsA("Frame") then
-				TweenService:Create(ray, TweenInfo.new(0.4), { BackgroundTransparency = if Rarity.Order(c.Pet.Rarity) >= 4 then 0.45 else 0.75 }):Play()
-			end
-		end
-		TweenService:Create(c.Rays, TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), { Rotation = 360 }):Play()
+		c.Rays:Show(Theme.RarityLight(c.Pet.Rarity), if Rarity.Order(c.Pet.Rarity) >= 4 then 1 else 0.6)
 		TweenService:Create(c.Name, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 		TweenService:Create(c.Info, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 	end
@@ -18652,6 +19203,7 @@ function EggScreen.Init()
 		Position = UDim2.new(0, 12, 1, -94),
 		AnchorPoint = Vector2.new(0, 1),
 		Style = "Green",
+		Shine = true,
 		Text = "HATCH 1",
 		TextSize = 30,
 		OnClick = function()
@@ -18665,6 +19217,7 @@ function EggScreen.Init()
 		Position = UDim2.new(0, 12, 1, -12),
 		AnchorPoint = Vector2.new(0, 1),
 		Style = "Purple",
+		Shine = true,
 		Text = "HATCH 3",
 		TextSize = 30,
 		OnClick = function()
@@ -18721,7 +19274,7 @@ return EggScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="119">
+            <Item class="ModuleScript" referent="122">
               <Properties>
                 <string name="Name">EventBanner</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18816,7 +19369,7 @@ return EventBanner
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="120">
+            <Item class="ModuleScript" referent="123">
               <Properties>
                 <string name="Name">GiftsScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18994,6 +19547,7 @@ local function buildDaily(parent: Frame)
 		Position = UDim2.new(1, -14, 0, 8),
 		AnchorPoint = Vector2.new(1, 0),
 		Style = "Green",
+		Shine = true,
 		Text = "CLAIM",
 		TextSize = 26,
 		OnClick = function()
@@ -19145,7 +19699,7 @@ return GiftsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="121">
+            <Item class="ModuleScript" referent="124">
               <Properties>
                 <string name="Name">HUD</string>
                 <string name="Source"><![CDATA[--!strict
@@ -19189,6 +19743,7 @@ local HudThrowPanel = require(Components.HudThrowPanel)
 local HudFlightOverlay = require(Components.HudFlightOverlay)
 local HudLandingCard = require(Components.HudLandingCard)
 local HudFlightState = require(Components.HudFlightState)
+local RewardFly = require(Components.RewardFly)
 
 local HUD = {}
 
@@ -19451,18 +20006,19 @@ local function buildBottom(root: Frame): (HudLevelBar.LevelBar, { PackRef })
 			Text = "",
 			TextSize = 34,
 			Corner = 14,
+			Shine = true,
 			LayoutOrder = i,
 			OnClick = function()
 				purchase("Product", key)
 			end,
 		})
-		button.Label.Size = UDim2.new(1, -16, 0.56, 0)
-		button.Label.Position = UDim2.fromScale(0.5, 0.36)
+		button.Label.Size = UDim2.new(1, -16, 0.52, 0)
+		button.Label.Position = UDim2.fromScale(0.5, 0.33)
 		local price = Create.Text({
 			Name = "Price",
 			Text = "",
-			Size = UDim2.new(1, -16, 0.34, 0),
-			Position = UDim2.fromScale(0.5, 0.78),
+			Size = UDim2.new(1, -16, 0.38, 0),
+			Position = UDim2.fromScale(0.5, 0.77),
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Font = Theme.Fonts.Display,
 			TextSize = 22,
@@ -19474,12 +20030,9 @@ local function buildBottom(root: Frame): (HudLevelBar.LevelBar, { PackRef })
 		})
 		local rainbow: UIGradient? = nil
 		if spec.Rainbow then
-			local gradient = button.Instance:FindFirstChildOfClass("UIGradient")
-			if gradient then
-				gradient.Color = Theme.Rainbow
-				gradient.Rotation = 0
-				rainbow = gradient
-			end
+			button.Gradient.Color = Theme.Rainbow
+			button.Gradient.Rotation = 0
+			rainbow = button.Gradient
 		end
 		if not purchaseAvailable(product.Id) then
 			button:SetEnabled(false)
@@ -19503,6 +20056,7 @@ local function buildAuto(root: Frame, onClick: () -> ()): AutoRefs
 		Text = Theme.Icons.Auto .. " AUTO THROW",
 		TextSize = 36,
 		Corner = 16,
+		Shine = true,
 		ZIndex = 3,
 		OnClick = onClick,
 	})
@@ -19592,6 +20146,7 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 			Top = hex(if available then top else "#8C93A3"),
 			Bottom = hex(if available then bottom else "#5A6070"),
 			LayoutOrder = order,
+			Shine = available,
 			OnClick = function()
 				if available then
 					purchase(kind, key)
@@ -19602,11 +20157,10 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 		})
 		priceChip(tile.Instance, if available then Theme.Icons.Robux .. tostring(robux) else "SOON")
 		-- the price chip sits on the bottom edge: lift the icon and label above it
-		local iconText = tile.Instance:FindFirstChild("Icon") :: TextLabel?
-		local labelText = tile.Instance:FindFirstChild("Label") :: TextLabel?
-		if iconText and labelText then
-			iconText.Position = UDim2.fromScale(0.5, 0.33)
-			iconText.Size = UDim2.fromScale(0.6, 0.5)
+		tile.Icon.Position = UDim2.fromScale(0.5, 0.33)
+		tile.Icon.Size = UDim2.fromScale(0.6, 0.5)
+		local labelText = tile.Label
+		if labelText then
 			labelText.Position = UDim2.new(0.5, 0, 1, -15)
 			labelText.Size = UDim2.new(1, 4, 0.26, 0)
 		end
@@ -19700,6 +20254,12 @@ function HUD.Init()
 	HudThrowPanel.new(root, HUD.ContextBottom)
 	local overlay = HudFlightOverlay.new(root)
 	HudLandingCard.new(root)
+	-- Wins from a landing fly out of the landing card's "+N" line
+	local function landingWins(): GuiObject?
+		local card = root:FindFirstChild("LandingCard") :: Frame?
+		local line = if card and card.Visible then card:FindFirstChild("Wins") :: TextLabel? else nil
+		return line
+	end
 
 	-- AUTO THROW: buy prompt until owned, then an ON/OFF toggle (optimistic until the next sync)
 	local pendingAuto: boolean? = nil
@@ -19818,6 +20378,7 @@ function HUD.Init()
 			count += 1
 		end
 		menu.Gifts:SetBadge(count)
+		menu.Gifts:SetAttention(count > 0)
 		-- potion timers
 		local derived = if type(data.Derived) == "table" then data.Derived else {}
 		local now = (tonumber(derived.ServerTime) or os.time()) + since
@@ -19845,13 +20406,17 @@ function HUD.Init()
 		menu.Rebirth:SetGlow(progress >= 1)
 		menu.Admin.Instance.Visible = data.IsAdmin == true
 
-		-- counters
-		counters.Rebirths:SetText(Format.Commas(tonumber(data.Rebirths) or 0))
-		counters.Wins:SetText(Format.Short(tonumber(data.Wins) or 0))
+		-- counters (Wins earned fly into the counter, which then rolls up)
+		local wins = tonumber(data.Wins) or 0
+		local gained = if previous then wins - (tonumber(previous.Wins) or 0) else 0
+		counters.Rebirths:SetValue(tonumber(data.Rebirths) or 0, Format.Commas)
+		counters.Wins:SetValue(wins, Format.Short, if gained > 0 then RewardFly.ArriveTime else nil)
 		counters.Friends:SetText(string.format("Friends +%d%%", math.floor((tonumber(derived.FriendBoost) or 0) * 100 + 0.5)))
 		if previous then
-			if (tonumber(data.Wins) or 0) > (tonumber(previous.Wins) or 0) then
-				counters.Wins:Bump()
+			if gained > 0 then
+				RewardFly.Burst(Theme.Icons.Wins, landingWins(), counters.Wins.Badge, math.clamp(3 + math.floor(math.log10(gained + 1) * 2), 4, 10), function()
+					counters.Wins:Bump()
+				end)
 			end
 			if (tonumber(data.Rebirths) or 0) > (tonumber(previous.Rebirths) or 0) then
 				counters.Rebirths:Bump()
@@ -19906,6 +20471,7 @@ function HUD.Init()
 			animAcc = 0
 			local t = os.clock()
 			menu.Rebirth:Animate(t)
+			menu.Gifts:Animate(t)
 			levelBar:Animate(t)
 			for _, pack in packs do
 				local rainbow = pack.Rainbow
@@ -19931,7 +20497,7 @@ return HUD
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="122">
+            <Item class="ModuleScript" referent="125">
               <Properties>
                 <string name="Name">InventoryScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -20245,7 +20811,7 @@ return InventoryScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="123">
+            <Item class="ModuleScript" referent="126">
               <Properties>
                 <string name="Name">Notifications</string>
                 <string name="Source"><![CDATA[--!strict
@@ -20286,7 +20852,7 @@ return Notifications
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="124">
+            <Item class="ModuleScript" referent="127">
               <Properties>
                 <string name="Name">PetsScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -20783,7 +21349,7 @@ return PetsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="125">
+            <Item class="ModuleScript" referent="128">
               <Properties>
                 <string name="Name">RebirthScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -21404,6 +21970,7 @@ function RebirthScreen.Init()
 		Position = UDim2.fromScale(0.5, 1),
 		Size = UDim2.fromOffset(440, 82),
 		Style = "Pink",
+		Shine = true,
 		Text = Theme.Icons.Rebirth .. " REBIRTH",
 		TextSize = 44,
 		Corner = 16,
@@ -21440,7 +22007,7 @@ return RebirthScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="126">
+            <Item class="ModuleScript" referent="129">
               <Properties>
                 <string name="Name">SettingsScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -21654,7 +22221,7 @@ return SettingsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="127">
+            <Item class="ModuleScript" referent="130">
               <Properties>
                 <string name="Name">ShopScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -22255,7 +22822,7 @@ return ShopScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="128">
+            <Item class="ModuleScript" referent="131">
               <Properties>
                 <string name="Name">TrailsScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -22398,7 +22965,7 @@ return TrailsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="129">
+            <Item class="ModuleScript" referent="132">
               <Properties>
                 <string name="Name">WorldScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -22619,12 +23186,14 @@ return WorldScreen
               </Properties>
             </Item>
           </Item>
-          <Item class="ModuleScript" referent="130">
+          <Item class="ModuleScript" referent="133">
             <Properties>
               <string name="Name">Theme</string>
               <string name="Source"><![CDATA[--!strict
 -- Design tokens for the HUD and menus: bright, chunky "+1 simulator" style (ORIGINAL palette).
 -- Big rounded display font with heavy dark strokes, saturated gradient buttons, deep-blue panels.
+-- Like the genre's big simulators, every control is a raised 3D key: a gradient face with a thick
+-- dark outline sitting on a darker base (Theme.Depth), pressing sinks it, and calls to action glint.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Rarity = require(ReplicatedStorage:WaitForChild("Shared").Config.Rarity)
@@ -22686,6 +23255,26 @@ Theme.Buttons = {
 	Disabled = { Top = hex("#8C93A3"), Bottom = hex("#5A6070"), Border = hex("#2A2E38"), Text = hex("#DDE1E8") },
 } :: { [string]: ButtonStyle }
 
+-- Raised 3D controls: height of the darker base under button and tile faces (design px), the dark
+-- outline around them, and the soft drop shadow under panels.
+Theme.Depth = 6
+Theme.Outline = 3
+Theme.Shadow = { Color = hex("#040A24"), Transparency = 0.5, Offset = 10 }
+
+-- A colour multiplied toward black (f = 0.55 keeps 55 %), for bases and shadows.
+function Theme.Darken(c: Color3, f: number): Color3
+	return Color3.new(c.R * f, c.G * f, c.B * f)
+end
+
+-- Toast kinds: colour-coded pills (green good, red error, blue info, gold level, purple rare).
+Theme.Toasts = {
+	Info = { Style = "Blue", Icon = "💬" },
+	Success = { Style = "Green", Icon = "✅" },
+	Error = { Style = "Red", Icon = "⛔" },
+	Level = { Style = "Gold", Icon = "⭐" },
+	Rare = { Style = "Purple", Icon = "💎" },
+} :: { [string]: { Style: string, Icon: string } }
+
 -- Rainbow gradient (the "+1M" pack button, mythic items)
 Theme.Rainbow = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, hex("#FF4F4F")),
@@ -22742,11 +23331,11 @@ return Theme
             </Properties>
           </Item>
         </Item>
-        <Item class="Folder" referent="131">
+        <Item class="Folder" referent="134">
           <Properties>
             <string name="Name">VFX</string>
           </Properties>
-          <Item class="ModuleScript" referent="132">
+          <Item class="ModuleScript" referent="135">
             <Properties>
               <string name="Name">Effects</string>
               <string name="Source"><![CDATA[--!strict
@@ -23003,7 +23592,7 @@ return Effects
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="133">
+          <Item class="ModuleScript" referent="136">
             <Properties>
               <string name="Name">FlightFX</string>
               <string name="Source"><![CDATA[--!strict
@@ -23342,7 +23931,7 @@ return FlightFX
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="134">
+          <Item class="ModuleScript" referent="137">
             <Properties>
               <string name="Name">ThermalRings</string>
               <string name="Source"><![CDATA[--!strict
@@ -23458,7 +24047,7 @@ return ThermalRings
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="135">
+  <Item class="Workspace" referent="138">
     <Properties>
       <string name="Name">Workspace</string>
       <float name="Gravity">196.2</float>

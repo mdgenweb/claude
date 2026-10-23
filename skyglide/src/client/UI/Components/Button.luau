@@ -1,11 +1,17 @@
 --!strict
--- Chunky reference-style button: vertical gradient, dark border, bottom shade, stroked label.
--- Feedback: hover grow, press squash, disabled grey, click/hover sounds.
+-- Chunky simulator-style button: a gradient face with a thick dark outline, a gloss highlight and
+-- a stroked label, raised on a darker base (Theme.Depth) like a 3D key. Hover grows it, pressing
+-- sinks the face into the base, disabled turns it grey; click/hover sounds. Calls to action can
+-- carry a glint sweep (Shine = true).
+--
+-- Instance is the transparent hit box (face + base); Content is the face's content frame (it
+-- moves with the face), so extra labels go there.
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
+local Shine = require(script.Parent.Shine)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type ButtonProps = {
@@ -21,12 +27,16 @@ export type ButtonProps = {
 	LayoutOrder: number?,
 	ZIndex: number?,
 	Corner: number?,
+	Depth: number?, -- base height under the face (default Theme.Depth)
+	Shine: boolean?, -- glint sweep for calls to action
 	OnClick: (() -> ())?,
 	Silent: boolean?,
 }
 
 export type Button = {
 	Instance: TextButton,
+	Face: Frame,
+	Gradient: UIGradient, -- the face gradient
 	Label: TextLabel,
 	Content: Frame,
 	SetText: (Button, string) -> (),
@@ -39,61 +49,74 @@ export type Button = {
 
 local Button = {}
 
-local QUICK = TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local QUICK = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local MUTED: { [string]: boolean } = { Grey = true, Dark = true, Disabled = true }
 
 function Button.new(props: ButtonProps): Button
 	local styleName = props.Style or "Grey"
 	local style = Theme.Buttons[styleName] or Theme.Buttons.Grey
-	local corner = props.Corner or 8
+	local corner = props.Corner or 10
+	local depth = props.Depth or Theme.Depth
+	local z = props.ZIndex or 1
 
 	local root: TextButton = Create("TextButton", {
 		Name = props.Name or "Button",
 		Size = props.Size,
 		Position = props.Position or UDim2.new(),
 		AnchorPoint = props.AnchorPoint or Vector2.zero,
-		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
 		LayoutOrder = props.LayoutOrder or 0,
-		ZIndex = props.ZIndex or 1,
+		ZIndex = z,
 		Selectable = true,
 	})
-	Create.Corner(corner, root)
-	local gradient = Create.Gradient(root, style.Top, style.Bottom, 90)
-	local border = Create.Stroke(root, style.Border, 2.5, 0, true)
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
+
+	-- darker base: shows as a lip under the face
+	local base: Frame = Create("Frame", {
+		Name = "Base",
+		BackgroundColor3 = Theme.Darken(style.Bottom, 0.55),
+		Position = UDim2.fromOffset(0, depth),
+		Size = UDim2.new(1, 0, 1, -depth),
+		ZIndex = z,
+		Parent = root,
+	})
+	Create.Corner(corner, base)
+	local baseStroke = Create.Stroke(base, style.Border, Theme.Outline, 0, true)
+
+	local face: Frame = Create("Frame", {
+		Name = "Face",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.new(1, 0, 1, -depth),
+		ZIndex = z + 1,
+		Parent = root,
+	})
+	Create.Corner(corner, face)
+	local gradient = Create.Gradient(face, style.Top, style.Bottom, 90)
+	local border = Create.Stroke(face, style.Border, Theme.Outline, 0, true)
 
 	-- glossy top highlight
 	local gloss = Create("Frame", {
 		Name = "Gloss",
 		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.82,
-		Size = UDim2.new(1, -8, 0.42, 0),
+		BackgroundTransparency = 0.8,
+		Size = UDim2.new(1, -8, 0.44, 0),
 		Position = UDim2.fromOffset(4, 3),
-		ZIndex = root.ZIndex,
-		Parent = root,
+		ZIndex = z + 1,
+		Parent = face,
 	})
-	Create.Corner(corner - 2, gloss)
-	-- bottom shade (3D lip)
-	local shade = Create("Frame", {
-		Name = "Shade",
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.78,
-		Size = UDim2.new(1, 0, 0, 5),
-		Position = UDim2.new(0, 0, 1, -5),
-		ZIndex = root.ZIndex,
-		Parent = root,
-	})
-	Create.Corner(corner, shade)
+	Create.Corner(math.max(corner - 2, 0), gloss)
+	local shine = if props.Shine then Shine.Add(face, UDim.new(0, corner), z + 2) else nil
 
 	local content: Frame = Create("Frame", {
 		Name = "Content",
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
-		ZIndex = root.ZIndex + 1,
-		Parent = root,
+		ZIndex = z + 3,
+		Parent = face,
 	})
 	local label = Create.Text({
 		Name = "Label",
@@ -105,13 +128,15 @@ function Button.new(props: ButtonProps): Button
 		TextSize = props.TextSize or 28,
 		Scaled = true,
 		Color = style.Text,
-		Stroke = 2.2,
-		ZIndex = root.ZIndex + 2,
+		Stroke = 2.6,
+		ZIndex = z + 2,
 		Parent = content,
 	})
 
 	local self = {
 		Instance = root,
+		Face = face,
+		Gradient = gradient,
 		Label = label,
 		Content = content,
 		Enabled = true,
@@ -122,8 +147,14 @@ function Button.new(props: ButtonProps): Button
 		local s = Theme.Buttons[name] or Theme.Buttons.Grey
 		gradient.Color = ColorSequence.new(s.Top, s.Bottom)
 		border.Color = s.Border
+		baseStroke.Color = s.Border
+		base.BackgroundColor3 = Theme.Darken(s.Bottom, 0.55)
 		label.TextColor3 = s.Text
+		if shine then
+			shine.Visible = not MUTED[name] -- no glint on grey / disabled keys
+		end
 	end
+	setStyle(styleName)
 
 	function self.SetText(_: any, text: string)
 		label.Text = text
@@ -144,6 +175,8 @@ function Button.new(props: ButtonProps): Button
 		root:Destroy()
 	end
 
+	local UP = UDim2.new()
+	local DOWN = UDim2.fromOffset(0, depth - 1)
 	root.MouseEnter:Connect(function()
 		if self.Enabled then
 			TweenService:Create(scale, QUICK, { Scale = 1.05 }):Play()
@@ -154,13 +187,16 @@ function Button.new(props: ButtonProps): Button
 	end)
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
+		TweenService:Create(face, QUICK, { Position = UP }):Play()
 	end)
 	root.MouseButton1Down:Connect(function()
 		if self.Enabled then
-			TweenService:Create(scale, QUICK, { Scale = 0.94 }):Play()
+			TweenService:Create(face, QUICK, { Position = DOWN }):Play()
+			TweenService:Create(scale, QUICK, { Scale = 0.97 }):Play()
 		end
 	end)
 	root.MouseButton1Up:Connect(function()
+		TweenService:Create(face, SPRING, { Position = UP }):Play()
 		TweenService:Create(scale, SPRING, { Scale = 1 }):Play()
 	end)
 	root.Activated:Connect(function()
@@ -180,7 +216,8 @@ function Button.new(props: ButtonProps): Button
 	return self :: Button
 end
 
--- Square close button in the reference style (light grey block, heavy stroked X).
+-- Close button in the simulator style: red raised key with a heavy white X, breaking out of the
+-- panel's top-right corner.
 function Button.Close(parent: Instance, onClick: () -> (), position: UDim2?, size: number?): Button
 	local s = size or 64
 	local b = Button.new({
@@ -189,13 +226,14 @@ function Button.Close(parent: Instance, onClick: () -> (), position: UDim2?, siz
 		Size = UDim2.fromOffset(s, s),
 		Position = position or UDim2.new(1, -s * 0.35, 0, -s * 0.35),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Style = "Grey",
+		Style = "Red",
 		Text = "X",
 		Font = Theme.Fonts.Display,
+		Corner = 14,
 		ZIndex = 20,
 		OnClick = onClick,
 	})
-	b.Label.Size = UDim2.fromScale(0.62, 0.62)
+	b.Label.Size = UDim2.fromScale(0.6, 0.6)
 	return b
 end
 

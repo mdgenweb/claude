@@ -196,6 +196,15 @@ Clients update labels and prompt text locally from their own data (LOCKED / UNLO
   * Top-centre: a red "AUTO THROW" button showing "ONLY R$10", or ON/OFF once owned. During a flight, a big distance counter "144 m" appears under it.
   * Right: offer tiles for Starter Pack, 2x Skill and 2x Wins.
   * Contextual: a big green THROW button and launch meter while in the Throw Zone; a pad panel ("UNLOCKED 1x SKILL", AUTO toggle, TRAIN button) while on a pad.
+* **Visual style (simulator UI kit, original art):** the look follows the conventions of the genre's big simulators. It is built entirely from code: frames, gradients, strokes and emoji, with no images, icons or asset ids taken from any game.
+  * **Raised keys:** every button, tile and toast is a gradient face with a thick dark outline (`Theme.Outline`) and a gloss highlight. It sits on a darker base `Theme.Depth` px tall. Pressing sinks the face into the base, and hover grows it. Grey, dark and disabled keys are flat colours.
+  * **Glint:** calls to action carry a shine sweep (`Components/Shine`): a white overlay whose UIGradient is transparent except for one diagonal band. Its Offset is tweened across every ~3.4 s from one shared scheduler, at random phases. These are the hatch, rebirth, claim and card buttons, AUTO THROW, the Skill packs and the offer tiles. Muted styles hide the glint.
+  * **Menus:** a solid accent header bar with a gloss and a dark divider, a red close key, and a soft drop shadow (`Theme.Shadow`).
+  * **Feedback:**
+    * Wins earned burst out of the landing card and fly into the Wins counter (`Components/RewardFly`, pooled, coin tick on arrival). The counter then pops and rolls up to the new total (`HudStatPill:SetValue`).
+    * The Gifts tile shakes every few seconds while a reward is waiting.
+    * Toasts are colour-coded raised pills with an icon chip (`Theme.Toasts`): green success, red error, blue info, gold level, purple rare.
+    * A new best or a special throw lights a spinning sunburst behind the landing card (`Components/Rays`), and the hatch reveal uses the same rays in the pet's rarity colour.
 * **Scaling and short screens:**
   * Layouts are designed at 1800×920 and scaled with one UIScale per layer, with a ×1.22 boost on touch screens.
   * On short screens (design height under 760, which means phones in landscape):

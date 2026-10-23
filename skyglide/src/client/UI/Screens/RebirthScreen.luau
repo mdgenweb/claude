@@ -616,6 +616,7 @@ function RebirthScreen.Init()
 		Position = UDim2.fromScale(0.5, 1),
 		Size = UDim2.fromOffset(440, 82),
 		Style = "Pink",
+		Shine = true,
 		Text = Theme.Icons.Rebirth .. " REBIRTH",
 		TextSize = 44,
 		Corner = 16,

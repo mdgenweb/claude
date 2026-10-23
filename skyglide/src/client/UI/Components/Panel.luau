@@ -1,6 +1,6 @@
 --!strict
--- Modal panel in the reference style: dark navy body, thin bright border, big display-font
--- title, close button breaking out of the top-right corner, pop-in animation.
+-- Modal panel in the reference style: dark navy body on a soft drop shadow, thin bright border,
+-- big display-font title, red close key breaking out of the top-right corner, pop-in animation.
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -83,11 +83,22 @@ function Panel.new(props: PanelProps): Panel
 		end
 		return math.min(byWidth, screen.Y * 0.95 / (height * s))
 	end
+	local shadow: Frame = Create("Frame", {
+		Name = "Shadow",
+		BackgroundColor3 = Theme.Shadow.Color,
+		BackgroundTransparency = Theme.Shadow.Transparency,
+		Position = UDim2.fromOffset(0, Theme.Shadow.Offset),
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 0,
+		Parent = holder,
+	})
+	Create.Corner(4, shadow)
 	local body: Frame = Create("Frame", {
 		Name = "Body",
 		BackgroundColor3 = Theme.Colors.Panel,
 		BackgroundTransparency = 0.04,
 		Size = UDim2.fromScale(1, 1),
+		ZIndex = 1,
 		Parent = holder,
 	})
 	Create.Corner(4, body)

@@ -44,6 +44,8 @@ local State = MODULE(CLIENT .. "Controllers/StateController")
 local UI = MODULE(CLIENT .. "Controllers/UIController")
 local DataService = MODULE(SERVER .. "Services/DataService")
 local playerGui = LOCAL_PLAYER:FindFirstChild("PlayerGui")
+local Format = MODULE("ReplicatedStorage/Shared/Util/Format")
+local Theme = MODULE(CLIENT .. "UI/Theme")
 
 local function profile()
 	return DataService.Get(LOCAL_PLAYER)
@@ -59,12 +61,24 @@ for _, name in { "Shop", "Rebirth", "Pets", "Trails", "Inventory", "Gifts" } do
 	check(BUTTON(name) ~= nil, "left menu button visible: " .. name)
 end
 
+local shopTile = BUTTON("Shop")
+check(shopTile ~= nil and shopTile:FindFirstChild("Base") ~= nil and shopTile:FindFirstChild("Face") ~= nil, "menu tiles are raised 3D keys (a face on a darker base)")
+
 check(HAS_TEXT(playerGui, "1x SKILL pad"), "tutorial points at the 1x pad")
 STEP(3.5)
 check(UI.Get("Gifts"):IsOpen(), "the Gifts menu opens by itself when the daily reward is ready")
 CLICK(BUTTON("Close"))
 STEP(0.5)
 check(not UI.AnyMenuOpen(), "the X button closes it")
+do
+	local giftsIcon = BUTTON("Gifts"):FindFirstChild("Icon", true)
+	local swing = 0
+	for _ = 1, 60 do
+		STEP(0.05)
+		swing = math.max(swing, math.abs(giftsIcon.Rotation or 0))
+	end
+	check(swing > 3, "the Gifts tile wiggles while a reward is waiting")
+end
 
 local UIS = FAKE_GAME:GetService("UserInputService")
 local function input(kind, key)
@@ -222,7 +236,14 @@ do
 	local card = playerGui:FindFirstChild("LandingCard", true)
 	check(card ~= nil and SHOWN(card), "result card shows")
 	check(card ~= nil and string.sub(card:FindFirstChild("Wins", true).Text, 1, 1) == "+", "result card lists the Wins earned")
+	local rays = playerGui:FindFirstChild("LandingCardRays", true)
+	check(landed ~= nil and landed.NewBest == true and rays ~= nil and SHOWN(rays), "a new best lights the sunburst behind the card")
+	local fx = playerGui:FindFirstChild("FxRewards", true)
+	check(fx ~= nil and #fx:GetChildren() > 0, "the Wins earned fly into the Wins counter")
 	STEP(5)
+	local winsValue = playerGui:FindFirstChild("Counters", true):FindFirstChild("Wins"):FindFirstChild("Value")
+	check(winsValue.Text == Format.Short(profile().Wins), "the Wins counter rolls up to the new total (" .. winsValue.Text .. ")")
+	check(rays ~= nil and not SHOWN(rays), "the sunburst goes with the card")
 	check(FAKE_GAME:GetService("Workspace").CurrentCamera.CameraType == Enum.CameraType.Custom, "camera returns to the player")
 end
 
@@ -374,6 +395,14 @@ do
 	CLICK(BUTTON("Redeem"))
 	settle(1)
 	check(profile().Wins == winsAfterCode, "a code works only once")
+	local errorToast = false
+	for _, toast in playerGui:FindFirstChild("SkyGlide_Toasts"):FindFirstChild("Root"):FindFirstChild("Toasts"):GetChildren() do
+		local icon = toast:FindFirstChild("Icon", true)
+		if icon and icon.Text == Theme.Toasts.Error.Icon then
+			errorToast = true
+		end
+	end
+	check(errorToast, "the refused code shows a red error toast")
 	closeMenus()
 	local multBefore = State.Data.Derived.SkillMultiplier
 	menu("Inventory")

@@ -99,7 +99,7 @@ It then plays a whole session:
 
 Any error inside a handler, tween, render step or scheduled task fails the spec.
 
-### `playthrough.spec.luau` (end to end, 165 checks)
+### `playthrough.spec.luau` (end to end, 172 checks)
 
 Boots the **real server** (`Main.server.luau`) and the **real client** (`Main.client.luau`) in one VM. They talk through loopback remotes with 60 ms of latency each way, and the player only acts through the GUI: buttons, proximity prompts, keys, touch and gamepad. `tests/_servermock.luau` supplies:
 
@@ -113,6 +113,14 @@ It plays the Studio checklist below, step by step. Each checklist step names the
 
 * **16. A second player:** the Friend Boost, their pets and their flight on our screen, the global leaderboards (OrderedDataStores), and leaving.
 * **17. An exploiter:** admin tools are refused for normal players, out-of-order intents grant nothing, and every remote is fuzzed with NaN, infinities, huge strings, nested tables and Instances. There are no handler errors, numbers stay finite, and the profile still saves.
+
+It also checks the UI feedback:
+
+* tiles are raised keys;
+* the Gifts tile shakes while a reward waits;
+* Wins fly into the counter, which rolls up to the server's total;
+* a new best lights the sunburst;
+* a refused code shows a red toast.
 
 Any client error, network-rule violation or unexpected server warning fails the spec.
 
@@ -131,11 +139,18 @@ python3 tests/ui_render.py --luau /path/to/luau   # PNGs and report.txt in tests
 * small phone 667×375;
 * console (ten-foot UI).
 
-The script lays the dumps out like Roblox does: UDim2, AnchorPoint, UIScale, UIPadding, list and grid layouts, aspect constraints, text-size constraints, ScrollingFrame canvases, clipping, ZIndex and safe-area insets. It draws a PNG for each state and device, and reports:
+The script lays the dumps out like Roblox does: UDim2, AnchorPoint, UIScale, UIPadding, list and grid layouts, aspect constraints, text-size constraints, ScrollingFrame canvases, clipping, ZIndex and safe-area insets.
+
+It draws a PNG for each state and device. The drawing covers:
+
+* UIGradients with colour and transparency keypoints, Rotation and Offset (so shine bands and fading ribbons look as they do in game);
+* rotated objects together with their descendants (sunburst rays, tilted badges).
+
+It reports:
 
 * **offscreen:** a button that is not fully on screen;
 * **overlap:** buttons on the same layer that cover each other;
-* **collide:** HUD groups that run into each other;
+* **collide:** HUD groups that run into each other. The landing card, its sunburst and `Fx*` effect frames are left out because they only show briefly;
 * **small-touch:** a touch target under 28 px, or under 32 px and narrower than 48 px;
 * **tiny-text:** text under 9 px;
 * **cut-off:** fixed-size text wider than its box.
@@ -187,7 +202,7 @@ Every step below is also played automatically by `playthrough.spec.luau` (step n
 2. **Train.** Stand on the 1x SKILL pad and tap (or press TRAIN). "+N" popups appear and Skill rises. Toggle AUTO. The 4x pad shows LOCKED (2 rebirths).
 3. **Throw.** Walk into the THROW ZONE and hold THROW. The meter sweeps; release in the gold band for PERFECT LAUNCH. The camera follows the glider down the channel with a distance counter.
 4. **Rings.** Thermal rings approach. "TAP!" pulses and tapping on time shows PERFECT (x2). The chime rises with each ring.
-5. **Landing.** The glider splashes in a zone (the banner names it). The result card shows Wins, Skill and XP, and goes away when you start the next throw. The camera returns.
+5. **Landing.** The glider splashes in a zone (the banner names it). The result card shows Wins, Skill and XP, and goes away when you start the next throw. Trophies fly into the Wins counter, which rolls up. A new best spins a sunburst behind the card. The camera returns.
 6. **Shop.** Buy the Notebook Glider (2 Wins) at the pedestals. It shows EQUIPPED, the held glider changes, and Items lists it.
 7. **Eggs.** Hatch a Beach Egg (50 Wins). The reveal plays and the pet follows you. Check that the Pets menu equip and lock work.
 8. **Gifts.** Claim the 1-minute gift and the daily reward. The badge count updates.
@@ -213,6 +228,6 @@ The code type-checks in strict mode, and misspelled Roblox properties are caught
 The game has **not** been run in a Roblox client from this environment. These still need a person in Studio or on a device:
 
 * **3D look:** materials, lighting, particles, the glider and pet models. The renders above show layout, not Roblox's renderer; fonts and emoji differ.
-* **Feel:** camera feel, the meter and tap timing feel, sound mix (built-in `rbxasset://` sounds).
+* **Feel:** camera feel, the meter and tap timing feel, sound mix (built-in `rbxasset://` sounds), and the timing of the UI motion: press-down, shine sweeps, reward fly-in, count-up. The renders show one frame of each.
 * **Hardware:** real device frame rate and memory, especially low-end phones (4 worlds of about 2–2.4K parts each are loaded at once).
 * **Live services:** real Robux purchases with your own pass and product ids, and DataStore budgets and throttling on live servers.

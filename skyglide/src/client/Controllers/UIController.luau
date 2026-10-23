@@ -147,13 +147,8 @@ function UIController.CloseMenus()
 	end
 end
 
-local TOAST_COLORS = {
-	Error = Color3.fromHex("#FF5A6A"),
-	Info = Color3.fromHex("#9FD8FF"),
-	Success = Color3.fromHex("#7CFF6B"),
-	Level = Color3.fromHex("#7FD8FF"),
-	Rare = Color3.fromHex("#FF8FF0"),
-}
+-- Toasts: colour-coded raised pills (Theme.Toasts) with an icon chip, popping in under the top bar.
+local TOAST_W, TOAST_H = 600, 60
 
 function UIController.Toast(text: string, kind: string?)
 	if not toastHolder then
@@ -165,26 +160,67 @@ function UIController.Toast(text: string, kind: string?)
 	elseif k == "Level" or k == "Success" or k == "Rare" then
 		AudioController.Play("Reward", nil, 0.5)
 	end
+	local spec = Theme.Toasts[k] or Theme.Toasts.Info
+	local style = Theme.Buttons[spec.Style] or Theme.Buttons.Blue
 	local pill: Frame = Create("Frame", {
 		Name = "Toast",
-		BackgroundColor3 = Theme.Colors.PanelDeep,
-		BackgroundTransparency = 0.08,
-		Size = UDim2.fromOffset(560, 50),
+		BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(TOAST_W, TOAST_H),
 		Parent = toastHolder,
 	})
-	Create.Corner(10, pill)
-	Create.Stroke(pill, TOAST_COLORS[k] or TOAST_COLORS.Info, 2, 0, true)
+	local base: Frame = Create("Frame", {
+		Name = "Base",
+		BackgroundColor3 = Theme.Darken(style.Bottom, 0.55),
+		Position = UDim2.fromOffset(0, 5),
+		Size = UDim2.new(1, 0, 1, -5),
+		Parent = pill,
+	})
+	Create.Corner(16, base)
+	Create.Stroke(base, style.Border, Theme.Outline, 0, true)
+	local face: Frame = Create("Frame", {
+		Name = "Face",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.new(1, 0, 1, -5),
+		ZIndex = 2,
+		Parent = pill,
+	})
+	Create.Corner(16, face)
+	Create.Gradient(face, style.Top, style.Bottom, 90)
+	Create.Stroke(face, style.Border, Theme.Outline, 0, true)
+	local chip: Frame = Create("Frame", {
+		Name = "IconChip",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 6, 0.5, 0),
+		Size = UDim2.fromOffset(TOAST_H - 15, TOAST_H - 15),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.15,
+		Parent = face,
+	})
+	Create.Round(chip)
+	Create.Stroke(chip, style.Border, 2.5, 0, true)
 	Create.Text({
-		Text = text,
-		Size = UDim2.new(1, -24, 1, -8),
+		Name = "Icon",
+		Text = spec.Icon,
+		Size = UDim2.fromScale(0.7, 0.7),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Font = Theme.Fonts.Body,
-		TextSize = 28,
+		Font = Theme.Fonts.Display,
+		TextSize = 30,
 		Scaled = true,
-		Color = TOAST_COLORS[k] or Color3.new(1, 1, 1),
-		Stroke = 1.5,
-		Parent = pill,
+		Parent = chip,
+	})
+	Create.Text({
+		Name = "Text",
+		Text = text,
+		Size = UDim2.new(1, -(TOAST_H + 10), 1, -12),
+		Position = UDim2.new(0, TOAST_H - 2, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Font = Theme.Fonts.Display,
+		TextSize = 30,
+		Scaled = true,
+		Color = style.Text,
+		Stroke = 2.6,
+		Parent = face,
 	})
 	local scale = Instance.new("UIScale")
 	scale.Scale = 0.6
@@ -229,7 +265,7 @@ function UIController.Init()
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 176), -- below AUTO THROW and the tutorial bar
-		Size = UDim2.fromOffset(560, 400),
+		Size = UDim2.fromOffset(TOAST_W, 400),
 		Parent = layers.Toasts,
 	})
 	Create.List(toastHolder, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)

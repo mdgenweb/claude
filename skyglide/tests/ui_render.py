@@ -4,7 +4,8 @@
 tests/ui_layout.luau boots the real client and server (headless mocks) and dumps the PlayerGui
 tree in every screen state on every device. This script lays those dumps out the way Roblox does
 (UDim2 + AnchorPoint, UIScale, UIPadding, UIListLayout, UIGridLayout, UIAspectRatioConstraint,
-ScrollingFrame canvases, ClipsDescendants, ZIndex, safe-area insets), draws PNGs and reports:
+ScrollingFrame canvases, ClipsDescendants, ZIndex, safe-area insets), draws PNGs (gradients with
+colour/transparency keypoints, Rotation and Offset; rotated subtrees) and reports:
 
   * offscreen   - a visible button that is not fully on the screen
   * overlap     - two visible buttons on the same layer covering each other
@@ -19,11 +20,13 @@ Exit code 1 when anything is reported.
 """
 import argparse
 import json
+import math
 import pathlib
 import re
 import subprocess
 import sys
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -399,76 +402,129 @@ def draw_dump(dump, laid, path, nodes_by_id):
     for side, x0 in (("left", 0), ("right", W - meta["right"])):
         if meta[side]:
             base.rectangle((x0, 0, x0 + meta[side], H), fill=(20, 20, 20, 255))
-    ordered = sorted(laid, key=lambda n: n.z)
-    for node in ordered:
-        p = node.props
-        clip = node.clip
-        vis = intersect((node.x, node.y, node.w, node.h), clip)
-        if area(vis) <= 0:
-            continue
-        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        d = ImageDraw.Draw(layer)
-        mods = modifiers(dump, node.id)
-        radius = 0
-        if "UICorner" in mods:
-            cs, co = udim(mods["UICorner"].get("CornerRadius"), (0, 8))
-            radius = max(0, min(node.w, node.h) * cs + co * node.scale)
-            radius = min(radius, min(node.w, node.h) / 2)
-        box = (node.x, node.y, node.x + node.w, node.y + node.h)
-        bt = num(p.get("BackgroundTransparency"), 0)
-        if node.cls in ("ImageLabel", "ImageButton") and bt >= 1:
-            pass
-        if bt < 1 and node.w >= 1 and node.h >= 1:
-            fill = color(p.get("BackgroundColor3"))
-            grad = mods.get("UIGradient")
-            if grad and grad.get("Enabled") is not False and isinstance(grad.get("Color"), dict):
-                args = grad["Color"].get("a", [])
-                cols = [color(a) for a in args if isinstance(a, dict) and a.get("_t") == "C3"]
-                if len(cols) >= 2:
-                    g = gradient_image(int(node.w) + 1, int(node.h) + 1, cols[0], cols[1], num(grad.get("Rotation"), 0), fill, bt)
-                    mask = Image.new("L", g.size, 0)
-                    ImageDraw.Draw(mask).rounded_rectangle((0, 0, g.size[0] - 1, g.size[1] - 1), radius=radius, fill=255)
-                    layer.paste(g, (int(node.x), int(node.y)), mask)
-                else:
-                    d.rounded_rectangle(box, radius=radius, fill=rgba(fill, bt))
-            else:
-                d.rounded_rectangle(box, radius=radius, fill=rgba(fill, bt))
-        if node.cls in ("ImageLabel", "ImageButton") and num(p.get("ImageTransparency"), 0) < 1 and p.get("Image"):
-            d.rounded_rectangle(box, radius=radius, outline=(255, 255, 255, 120), width=1)
-        if node.cls == "ViewportFrame":
-            d.rounded_rectangle(box, radius=radius, outline=(255, 255, 255, 90), width=2)
-            d.text((node.x + 4, node.y + 4), "3D", fill=(255, 255, 255, 140), font=font(max(8, min(18, node.h / 5))))
-        stroke = mods.get("UIStroke")
-        if stroke and enum(stroke.get("ApplyStrokeMode"), "Contextual") == "Border" and stroke.get("Enabled") is not False:
-            t = max(1, int(round(num(stroke.get("Thickness"), 1) * node.scale)))
-            d.rounded_rectangle(box, radius=radius, outline=rgba(color(stroke.get("Color"), (0, 0, 0)), num(stroke.get("Transparency"), 0)), width=t)
-        if node.cls in TEXT_CLASSES:
-            draw_text(d, layer, node, mods)
-        if clip != (0, 0, W, H):
-            mask = Image.new("L", (W, H), 0)
-            ImageDraw.Draw(mask).rectangle((clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]), fill=255)
-            layer.putalpha(Image.composite(layer.getchannel("A"), Image.new("L", (W, H), 0), mask))
-        img.alpha_composite(layer)
+    draw_nodes(img, dump, sorted(laid, key=lambda n: n.z), W, H, None)
     img.convert("RGB").save(path)
 
 
-def gradient_image(w, h, c0, c1, rotation, tint, transparency):
-    g = Image.new("RGBA", (w, h))
-    px = g.load()
-    vertical = 45 < (rotation % 180) < 135
-    flip = 90 < (rotation % 360) < 270
-    for i in range(h if vertical else w):
-        t = i / max(1, (h if vertical else w) - 1)
-        if flip:
-            t = 1 - t
-        c = tuple(int((c0[j] + (c1[j] - c0[j]) * t) * tint[j] / 255) for j in range(3)) + (int(255 * (1 - transparency)),)
-        if vertical:
-            for x in range(w):
-                px[x, i] = c
+def draw_nodes(img, dump, ordered, W, H, unrotated):
+    """Draws nodes in paint order. A rotated GuiObject is drawn with its whole subtree into its own
+    layer, which is then turned about the object's centre (Roblox rotates descendants with it)."""
+    i = 0
+    while i < len(ordered):
+        node = ordered[i]
+        rot = num(node.props.get("Rotation"), 0) % 360
+        if rot and node.id != unrotated:
+            j = i + 1
+            while j < len(ordered) and ordered[j].z[:len(node.z)] == node.z:
+                j += 1
+            sub = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            draw_nodes(sub, dump, ordered[i:j], W, H, node.id)
+            cx, cy = node.x + node.w / 2, node.y + node.h / 2
+            img.alpha_composite(sub.rotate(-rot, resample=Image.BICUBIC, center=(cx, cy)))
+            i = j
+            continue
+        draw_node(img, dump, node, W, H)
+        i += 1
+
+
+def draw_node(img, dump, node, W, H):
+    p = node.props
+    clip = node.clip
+    vis = intersect((node.x, node.y, node.w, node.h), clip)
+    if area(vis) <= 0:
+        return
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    mods = modifiers(dump, node.id)
+    radius = 0
+    if "UICorner" in mods:
+        cs, co = udim(mods["UICorner"].get("CornerRadius"), (0, 8))
+        radius = max(0, min(node.w, node.h) * cs + co * node.scale)
+        radius = min(radius, min(node.w, node.h) / 2)
+    box = (node.x, node.y, node.x + node.w, node.y + node.h)
+    bt = num(p.get("BackgroundTransparency"), 0)
+    if bt < 1 and node.w >= 1 and node.h >= 1:
+        fill = color(p.get("BackgroundColor3"))
+        grad = mods.get("UIGradient")
+        if grad and grad.get("Enabled") is not False:
+            g = gradient_image(int(node.w) + 1, int(node.h) + 1, grad, fill, bt)
+            mask = Image.new("L", g.size, 0)
+            ImageDraw.Draw(mask).rounded_rectangle((0, 0, g.size[0] - 1, g.size[1] - 1), radius=radius, fill=255)
+            g.putalpha(Image.composite(g.getchannel("A"), Image.new("L", g.size, 0), mask))
+            layer.alpha_composite(g, (int(node.x), int(node.y)))
         else:
-            for y in range(h):
-                px[i, y] = c
-    return g
+            d.rounded_rectangle(box, radius=radius, fill=rgba(fill, bt))
+    if node.cls in ("ImageLabel", "ImageButton") and num(p.get("ImageTransparency"), 0) < 1 and p.get("Image"):
+        d.rounded_rectangle(box, radius=radius, outline=(255, 255, 255, 120), width=1)
+    if node.cls == "ViewportFrame":
+        d.rounded_rectangle(box, radius=radius, outline=(255, 255, 255, 90), width=2)
+        d.text((node.x + 4, node.y + 4), "3D", fill=(255, 255, 255, 140), font=font(max(8, min(18, node.h / 5))))
+    stroke = mods.get("UIStroke")
+    if stroke and enum(stroke.get("ApplyStrokeMode"), "Contextual") == "Border" and stroke.get("Enabled") is not False:
+        t = max(1, int(round(num(stroke.get("Thickness"), 1) * node.scale)))
+        d.rounded_rectangle(box, radius=radius, outline=rgba(color(stroke.get("Color"), (0, 0, 0)), num(stroke.get("Transparency"), 0)), width=t)
+    if node.cls in TEXT_CLASSES:
+        draw_text(d, layer, node, mods)
+    if clip != (0, 0, W, H):
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).rectangle((clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]), fill=255)
+        layer.putalpha(Image.composite(layer.getchannel("A"), Image.new("L", (W, H), 0), mask))
+    img.alpha_composite(layer)
+
+
+def color_stops(seq):
+    """ColorSequence dump -> [(time, (r, g, b))]: ColorSequence.new(c), new(c0, c1) or new({keypoints})."""
+    if not isinstance(seq, dict):
+        return None
+    a = seq.get("a", [])
+    if len(a) == 1 and isinstance(a[0], list):
+        stops = []
+        for kp in a[0]:
+            ka = kp.get("a", []) if isinstance(kp, dict) else []
+            if len(ka) >= 2:
+                stops.append((num(ka[0]), color(ka[1])))
+        return sorted(stops) or None
+    cols = [color(x) for x in a if isinstance(x, dict) and x.get("_t") == "C3"]
+    if cols:
+        return [(0, cols[0]), (1, cols[-1])]
+    return None
+
+
+def number_stops(seq):
+    """NumberSequence dump -> [(time, value)]: NumberSequence.new(n), new(n0, n1) or new({keypoints})."""
+    if not isinstance(seq, dict):
+        return None
+    a = seq.get("a", [])
+    if len(a) == 1 and isinstance(a[0], list):
+        stops = []
+        for kp in a[0]:
+            ka = kp.get("a", []) if isinstance(kp, dict) else []
+            if len(ka) >= 2:
+                stops.append((num(ka[0]), num(ka[1])))
+        return sorted(stops) or None
+    vals = [x for x in a if isinstance(x, (int, float))]
+    if vals:
+        return [(0, vals[0]), (1, vals[-1])]
+    return None
+
+
+def gradient_image(w, h, grad, tint, transparency):
+    """A UIGradient over a w x h background: colour and transparency keypoints, Rotation (degrees,
+    clockwise; 90 runs top to bottom) and Offset, multiplied with the BackgroundColor3."""
+    rot = math.radians(num(grad.get("Rotation"), 0))
+    ox, oy = vec2(grad.get("Offset"), (0, 0))
+    xs = (np.arange(w) + 0.5) / max(w, 1) - 0.5 - ox
+    ys = (np.arange(h) + 0.5) / max(h, 1) - 0.5 - oy
+    gx, gy = np.meshgrid(xs, ys)
+    t = np.clip(gx * math.cos(rot) + gy * math.sin(rot) + 0.5, 0, 1)
+    out = np.zeros((h, w, 4))
+    cs = color_stops(grad.get("Color")) or [(0, (255, 255, 255)), (1, (255, 255, 255))]
+    for j in range(3):
+        out[..., j] = np.interp(t, [c[0] for c in cs], [c[1][j] for c in cs]) * tint[j] / 255
+    ts = number_stops(grad.get("Transparency")) or [(0, 0), (1, 0)]
+    gt = np.clip(np.interp(t, [v[0] for v in ts], [v[1] for v in ts]), 0, 1)
+    out[..., 3] = 255 * (1 - max(0.0, min(1.0, transparency))) * (1 - gt)
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
 
 
 def draw_text(d, layer, node, mods):
@@ -568,8 +624,12 @@ def lint(dump, laid):
             key = "/".join(parts[:3])
             g = groups.get(key)
             groups[key] = r if g is None else (min(g[0], r[0]), min(g[1], r[1]), max(g[0] + g[2], r[0] + r[2]) - min(g[0], r[0]), max(g[1] + g[3], r[1] + r[3]) - min(g[1], r[1]))
-    # the landing card is a 2.6 s overlay that also hides when the next throw starts
-    keys = [k for k, r in groups.items() if area(r) < 0.5 * area(gui_area) and not k.endswith("/LandingCard")]
+    # the landing card (and the sunburst behind it) is a 2.6 s overlay that also hides when the
+    # next throw starts; "Fx*" frames hold short-lived effects (rewards flying into a counter)
+    def transient(key):
+        name = key.rsplit("/", 1)[-1]
+        return name.startswith("LandingCard") or name.startswith("Fx")
+    keys = [k for k, r in groups.items() if area(r) < 0.5 * area(gui_area) and not transient(k)]
     for i in range(len(keys)):
         for j in range(i + 1, len(keys)):
             a, b = keys[i], keys[j]

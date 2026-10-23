@@ -1,12 +1,15 @@
 --!strict
--- Square HUD menu tile (left grid): bright gradient face, big emoji icon, chunky stroked label,
--- optional caption over the icon ("83%"), a red count badge, and a gold "ready" glow that the
--- HUD ticker animates. Gamepad-selectable; hover grows, press squashes.
+-- Square HUD menu tile (left grid, right offers) in the simulator style: a bright gradient face
+-- with a thick dark outline and gloss, raised on a darker base (pressing sinks it), big emoji
+-- icon, chunky stroked label, optional caption over the icon ("83%"), a red count badge, a gold
+-- "ready" glow, an attention wiggle (e.g. gifts waiting) and an optional glint sweep. The HUD
+-- ticker drives the glow and wiggle through Animate. Gamepad-selectable; hover grows it.
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
+local Shine = require(script.Parent.Shine)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type TileProps = {
@@ -14,63 +17,93 @@ export type TileProps = {
 	Name: string,
 	Icon: string,
 	Label: string?,
-	Size: number?, -- side in design px (default 92)
+	Size: number?, -- side in design px (default 92), base included
 	Top: Color3,
 	Bottom: Color3,
 	LayoutOrder: number?,
 	Round: boolean?,
+	Shine: boolean?,
 	OnClick: () -> (),
 }
 
 export type Tile = {
 	Instance: TextButton,
+	Face: Frame,
+	Icon: TextLabel,
+	Label: TextLabel?,
 	SetBadge: (Tile, number) -> (),
 	SetCaption: (Tile, string?) -> (),
 	SetGlow: (Tile, boolean) -> (),
+	SetAttention: (Tile, boolean) -> (),
 	Animate: (Tile, number) -> (),
 	Glowing: boolean,
+	Attention: boolean,
 }
 
 local HudTile = {}
 
-local QUICK = TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local QUICK = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local GOLD = Color3.fromHex("#FFD447")
 local GOLD_HOT = Color3.fromHex("#FFF6C2")
+local WIGGLE_EVERY = 2.4 -- seconds between attention wiggles
+local WIGGLE_TIME = 0.6
 
 function HudTile.new(props: TileProps): Tile
 	local side = props.Size or 92
+	local depth = Theme.Depth
+	local function rounding(target: GuiObject, radius: number)
+		if props.Round then
+			Create.Round(target)
+		else
+			Create.Corner(radius, target)
+		end
+	end
+
 	local root: TextButton = Create("TextButton", {
 		Name = props.Name,
 		Size = UDim2.fromOffset(side, side),
-		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
 		Selectable = true,
 		LayoutOrder = props.LayoutOrder or 0,
 	})
-	if props.Round then
-		Create.Round(root)
-	else
-		Create.Corner(16, root)
-	end
-	Create.Gradient(root, props.Top, props.Bottom, 90)
-	local border = Create.Stroke(root, Theme.Colors.Stroke, 3, 0, true)
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
+
+	local base: Frame = Create("Frame", {
+		Name = "Base",
+		BackgroundColor3 = Theme.Darken(props.Bottom, 0.5),
+		Position = UDim2.fromOffset(0, depth),
+		Size = UDim2.new(1, 0, 1, -depth),
+		Parent = root,
+	})
+	rounding(base, 16)
+	Create.Stroke(base, Theme.Colors.Stroke, Theme.Outline, 0, true)
+
+	local face: Frame = Create("Frame", {
+		Name = "Face",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.new(1, 0, 1, -depth),
+		ZIndex = 2,
+		Parent = root,
+	})
+	rounding(face, 16)
+	Create.Gradient(face, props.Top, props.Bottom, 90)
+	local border = Create.Stroke(face, Theme.Colors.Stroke, Theme.Outline, 0, true)
 
 	local gloss: Frame = Create("Frame", {
 		Name = "Gloss",
 		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.8,
-		Size = UDim2.new(1, -10, 0.4, 0),
+		BackgroundTransparency = 0.78,
+		Size = UDim2.new(1, -10, 0.42, 0),
 		Position = UDim2.fromOffset(5, 4),
-		Parent = root,
+		Parent = face,
 	})
-	if props.Round then
-		Create.Round(gloss)
-	else
-		Create.Corner(12, gloss)
+	rounding(gloss, 12)
+	if props.Shine then
+		Shine.Add(face, if props.Round then UDim.new(0.5, 0) else UDim.new(0, 16), 2)
 	end
 
 	local hasLabel = props.Label ~= nil and props.Label ~= ""
@@ -83,11 +116,12 @@ function HudTile.new(props: TileProps): Tile
 		Font = Theme.Fonts.Display,
 		TextSize = 64,
 		Scaled = true,
-		ZIndex = 2,
-		Parent = root,
+		ZIndex = 3,
+		Parent = face,
 	})
+	local label: TextLabel? = nil
 	if hasLabel then
-		Create.Text({
+		label = Create.Text({
 			Name = "Label",
 			Text = props.Label or "",
 			Size = UDim2.new(1, 4, 0.3, 0),
@@ -96,9 +130,9 @@ function HudTile.new(props: TileProps): Tile
 			Font = Theme.Fonts.Display,
 			TextSize = 24,
 			Scaled = true,
-			Stroke = 2.5,
-			ZIndex = 3,
-			Parent = root,
+			Stroke = 2.8,
+			ZIndex = 4,
+			Parent = face,
 		})
 	end
 	local caption = Create.Text({
@@ -110,9 +144,9 @@ function HudTile.new(props: TileProps): Tile
 		Font = Theme.Fonts.Display,
 		TextSize = 26,
 		Scaled = true,
-		Stroke = 2.5,
-		ZIndex = 4,
-		Parent = root,
+		Stroke = 2.8,
+		ZIndex = 5,
+		Parent = face,
 	})
 	caption.Visible = false
 
@@ -121,12 +155,13 @@ function HudTile.new(props: TileProps): Tile
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -6, 0, 6),
 		Size = UDim2.fromOffset(32, 32),
-		BackgroundColor3 = Theme.Colors.Danger,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		Visible = false,
 		ZIndex = 5,
 		Parent = root,
 	})
 	Create.Round(badge)
+	Create.Gradient(badge, Color3.fromHex("#FF7A85"), Theme.Colors.Danger, 90)
 	Create.Stroke(badge, Theme.Colors.Stroke, 2.5, 0, true)
 	local badgeText = Create.Text({
 		Name = "Count",
@@ -137,14 +172,18 @@ function HudTile.new(props: TileProps): Tile
 		Font = Theme.Fonts.Display,
 		TextSize = 22,
 		Scaled = true,
-		Stroke = 1.5,
+		Stroke = 1.8,
 		ZIndex = 6,
 		Parent = badge,
 	})
 
 	local self = {
 		Instance = root,
+		Face = face,
+		Icon = icon,
+		Label = label,
 		Glowing = false,
+		Attention = false,
 	} :: any
 
 	function self.SetBadge(_: any, count: number)
@@ -168,42 +207,72 @@ function HudTile.new(props: TileProps): Tile
 		end
 	end
 
+	local function rest()
+		if not self.Glowing then
+			border.Color = Theme.Colors.Stroke
+			border.Thickness = Theme.Outline
+			caption.TextColor3 = Theme.Colors.Text
+		end
+		if not self.Glowing and not self.Attention then
+			icon.Rotation = 0
+			badge.Rotation = 0
+		end
+	end
+
 	function self.SetGlow(this: any, on: boolean)
 		if this.Glowing == on then
 			return
 		end
 		this.Glowing = on
-		if not on then
-			border.Color = Theme.Colors.Stroke
-			border.Thickness = 3
-			icon.Rotation = 0
-			caption.TextColor3 = Theme.Colors.Text
-		end
+		rest()
 	end
 
-	-- Called ~20x per second by the HUD ticker; only does work while glowing.
-	function self.Animate(this: any, t: number)
-		if not this.Glowing then
+	function self.SetAttention(this: any, on: boolean)
+		if this.Attention == on then
 			return
 		end
-		local w = (math.sin(t * 6) + 1) / 2
-		border.Color = GOLD:Lerp(GOLD_HOT, w)
-		border.Thickness = 3 + w * 2
-		icon.Rotation = math.sin(t * 4) * 9
-		caption.TextColor3 = GOLD:Lerp(GOLD_HOT, w)
+		this.Attention = on
+		rest()
 	end
 
+	-- Called ~20x per second by the HUD ticker; only does work while glowing or asking for attention.
+	function self.Animate(this: any, t: number)
+		if this.Glowing then
+			local w = (math.sin(t * 6) + 1) / 2
+			border.Color = GOLD:Lerp(GOLD_HOT, w)
+			border.Thickness = Theme.Outline + w * 2
+			icon.Rotation = math.sin(t * 4) * 9
+			caption.TextColor3 = GOLD:Lerp(GOLD_HOT, w)
+		elseif this.Attention then
+			-- a short shake every few seconds, then still (reads as "something is waiting")
+			local phase = t % WIGGLE_EVERY
+			if phase < WIGGLE_TIME then
+				local fade = 1 - phase / WIGGLE_TIME
+				icon.Rotation = math.sin(phase * 38) * 14 * fade
+				badge.Rotation = math.sin(phase * 38 + 1) * 12 * fade
+			elseif icon.Rotation ~= 0 then
+				icon.Rotation = 0
+				badge.Rotation = 0
+			end
+		end
+	end
+
+	local UP = UDim2.new()
+	local DOWN = UDim2.fromOffset(0, depth - 1)
 	root.MouseEnter:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1.07 }):Play()
 		AudioController.Play("Hover", nil, 0.05)
 	end)
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
+		TweenService:Create(face, QUICK, { Position = UP }):Play()
 	end)
 	root.MouseButton1Down:Connect(function()
-		TweenService:Create(scale, QUICK, { Scale = 0.92 }):Play()
+		TweenService:Create(face, QUICK, { Position = DOWN }):Play()
+		TweenService:Create(scale, QUICK, { Scale = 0.96 }):Play()
 	end)
 	root.MouseButton1Up:Connect(function()
+		TweenService:Create(face, SPRING, { Position = UP }):Play()
 		TweenService:Create(scale, SPRING, { Scale = 1 }):Play()
 	end)
 	root.Activated:Connect(function()

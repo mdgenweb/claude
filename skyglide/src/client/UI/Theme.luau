@@ -1,6 +1,8 @@
 --!strict
 -- Design tokens for the HUD and menus: bright, chunky "+1 simulator" style (ORIGINAL palette).
 -- Big rounded display font with heavy dark strokes, saturated gradient buttons, deep-blue panels.
+-- Like the genre's big simulators, every control is a raised 3D key: a gradient face with a thick
+-- dark outline sitting on a darker base (Theme.Depth), pressing sinks it, and calls to action glint.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Rarity = require(ReplicatedStorage:WaitForChild("Shared").Config.Rarity)
@@ -61,6 +63,26 @@ Theme.Buttons = {
 	Dark = { Top = hex("#2C56C9"), Bottom = hex("#183A91"), Border = hex("#0B1A4A"), Text = hex("#FFFFFF") },
 	Disabled = { Top = hex("#8C93A3"), Bottom = hex("#5A6070"), Border = hex("#2A2E38"), Text = hex("#DDE1E8") },
 } :: { [string]: ButtonStyle }
+
+-- Raised 3D controls: height of the darker base under button and tile faces (design px), the dark
+-- outline around them, and the soft drop shadow under panels.
+Theme.Depth = 6
+Theme.Outline = 3
+Theme.Shadow = { Color = hex("#040A24"), Transparency = 0.5, Offset = 10 }
+
+-- A colour multiplied toward black (f = 0.55 keeps 55 %), for bases and shadows.
+function Theme.Darken(c: Color3, f: number): Color3
+	return Color3.new(c.R * f, c.G * f, c.B * f)
+end
+
+-- Toast kinds: colour-coded pills (green good, red error, blue info, gold level, purple rare).
+Theme.Toasts = {
+	Info = { Style = "Blue", Icon = "💬" },
+	Success = { Style = "Green", Icon = "✅" },
+	Error = { Style = "Red", Icon = "⛔" },
+	Level = { Style = "Gold", Icon = "⭐" },
+	Rare = { Style = "Purple", Icon = "💎" },
+} :: { [string]: { Style: string, Icon: string } }
 
 -- Rainbow gradient (the "+1M" pack button, mythic items)
 Theme.Rainbow = ColorSequence.new({
