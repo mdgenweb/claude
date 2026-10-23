@@ -191,11 +191,24 @@ Clients update labels and prompt text locally from their own data (LOCKED / UNLO
 * **Screens** (`Init()`, registered by name with UIController): Notifications, HUD, Shop, Rebirth, Pets, Egg, Trails, Inventory, Gifts, World, Settings, Admin.
 * **HUD layout** (OBSERVED from the reference, original art):
   * Left: a 2-column tile grid. Rows: Shop, Rebirth (with % badge); Pets, Trails; Inventory, Gifts (with red count badge).
-  * Bottom-left: Rebirths counter, Wins counter, and "Friend Boost +X%" with a green +.
+  * Bottom-left: Rebirths counter, Wins counter, and "Friends +X%" (the friend boost) with a green + (invite).
   * Bottom-centre: "⚡ N SKILL" on the left and "xM Multiplier" on the right, above a wide blue level bar ("Level L", then "x/y" or "MAX LEVEL"). Below it are three Skill pack buttons (+10K gold, +100K red, +1M rainbow) with Robux prices.
   * Top-centre: a red "AUTO THROW" button showing "ONLY R$10", or ON/OFF once owned. During a flight, a big distance counter "144 m" appears under it.
   * Right: offer tiles for Starter Pack, 2x Skill and 2x Wins.
   * Contextual: a big green THROW button and launch meter while in the Throw Zone; a pad panel ("UNLOCKED 1x SKILL", AUTO toggle, TRAIN button) while on a pad.
+* **Scaling and short screens:**
+  * Layouts are designed at 1800×920 and scaled with one UIScale per layer, with a ×1.22 boost on touch screens.
+  * On short screens (design height under 760, which means phones in landscape):
+    * the HUD moves the settings buttons beside the menu tiles, so the column clears the counters;
+    * the landing card sits lower and smaller;
+    * the hatch reveal scales into the space between its title and its hint.
+  * Menu panels keep their design width but shrink their *height* to the screen (`MinHeight`, default 520), instead of shrinking everything. Phone menus are about 45% larger than a plain fit. Screens re-layout through `OnResize(contentHeight)`:
+    * the Pets detail pane and the Egg column stack from the bottom, with their buttons side by side;
+    * the Shop shows the codes bar only on the Codes tab;
+    * Rebirth folds its three cards into one line;
+    * Admin keeps its full height.
+  * `tests/ui_render.py` checks all of this on six devices.
+* **Moving models:** anything moved every frame (pet followers, flying gliders, the spinning shop displays) is rigged with `FactoryKit.Rig`: only the root is anchored, everything else is welded to it, and a move is one CFrame write.
 * **Camera phases:** Hub → Charge (over-shoulder toward the channel) → Launch (pull back) → Follow (behind/above the glider, FOV widens with speed) → Land (hold on the splash for 0.8 s) → Return (tween back, then restore the Custom camera).
 
 ## 7. Security rules (enforced)

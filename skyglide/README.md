@@ -31,7 +31,8 @@ rojo serve default.project.json                # connect from the Rojo Studio pl
 Before publishing:
 
 * Set your pass and product ids in `src/shared/Config/Monetization.luau`. Ids left at 0 are free test grants in Studio and are shown as "SOON" in live games.
-* Set your admin user ids in `src/shared/Config/Admin.luau`.
+* Set your admin user ids in `src/shared/Config/Admin.luau`, and set `StudioAll = false` if you don't want every Studio tester to get the admin panel (live servers never give it to normal players).
+* In *Game Settings*, set Max Players to 10, as in the reference game.
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
@@ -81,7 +82,9 @@ src/server/   Main.server.luau, Services/* (one per system), Data (ProfileStore,
               World (MapBuilder), Util (Guard)
 src/client/   Main.client.luau, Controllers/* (state, UI, camera, flight, throw, training, world,
               pets, tutorial, audio), UI (Theme, Create, Components, Screens), VFX
-tests/        run_tests.py + specs (flight, progression/economy, services end-to-end)
+tests/        run_tests.py + specs: flight, progression/economy, services, world, client, and the
+              end-to-end playthrough (real server + real client); ui_render.py (GUI on 6 devices),
+              map_render.py, perf.py (frame and traffic budget), api_lint.py
 ```
 
 ## Roadmap

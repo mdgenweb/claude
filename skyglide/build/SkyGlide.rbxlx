@@ -437,7 +437,7 @@ export type Product = {
 local Monetization = {}
 
 Monetization.Passes = {
-	{ Key = "AutoThrow", Name = "Auto Throw", Description = "Throws for you whenever you stand in the Throw Zone.", Id = 0, Robux = 10, Icon = "Auto" },
+	{ Key = "AutoThrow", Name = "Auto Throw", Description = "Throws for you in the Throw Zone.", Id = 0, Robux = 10, Icon = "Auto" },
 	{ Key = "DoubleSkill", Name = "2x Skill", Description = "Doubles all Skill you earn, forever.", Id = 0, Robux = 49, Icon = "Skill" },
 	{ Key = "DoubleWins", Name = "2x Wins", Description = "Doubles all Wins you earn, forever.", Id = 0, Robux = 25, Icon = "Wins" },
 	{ Key = "PetSlots", Name = "+2 Pet Slots", Description = "Equip 2 more pets.", Id = 0, Robux = 99, Icon = "Pet" },
@@ -3014,6 +3014,32 @@ function FactoryKit.Finish(b: Builder, anchored: boolean): Model
 		end
 	end
 	return b.Model
+end
+
+-- Prepares a model that moves every frame (pet followers, spinning displays, flying gliders): only
+-- the primary part stays anchored and every other part is welded to it, so a move is one CFrame
+-- write on the root instead of one per part. Returns the root and the CFrame that turns a target
+-- pivot into the root's CFrame (root.CFrame = pivot * offset).
+function FactoryKit.Rig(model: Model): (BasePart?, CFrame)
+	local root = model.PrimaryPart
+	if root == nil then
+		return nil, CFrame.identity
+	end
+	root.Anchored = true
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d ~= root then
+			d.Anchored = false
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Massless = true
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = root
+			weld.Part1 = d
+			weld.Parent = d
+		end
+	end
+	return root, root.PivotOffset:Inverse()
 end
 
 -- Template cache: build once per key, hand out clones (cheap) afterwards. Bounded so callers
@@ -7815,23 +7841,30 @@ end
 
 function WorldService.Start()
 	Guard.OnInvoke(Remotes.Function("RequestEnterWorld"), 1, 3, enterWorld)
+	local function onCharacter(player: Player, character: Model)
+		-- a respawn mid-flight cancels that flight (no payout for a throw you can't watch)
+		if registry.FlightService then
+			registry.FlightService.Cancel(player)
+		end
+		local profile = DataService.WaitFor(player, 30)
+		local worldId = if profile then profile.World else 1
+		if not character:FindFirstChild("HumanoidRootPart") then
+			character:WaitForChild("HumanoidRootPart", 10)
+		end
+		task.wait()
+		if character.Parent and player.Character == character then
+			placeCharacter(player, worldId)
+			worldChanged:FireClient(player, worldId)
+		end
+	end
 	local function hook(player: Player)
 		player.CharacterAdded:Connect(function(character)
-			-- a respawn mid-flight cancels that flight (no payout for a throw you can't watch)
-			if registry.FlightService then
-				registry.FlightService.Cancel(player)
-			end
-			local profile = DataService.WaitFor(player, 30)
-			local worldId = if profile then profile.World else 1
-			if not character:FindFirstChild("HumanoidRootPart") then
-				character:WaitForChild("HumanoidRootPart", 10)
-			end
-			task.wait()
-			if character.Parent then
-				placeCharacter(player, worldId)
-				worldChanged:FireClient(player, worldId)
-			end
+			onCharacter(player, character)
 		end)
+		-- already spawned (players present before this service started, e.g. Studio Play Solo)
+		if player.Character then
+			task.spawn(onCharacter, player, player.Character)
+		end
 	end
 	Players.PlayerAdded:Connect(hook)
 	for _, player in Players:GetPlayers() do
@@ -9875,6 +9908,7 @@ local Format = require(Shared.Util.Format)
 local Themes = require(Shared.Visual.Themes)
 local GliderFactory = require(Shared.Visual.GliderFactory)
 local EggFactory = require(Shared.Visual.EggFactory)
+local FactoryKit = require(Shared.Visual.FactoryKit)
 local Worlds = require(Shared.Definitions.Worlds)
 local Zones = require(Shared.Definitions.Zones)
 local Training = require(Shared.Definitions.Training)
@@ -10035,6 +10069,7 @@ local function placeDisplay(model: Model, display: Model, center: Vector3)
 	anchorAll(display)
 	centerPivot(display)
 	display:PivotTo(CFrame.new(center))
+	FactoryKit.Rig(display) -- the client spins it by moving the root only
 	display:SetAttribute("Spin", true)
 	display.Parent = model
 end
@@ -10395,6 +10430,12 @@ local function acquire(name: string, parent: Instance): Sound?
 	if pool == nil then
 		pool = {}
 		pools[name] = pool
+	end
+	-- 3D sounds die with their temporary emitter part; drop those from the pool
+	for i = #pool, 1, -1 do
+		if pool[i].Parent == nil then
+			table.remove(pool, i)
+		end
 	end
 	for _, s in pool do
 		if not s.IsPlaying and s.Parent == parent then
@@ -11015,6 +11056,7 @@ local Zones = require(Shared.Definitions.Zones)
 local Trails = require(Shared.Definitions.Trails)
 local Themes = require(Shared.Visual.Themes)
 local GliderFactory = require(Shared.Visual.GliderFactory)
+local FactoryKit = require(Shared.Visual.FactoryKit)
 
 local Client = script.Parent.Parent
 local Theme = require(Client.UI.Theme)
@@ -11058,6 +11100,7 @@ type Rig = {
 	Id: string,
 	Model: Model,
 	Root: BasePart,
+	Offset: CFrame, -- Root.CFrame = pivot * Offset (the model is rigged: only Root is anchored)
 	Trail: Trail,
 	A0: Attachment,
 	A1: Attachment,
@@ -11256,6 +11299,7 @@ local function buildRig(id: string): Rig
 		root = fallback
 	end
 	local r = root :: BasePart
+	local _, offset = FactoryKit.Rig(model)
 	local a0 = Instance.new("Attachment")
 	a0.Name = "SGTrailL"
 	a0.Parent = r
@@ -11298,7 +11342,7 @@ local function buildRig(id: string): Rig
 	aura.Lifetime = NumberRange.new(0.4, 0.8)
 	aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0) })
 	aura.Transparency = NumberSequence.new(0.1, 1)
-	return { Id = id, Model = model, Root = r, Trail = trail, A0 = a0, A1 = a1, Sparks = sparks, Lift = lift, Aura = aura }
+	return { Id = id, Model = model, Root = r, Offset = offset, Trail = trail, A0 = a0, A1 = a1, Sparks = sparks, Lift = lift, Aura = aura }
 end
 
 local function acquireRig(id: string): Rig
@@ -11562,7 +11606,7 @@ local function placeGlider(view: View, t: number): Vector3
 	else
 		cf = view.LastCF.Rotation + p
 	end
-	view.Rig.Model:PivotTo(cf)
+	view.Rig.Root.CFrame = cf * view.Rig.Offset
 	view.LastCF = cf
 	if not view.TrailArmed then
 		view.TrailArmed = true
@@ -11633,7 +11677,7 @@ local function updateView(view: View, now: number, clock: number)
 		-- bob down into the water, nose dipping
 		local k = clock - view.LandedAt
 		local cf = CFrame.new(view.LandPos - Vector3.new(0, k * SINK_SPEED, 0)) * view.LastCF.Rotation * CFrame.Angles(-math.min(k, 0.6) * 0.6, 0, 0)
-		view.Rig.Model:PivotTo(cf)
+		view.Rig.Root.CFrame = cf * view.Rig.Offset
 	end
 	if view.IsLocal then
 		stepRings(view, clock)
@@ -11710,7 +11754,7 @@ local function onFlightStarted(raw: any)
 		setHeldHidden(held, true)
 	end
 	local start = hand or pathPoint(plan, 0)
-	rig.Model:PivotTo(CFrame.new(start))
+	rig.Root.CFrame = CFrame.new(start) * rig.Offset
 	rig.Model.Parent = getFolder()
 
 	local view: View = {
@@ -11932,6 +11976,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PetFactory = require(Shared.Visual.PetFactory)
+local FactoryKit = require(Shared.Visual.FactoryKit)
 local Pets = require(Shared.Definitions.Pets)
 
 local Bus = require(script.Parent.Bus)
@@ -11943,7 +11988,7 @@ local MAX_DISTANCE = 200
 local NEAR_DISTANCE = 70
 local PET_SIZE = 2.2
 
-type Follower = { Model: Model, Id: string, Position: Vector3, Facing: Vector3 }
+type Follower = { Model: Model, Root: BasePart?, Offset: CFrame, Id: string, Position: Vector3, Facing: Vector3 }
 type Entry = { Player: Player, Ids: { string }, Followers: { Follower } }
 
 local entries: { [Player]: Entry } = {}
@@ -12003,8 +12048,9 @@ local function rebuild(entry: Entry)
 		end
 		local model = PetFactory.ForId(id, PET_SIZE)
 		model.Name = "Pet_" .. id
+		local petRoot, offset = FactoryKit.Rig(model)
 		model.Parent = folder
-		table.insert(entry.Followers, { Model = model, Id = id, Position = start, Facing = Vector3.new(0, 0, -1) })
+		table.insert(entry.Followers, { Model = model, Root = petRoot, Offset = offset, Id = id, Position = start, Facing = Vector3.new(0, 0, -1) })
 	end
 end
 
@@ -12088,7 +12134,13 @@ local function step(dt: number)
 			local bob = if moving then math.abs(math.sin(t * 9 + i)) * 0.9 else math.sin(t * 2.5 + i) * 0.25 + 0.25
 			local pos = f.Position + Vector3.new(0, PET_SIZE * 0.5 + bob, 0)
 			local look = if f.Facing.Magnitude > 0.01 then f.Facing else Vector3.new(0, 0, -1)
-			f.Model:PivotTo(CFrame.lookAt(pos, pos + look))
+			local cf = CFrame.lookAt(pos, pos + look)
+			local petRoot = f.Root
+			if petRoot then
+				petRoot.CFrame = cf * f.Offset
+			else
+				f.Model:PivotTo(cf)
+			end
 		end
 	end
 end
@@ -13144,7 +13196,7 @@ local TutorialController = {}
 local localPlayer = Players.LocalPlayer
 local GOLD = Color3.fromHex("#FFD447")
 local POP = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local BAR_TOP = 96
+local BAR_TOP = 104 -- the STEP tag pokes 13 px above the bar; stay clear of AUTO THROW (ends at 88)
 local ARROW_HEIGHT = 10
 local NEAR = 12 -- studs: hide the beam once the player is this close (the arrow stays)
 
@@ -13266,10 +13318,10 @@ function TutorialController.Start()
 	local stepText = Create.Text({
 		Name = "Step",
 		Text = "",
-		Size = UDim2.fromOffset(90, 22),
-		Position = UDim2.fromOffset(18, -11),
+		Size = UDim2.fromOffset(120, 26),
+		Position = UDim2.fromOffset(18, -13),
 		Font = Theme.Fonts.Display,
-		TextSize = 20,
+		TextSize = 24,
 		Scaled = true,
 		Color = GOLD,
 		Stroke = 2.5,
@@ -13280,7 +13332,7 @@ function TutorialController.Start()
 	local hint = Create.Text({
 		Name = "Hint",
 		Text = "",
-		Size = UDim2.new(1, -250, 0, 44),
+		Size = UDim2.new(1, -284, 0, 44),
 		Position = UDim2.new(0, 18, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
 		Font = Theme.Fonts.Display,
@@ -13294,7 +13346,7 @@ function TutorialController.Start()
 	local chip: Frame = Create("Frame", {
 		Name = "Progress",
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -124, 0.5, 0),
+		Position = UDim2.new(1, -158, 0.5, 0), -- clear of the Skip button
 		Size = UDim2.fromOffset(92, 40),
 		BackgroundColor3 = Theme.Colors.Success,
 		Visible = false,
@@ -13324,7 +13376,7 @@ function TutorialController.Start()
 	skip = Button.new({
 		Parent = bar,
 		Name = "Skip",
-		Size = UDim2.fromOffset(104, 60),
+		Size = UDim2.fromOffset(140, 66),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, 0),
 		Style = "Grey",
@@ -13733,7 +13785,7 @@ function UIController.Init()
 		Name = "Toasts",
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 70),
+		Position = UDim2.new(0.5, 0, 0, 176), -- below AUTO THROW and the tutorial bar
 		Size = UDim2.fromOffset(560, 400),
 		Parent = layers.Toasts,
 	})
@@ -13801,6 +13853,7 @@ local effects: Effects? = nil
 local worldsFolder: Instance? = nil
 local spinners: { Model } = {}
 local spinBase: { [Model]: CFrame } = {}
+local spinRoot: { [Model]: { Root: BasePart, Offset: CFrame } } = {} -- rigged displays: move the root only
 
 -- Lighting ----------------------------------------------------------------------------------------
 
@@ -14081,6 +14134,14 @@ end
 local function track(model: Instance)
 	if model:IsA("Model") and model:GetAttribute("Spin") == true and not spinBase[model] then
 		spinBase[model] = model:GetPivot()
+		local root = model.PrimaryPart
+		if root and root.Anchored then
+			-- the server rigged it (only the root anchored, the rest welded): one CFrame per frame
+			local welded = model:FindFirstChildWhichIsA("WeldConstraint", true) ~= nil
+			if welded then
+				spinRoot[model] = { Root = root, Offset = root.PivotOffset:Inverse() }
+			end
+		end
 		table.insert(spinners, model)
 	end
 end
@@ -14106,12 +14167,19 @@ local function stepSpinners()
 		if model.Parent == nil then
 			table.remove(spinners, i)
 			spinBase[model] = nil
+			spinRoot[model] = nil
 			continue
 		end
 		local base = spinBase[model]
 		if (base.Position - camPos).Magnitude < 150 then
 			local phase = i * 0.7
-			model:PivotTo(base * CFrame.new(0, math.sin(t * 2 + phase) * 0.35, 0) * CFrame.Angles(0, t * 0.9 + phase, 0))
+			local cf = base * CFrame.new(0, math.sin(t * 2 + phase) * 0.35, 0) * CFrame.Angles(0, t * 0.9 + phase, 0)
+			local rig = spinRoot[model]
+			if rig then
+				rig.Root.CFrame = cf * rig.Offset
+			else
+				model:PivotTo(cf)
+			end
 		end
 	end
 end
@@ -15010,6 +15078,7 @@ local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local AudioController = require(Client.Controllers.AudioController)
 local Bus = require(Client.Controllers.Bus)
+local UIController = require(Client.Controllers.UIController)
 
 local HudLandingCard = {}
 
@@ -15039,6 +15108,20 @@ function HudLandingCard.new(root: Frame)
 	local cardStroke = Create.Stroke(card, WHITE, 4, 0, true)
 	local cardScale = Instance.new("UIScale")
 	cardScale.Parent = card
+	-- short screens (phones): a little smaller and lower, clear of the toasts and the bottom bar
+	local cardSize = 1
+	local function placeCard()
+		local designHeight = root.AbsoluteSize.Y / math.max(UIController.Scale, 0.01)
+		local compact = designHeight > 0 and designHeight < 760
+		cardSize = if compact then 0.85 else 1
+		card.Position = UDim2.fromScale(0.5, if compact then 0.56 else 0.42)
+	end
+	UIController.ScaleChanged:Connect(function()
+		placeCard()
+		if card.Visible and cardScale.Scale > 0 then
+			cardScale.Scale = cardSize
+		end
+	end)
 
 	local header: Frame = Create("Frame", {
 		Name = "Header",
@@ -15275,6 +15358,7 @@ function HudLandingCard.new(root: Frame)
 	end
 
 	local function show(payload: { [string]: any })
+		placeCard()
 		local zone = if type(payload.Zone) == "string" then Zones.Get(payload.Zone) else nil
 		local color = if zone then Color3.fromHex(zone.Color) else WHITE
 		zoneText.Text = if zone then zone.Name else "Splash!"
@@ -15314,8 +15398,8 @@ function HudLandingCard.new(root: Frame)
 		cardToken += 1
 		local token = cardToken
 		card.Visible = true
-		cardScale.Scale = 0.3
-		TweenService:Create(cardScale, POP, { Scale = 1 }):Play()
+		cardScale.Scale = 0.3 * cardSize
+		TweenService:Create(cardScale, POP, { Scale = cardSize }):Play()
 		if newBest then
 			AudioController.Play("NewBest")
 		else
@@ -15338,6 +15422,20 @@ function HudLandingCard.new(root: Frame)
 		end
 	end
 
+	-- starting the next throw dismisses the card (on phones it covers the THROW button)
+	Bus.ChargeChanged:Connect(function(on: any)
+		if on == true and card.Visible then
+			cardToken += 1
+			local token = cardToken
+			local out = TweenService:Create(cardScale, SHRINK, { Scale = 0 })
+			out:Play()
+			out.Completed:Once(function()
+				if token == cardToken then
+					card.Visible = false
+				end
+			end)
+		end
+	end)
 	Bus.FlightLanded:Connect(function(payload: any)
 		if type(payload) ~= "table" or payload.Cancelled or payload.Owner ~= true then
 			return
@@ -15823,8 +15921,8 @@ function HudThrowPanel.new(parent: Instance, bottomOffset: number): ThrowPanel
 	local keyHint = Create.Text({
 		Name = "KeyHint",
 		Text = "HOLD",
-		Size = UDim2.new(1, -20, 0.26, 0),
-		Position = UDim2.fromScale(0.5, 0.8),
+		Size = UDim2.new(1, -20, 0.31, 0),
+		Position = UDim2.fromScale(0.5, 0.81),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Font = Theme.Fonts.Display,
 		TextSize = 22,
@@ -15837,7 +15935,7 @@ function HudThrowPanel.new(parent: Instance, bottomOffset: number): ThrowPanel
 	local function refreshHint()
 		local last = UserInputService:GetLastInputType()
 		if last == Enum.UserInputType.Touch then
-			keyHint.Text = "HOLD & RELEASE"
+			keyHint.Text = "HOLD" -- one short word stays readable on small phones; the meter hint says when to let go
 		elseif string.find(last.Name, "Gamepad", 1, true) then
 			keyHint.Text = "HOLD [R2]"
 		else
@@ -16505,6 +16603,7 @@ export type CardProps = {
 	ButtonText: string?, -- nil = no action button
 	ButtonStyle: string?,
 	OnClick: (() -> ())?,
+	Compact: boolean?, -- short cells (~196 px): smaller plate, title + subtitle + a 56 px button
 }
 
 export type Card = {
@@ -16530,6 +16629,11 @@ end
 
 function MenuCard.new(props: CardProps): Card
 	local accent = props.Accent
+	local compact = props.Compact == true
+	local plateSize = if compact then 64 else 92
+	local titleTop = if compact then 74 else 114
+	local titleH = if compact then 30 else 36
+	local buttonH = if compact then 56 else 62
 	local root: Frame = Create("Frame", {
 		Name = props.Name or "Card",
 		BackgroundColor3 = Color3.new(1, 1, 1),
@@ -16550,7 +16654,7 @@ function MenuCard.new(props: CardProps): Card
 	local glow: Frame = Create("Frame", {
 		Name = "Glow",
 		BackgroundColor3 = accent,
-		Size = UDim2.new(1, 0, 0, 130),
+		Size = UDim2.new(1, 0, 0, if compact then 96 else 130),
 		Parent = root,
 	})
 	Create.Corner(16, glow)
@@ -16566,8 +16670,8 @@ function MenuCard.new(props: CardProps): Card
 		Name = "Plate",
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 14),
-		Size = UDim2.fromOffset(92, 92),
+		Position = UDim2.new(0.5, 0, 0, if compact then 8 else 14),
+		Size = UDim2.fromOffset(plateSize, plateSize),
 		Rotation = -4,
 		Parent = root,
 	})
@@ -16597,8 +16701,8 @@ function MenuCard.new(props: CardProps): Card
 	local title = Create.Text({
 		Name = "Title",
 		Text = props.Title,
-		Position = UDim2.fromOffset(10, 114),
-		Size = UDim2.new(1, -20, 0, 36),
+		Position = UDim2.fromOffset(10, titleTop),
+		Size = UDim2.new(1, -20, 0, titleH),
 		Font = Theme.Fonts.Display,
 		TextSize = 32,
 		Scaled = true,
@@ -16608,8 +16712,8 @@ function MenuCard.new(props: CardProps): Card
 	local subtitle = Create.Text({
 		Name = "Subtitle",
 		Text = props.Subtitle or "",
-		Position = UDim2.fromOffset(10, 150),
-		Size = UDim2.new(1, -20, 0, 26),
+		Position = UDim2.fromOffset(10, titleTop + titleH),
+		Size = UDim2.new(1, -20, 0, if compact then 24 else 26),
 		Font = Theme.Fonts.Display,
 		TextSize = 24,
 		Scaled = true,
@@ -16619,12 +16723,12 @@ function MenuCard.new(props: CardProps): Card
 	})
 	subtitle.Visible = (props.Subtitle or "") ~= ""
 	local hasButton = props.ButtonText ~= nil
-	local descTop = if subtitle.Visible then 180 else 156
+	local descTop = titleTop + titleH + (if subtitle.Visible then 30 else 6)
 	local description = Create.Text({
 		Name = "Description",
 		Text = props.Description or "",
 		Position = UDim2.fromOffset(14, descTop),
-		Size = UDim2.new(1, -28, 1, -descTop - (if hasButton then 84 else 14)),
+		Size = UDim2.new(1, -28, 1, -descTop - (if hasButton then buttonH + 22 else 14)),
 		Font = Theme.Fonts.Body,
 		TextSize = 19,
 		Scaled = true,
@@ -16641,8 +16745,8 @@ function MenuCard.new(props: CardProps): Card
 			Parent = root,
 			Name = "Action",
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(0.5, 0, 1, -12),
-			Size = UDim2.new(1, -24, 0, 62),
+			Position = UDim2.new(0.5, 0, 1, if compact then -8 else -12),
+			Size = UDim2.new(1, -24, 0, buttonH),
 			Style = props.ButtonStyle or "Green",
 			Text = props.ButtonText,
 			TextSize = 30,
@@ -16812,7 +16916,9 @@ export type ShellProps = {
 	Name: string, -- UIController screen name
 	Title: string,
 	Icon: string?,
-	Size: Vector2, -- design pixels (keep <= 1300 x 760)
+	Size: Vector2, -- design pixels (keep <= 1300 x 760); the height shrinks on short screens
+	MinHeight: number?, -- shortest design height the content still works at (default 520)
+	OnResize: ((contentHeight: number) -> ())?, -- the content height changed (short screens)
 	Accent: Color3?,
 	OnOpen: ((...any) -> ())?, -- refresh content; receives UIController.Open's extra args
 	OnClose: (() -> ())?,
@@ -16857,6 +16963,8 @@ function MenuShell.new(props: ShellProps): Shell
 		Name = props.Name,
 		Title = (if props.Icon then props.Icon .. " " else "") .. string.upper(props.Title),
 		Size = props.Size,
+		MinHeight = props.MinHeight,
+		OnResize = props.OnResize,
 		TitleSize = 56,
 		Border = Theme.Colors.PanelBorder,
 		OnClose = function()
@@ -17250,6 +17358,7 @@ return MenuToggle
 -- Modal panel in the reference style: dark navy body, thin bright border, big display-font
 -- title, close button breaking out of the top-right corner, pop-in animation.
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
@@ -17262,7 +17371,9 @@ export type PanelProps = {
 	Parent: Instance,
 	Name: string,
 	Title: string?,
-	Size: Vector2, -- design pixels
+	Size: Vector2, -- design pixels (the height may shrink on short screens, see fit())
+	MinHeight: number?, -- shortest design height the content still works at (default 520)
+	OnResize: ((contentHeight: number) -> ())?, -- the panel height changed (screens re-layout)
 	OnClose: (() -> ())?,
 	TitleSize: number?,
 	Border: Color3?,
@@ -17304,14 +17415,29 @@ function Panel.new(props: PanelProps): Panel
 	})
 	local scale = Instance.new("UIScale")
 	scale.Parent = holder
-	-- extra shrink so big menus always fit small screens (phones in landscape)
+	-- Fits the panel to the screen. Wide, short screens (phones in landscape) would shrink a tall
+	-- panel until everything in it is tiny, so there the panel gets shorter instead (content
+	-- scrolls) and keeps the scale the width allows; touch screens may also grow a little.
+	local minHeight = math.min(props.Size.Y, props.MinHeight or 520)
+	local contentTop = 16
+	local lastHeight = props.Size.Y
 	local function fit(): number
 		local screen = root.AbsoluteSize
 		local s = math.max(UIController.Scale, 0.01)
 		if screen.X <= 0 or screen.Y <= 0 then
 			return 1
 		end
-		return math.min(1, screen.Y * 0.95 / (props.Size.Y * s), screen.X * 0.97 / (props.Size.X * s))
+		local grow = if UserInputService.TouchEnabled then 1.15 else 1
+		local byWidth = math.min(grow, screen.X * 0.97 / (props.Size.X * s))
+		local height = math.clamp(screen.Y * 0.95 / (s * byWidth), minHeight, props.Size.Y)
+		holder.Size = UDim2.fromOffset(props.Size.X, height)
+		if height ~= lastHeight then
+			lastHeight = height
+			if props.OnResize then
+				props.OnResize(height - contentTop - 16)
+			end
+		end
+		return math.min(byWidth, screen.Y * 0.95 / (height * s))
 	end
 	local body: Frame = Create("Frame", {
 		Name = "Body",
@@ -17324,7 +17450,6 @@ function Panel.new(props: PanelProps): Panel
 	Create.Stroke(body, props.Border or Theme.Colors.PanelBorder, 2, 0, true)
 
 	local title: TextLabel? = nil
-	local contentTop = 16
 	if props.Title then
 		title = Create.Text({
 			Name = "Title",
@@ -17400,7 +17525,7 @@ function Panel.new(props: PanelProps): Panel
 		local onClose = props.OnClose
 		Button.Close(holder, function()
 			onClose()
-		end, UDim2.new(1, -4, 0, 4), 62)
+		end, UDim2.new(1, -4, 0, 4), if UserInputService.TouchEnabled then 84 else 62)
 	end
 	return self :: Panel
 end
@@ -17772,6 +17897,7 @@ function AdminScreen.Init()
 		Title = "Admin / Diagnostics",
 		Icon = "🛠️",
 		Size = PANEL,
+		MinHeight = PANEL.Y, -- stacked sections; a developer tool, so no compact layout
 		Accent = Theme.Colors.Danger,
 		OnOpen = function()
 			local data = StateController.Data
@@ -18080,6 +18206,30 @@ local function priceAction(egg: Eggs.Egg): (string, string, boolean)
 	return "HATCH 1", "Green", true
 end
 
+-- Left column stacked from the bottom so it fits any panel height: hatch buttons, luck, price,
+-- name, and the egg preview takes what is left. Short panels put the buttons side by side.
+local function layoutLeft(compact: boolean)
+	local buttons = if compact then 82 else 164
+	if compact then
+		hatchOne.Instance.Size = UDim2.new(0.5, -18, 0, 70)
+		hatchOne.Instance.Position = UDim2.new(0, 12, 1, -12)
+		hatchThree.Instance.Size = UDim2.new(0.5, -18, 0, 70)
+		hatchThree.Instance.Position = UDim2.new(0.5, 6, 1, -12)
+	else
+		hatchOne.Instance.Size = UDim2.new(1, -24, 0, 70)
+		hatchOne.Instance.Position = UDim2.new(0, 12, 1, -94)
+		hatchThree.Instance.Size = UDim2.new(1, -24, 0, 70)
+		hatchThree.Instance.Position = UDim2.new(0, 12, 1, -12)
+	end
+	luckLabel.AnchorPoint = Vector2.new(0, 1)
+	luckLabel.Position = UDim2.new(0, 12, 1, -(buttons + 6))
+	eggPrice.AnchorPoint = Vector2.new(0, 1)
+	eggPrice.Position = UDim2.new(0, 12, 1, -(buttons + 6 + 28 + 4))
+	eggName.AnchorPoint = Vector2.new(0, 1)
+	eggName.Position = UDim2.new(0, 12, 1, -(buttons + 6 + 28 + 4 + 36 + 4))
+	eggPreview.Size = UDim2.new(1, -60, 1, -(buttons + 6 + 28 + 4 + 36 + 4 + 42 + 16))
+end
+
 local function refresh()
 	local egg = currentEgg
 	local data = StateController.Data
@@ -18155,6 +18305,19 @@ local overlay: TextButton
 local stage: Frame
 local subtitle: TextLabel
 local hint: TextLabel
+local stageScale: UIScale
+
+-- The stage (up to 540 design px tall) sits between the title (ends ~140) and the hint (starts
+-- ~110 from the bottom); short screens (phones) scale it down to fit that space.
+local function fitStage()
+	local designHeight = overlay.AbsoluteSize.Y / math.max(UIController.Scale, 0.01)
+	if designHeight <= 0 then
+		return
+	end
+	local space = designHeight - 250
+	stageScale.Scale = math.clamp(space / 540, 0.4, 1)
+	stage.Position = UDim2.new(0.5, 0, 0, 140 + space / 2)
+end
 local queue: { HatchPayload } = {}
 local playing = false
 local dismissable = false
@@ -18162,7 +18325,7 @@ local dismissSignal: BindableEvent
 
 local function clearStage()
 	for _, child in stage:GetChildren() do
-		if not child:IsA("UIListLayout") then
+		if child:IsA("GuiObject") then -- keeps the list layout and the fit scale
 			child:Destroy()
 		end
 	end
@@ -18254,6 +18417,7 @@ local function play(payload: HatchPayload)
 	dismissable = false
 	clearStage()
 	overlay.Visible = true
+	fitStage()
 	overlay.BackgroundTransparency = 1
 	TweenService:Create(overlay, TweenInfo.new(0.25), { BackgroundTransparency = 0.35 }):Play()
 	local egg = Eggs.Get(payload.Egg)
@@ -18390,6 +18554,13 @@ local function buildOverlay()
 		Parent = overlay,
 	})
 	Create.List(stage, Enum.FillDirection.Horizontal, 24, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+	stageScale = Instance.new("UIScale")
+	stageScale.Parent = stage
+	UIController.ScaleChanged:Connect(function()
+		if overlay.Visible then
+			fitStage()
+		end
+	end)
 	hint = Create.Text({
 		Text = "",
 		Size = UDim2.fromOffset(600, 40),
@@ -18411,6 +18582,9 @@ function EggScreen.Init()
 		Icon = Theme.Icons.Egg,
 		Size = PANEL,
 		Accent = Theme.Colors.Skill,
+		OnResize = function(contentHeight: number)
+			layoutLeft(contentHeight < 560)
+		end,
 		OnOpen = function(eggId: any)
 			if type(eggId) == "string" and Eggs.Get(eggId) then
 				currentEgg = Eggs.Get(eggId)
@@ -18497,6 +18671,7 @@ function EggScreen.Init()
 			hatch(3)
 		end,
 	})
+	layoutLeft(false)
 	local right: Frame = Create("Frame", {
 		Name = "Right",
 		BackgroundTransparency = 1,
@@ -18698,7 +18873,9 @@ local function describe(reward: Rewards.Reward, data: { [string]: any }?): (stri
 		return Theme.Icons.Skill, string.format("Skill x%d reps", reward.Reps or 0)
 	elseif reward.Kind == "Potion" then
 		local boost = Boosts.Get(reward.Id or "")
-		return Theme.Icons.Potion, string.format("%dx %s", reward.Count or 1, if boost then boost.Name else "Potion")
+		local name = if boost then string.gsub(boost.Name, "^%d+x%s+", "") else "Potion" -- "2x Skill Potion" -> "Skill Potion"
+		local count = reward.Count or 1
+		return Theme.Icons.Potion, if count == 1 then name else string.format("%d %ss", count, name)
 	elseif reward.Kind == "Pet" then
 		local pet = Pets.Get(reward.Id or "")
 		return Theme.Icons.Pets, if pet then pet.Name else "Pet"
@@ -18846,8 +19023,9 @@ local function buildDaily(parent: Frame)
 		local stroke = Create.Stroke(day, Theme.Colors.PanelBorder, 2, 0, true)
 		Create.Text({
 			Text = "DAY " .. i,
-			Size = UDim2.new(1, -8, 0, 22),
-			Position = UDim2.fromOffset(4, 4),
+			Size = UDim2.new(1, -84, 0, 22), -- left of the TODAY / ✅ tag in the corner
+			Position = UDim2.fromOffset(8, 4),
+			XAlign = Enum.TextXAlignment.Left,
 			Font = Theme.Fonts.Display,
 			TextSize = 20,
 			Scaled = true,
@@ -18908,6 +19086,7 @@ local function buildGifts(parent: Frame)
 			LayoutOrder = i,
 			Accent = hex(if gift.Reward.Kind == "Pet" then "#FF8FC8" elseif gift.Reward.Kind == "Potion" then "#C98CFF" elseif gift.Reward.Kind == "Wins" then "#FFC53D" else "#5FB8FF"),
 			Rainbow = i == #Rewards.Gifts,
+			Compact = true,
 			Icon = icon,
 			Title = "",
 			Subtitle = "",
@@ -18974,7 +19153,7 @@ return GiftsScreen
 -- original art:
 --   left         2-column menu tiles (Shop, Rebirth %, Pets, Trails, Inventory, Gifts badge),
 --                Settings gear and an Admin tile for admins; fades during the local flight
---   bottom-left  Rebirths, Wins and "Friend Boost +X%" (green + opens the invite prompt)
+--   bottom-left  Rebirths, Wins and "Friends +X%" boost (green + opens the invite prompt)
 --   bottom-mid   Skill / multiplier row, level bar, three Robux Skill packs
 --   top-mid      AUTO THROW (buy prompt or ON/OFF toggle); flight counter + banners below it
 --   right        potion timers above the Starter Pack / 2x Skill / 2x Wins offers
@@ -19016,6 +19195,7 @@ local HUD = {}
 local hex = Color3.fromHex
 local IS_STUDIO = RunService:IsStudio()
 local MARGIN = 18
+local COUNTERS_H = 3 * 52 + 2 * 12 + 8 -- bottom-left stat pills
 local POP = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 -- bottom-centre stack (design px, measured from the bottom edge)
@@ -19024,7 +19204,7 @@ local STACK_GAP = 8
 HUD.BottomStack = 12 + PACK_H + STACK_GAP + HudLevelBar.Height -- top of the level block
 HUD.ContextBottom = HUD.BottomStack + 14 -- where contextual panels (throw / pad) sit
 HUD.CounterTop = 92 -- flight counter top when no tutorial bar is shown
-HUD.CounterTopTutorial = 166
+HUD.CounterTopTutorial = 174
 
 local function purchaseAvailable(id: number): boolean
 	return id ~= 0 or IS_STUDIO
@@ -19035,14 +19215,20 @@ local function purchase(kind: string, key: string)
 end
 
 -- Left menu ---------------------------------------------------------------------------------------
-type MenuRefs = { Group: CanvasGroup, Rebirth: HudTile.Tile, Gifts: HudTile.Tile, Admin: HudTile.Tile }
+type MenuRefs = {
+	Group: CanvasGroup,
+	Rebirth: HudTile.Tile,
+	Gifts: HudTile.Tile,
+	Admin: HudTile.Tile,
+	Layout: (compact: boolean, designHeight: number) -> (),
+}
 
 local function buildMenu(root: Frame): MenuRefs
 	local TILE = 92
 	local GAP = 10
 	local PAD = 16
 	local width = TILE * 2 + GAP + PAD * 2
-	local height = TILE * 3 + GAP * 2 + GAP + 70 + PAD * 2
+	local height = TILE * 3 + GAP * 2 + GAP + 76 + PAD * 2
 	local group: CanvasGroup = Create("CanvasGroup", {
 		Name = "Menu",
 		BackgroundTransparency = 1,
@@ -19092,7 +19278,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Name = "Extras",
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(PAD, PAD + TILE * 3 + GAP * 3),
-		Size = UDim2.fromOffset(TILE * 2 + GAP, 70),
+		Size = UDim2.fromOffset(TILE * 2 + GAP, 76),
 		Parent = group,
 	})
 	Create.List(row, Enum.FillDirection.Horizontal, 12, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
@@ -19100,7 +19286,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Parent = row,
 		Name = "Settings",
 		Icon = Theme.Icons.Settings,
-		Size = 66,
+		Size = 72,
 		Round = true,
 		Top = hex("#E9EEF5"),
 		Bottom = hex("#8C96A8"),
@@ -19113,7 +19299,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Parent = row,
 		Name = "Admin",
 		Icon = "🛠️",
-		Size = 66,
+		Size = 72,
 		Top = hex("#FF6B6B"),
 		Bottom = hex("#7A0A0A"),
 		LayoutOrder = 2,
@@ -19122,7 +19308,32 @@ local function buildMenu(root: Frame): MenuRefs
 		end,
 	})
 	admin.Instance.Visible = false
-	return { Group = group, Rebirth = rebirth, Gifts = gifts, Admin = admin }
+
+	-- Short screens (phones in landscape): the settings row moves beside the tiles, and the column
+	-- is kept clear of the counters stacked in the bottom-left corner.
+	local rowLayout = row:FindFirstChildOfClass("UIListLayout") :: UIListLayout
+	local function layoutMenu(compact: boolean, designHeight: number)
+		if compact then
+			row.Position = UDim2.fromOffset(PAD + TILE * 2 + GAP * 2, PAD)
+			row.Size = UDim2.fromOffset(76, TILE * 2 + GAP)
+			rowLayout.FillDirection = Enum.FillDirection.Vertical
+			rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+			rowLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+			group.Size = UDim2.fromOffset(width + 86, TILE * 3 + GAP * 2 + PAD * 2)
+		else
+			row.Position = UDim2.fromOffset(PAD, PAD + TILE * 3 + GAP * 3)
+			row.Size = UDim2.fromOffset(TILE * 2 + GAP, 76)
+			rowLayout.FillDirection = Enum.FillDirection.Horizontal
+			rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			rowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+			group.Size = UDim2.fromOffset(width, height)
+		end
+		local h = group.Size.Y.Offset
+		local countersTop = designHeight - MARGIN - COUNTERS_H - 14
+		local centre = math.max(h / 2 + 8, math.min(designHeight / 2 - 70, countersTop - h / 2))
+		group.Position = UDim2.new(0, MARGIN - PAD, 0, centre)
+	end
+	return { Group = group, Rebirth = rebirth, Gifts = gifts, Admin = admin, Layout = layoutMenu }
 end
 
 -- Bottom-left counters ----------------------------------------------------------------------------
@@ -19134,7 +19345,7 @@ local function buildCounters(root: Frame): CounterRefs
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, MARGIN + 6, 1, -MARGIN),
-		Size = UDim2.fromOffset(340, 3 * 52 + 2 * 12 + 8),
+		Size = UDim2.fromOffset(340, COUNTERS_H),
 		ZIndex = 2,
 		Parent = root,
 	})
@@ -19174,11 +19385,11 @@ local function buildCounters(root: Frame): CounterRefs
 	})
 	friends.Instance.AnchorPoint = Vector2.new(0, 0.5)
 	friends.Instance.Position = UDim2.fromScale(0, 0.5)
-	friends:SetText("Friend Boost +0%")
+	friends:SetText("Friends +0%")
 	local invite = Button.new({
 		Parent = friendRow,
 		Name = "Invite",
-		Size = UDim2.fromOffset(60, 60),
+		Size = UDim2.fromOffset(72, 72),
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 274, 0.5, 0),
 		Style = "Green",
@@ -19390,6 +19601,15 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 			end,
 		})
 		priceChip(tile.Instance, if available then Theme.Icons.Robux .. tostring(robux) else "SOON")
+		-- the price chip sits on the bottom edge: lift the icon and label above it
+		local iconText = tile.Instance:FindFirstChild("Icon") :: TextLabel?
+		local labelText = tile.Instance:FindFirstChild("Label") :: TextLabel?
+		if iconText and labelText then
+			iconText.Position = UDim2.fromScale(0.5, 0.33)
+			iconText.Size = UDim2.fromScale(0.6, 0.5)
+			labelText.Position = UDim2.new(0.5, 0, 1, -15)
+			labelText.Size = UDim2.new(1, 4, 0.26, 0)
+		end
 		table.insert(offers, { Tile = tile, Kind = kind, Key = key, Owned = owned })
 	end
 	offer(1, "Product", "StarterPack", Theme.Icons.Star, "Starter", "#FFE27A", "#F07800", function(data)
@@ -19465,6 +19685,16 @@ function HUD.Init()
 
 	local menu = buildMenu(root)
 	local counters = buildCounters(root)
+	local function relayout()
+		local designHeight = root.AbsoluteSize.Y / math.max(UIController.Scale, 0.01)
+		if designHeight > 0 then
+			menu.Layout(designHeight < 760, designHeight)
+		end
+	end
+	UIController.ScaleChanged:Connect(function()
+		task.defer(relayout)
+	end)
+	relayout()
 	local levelBar, packs = buildBottom(root)
 	local offers, chips = buildRight(root)
 	HudThrowPanel.new(root, HUD.ContextBottom)
@@ -19618,7 +19848,7 @@ function HUD.Init()
 		-- counters
 		counters.Rebirths:SetText(Format.Commas(tonumber(data.Rebirths) or 0))
 		counters.Wins:SetText(Format.Short(tonumber(data.Wins) or 0))
-		counters.Friends:SetText(string.format("Friend Boost +%d%%", math.floor((tonumber(derived.FriendBoost) or 0) * 100 + 0.5)))
+		counters.Friends:SetText(string.format("Friends +%d%%", math.floor((tonumber(derived.FriendBoost) or 0) * 100 + 0.5)))
 		if previous then
 			if (tonumber(data.Wins) or 0) > (tonumber(previous.Wins) or 0) then
 				counters.Wins:Bump()
@@ -19989,6 +20219,10 @@ function InventoryScreen.Init()
 		})
 	end
 
+	-- start on the Gliders tab (MenuTabs starts with nothing selected)
+	tabs:Select("Gliders", true)
+	showPage("Gliders")
+
 	UIController.Register("Inventory", shell)
 	StateController.DataChanged:Connect(function()
 		if shell:IsOpen() then
@@ -20193,6 +20427,32 @@ local function refreshDetail(data: { [string]: any })
 	end
 end
 
+-- Detail pane, stacked from the bottom so it fits any panel height: buttons, stats, rarity, name,
+-- and the preview takes what is left. Short panels (phones) put the two buttons side by side.
+local function layoutDetail(compact: boolean)
+	local buttons = if compact then 74 else 146
+	if compact then
+		equipButton.Instance.Size = UDim2.new(0.5, -18, 0, 62)
+		equipButton.Instance.Position = UDim2.new(0, 12, 1, -12)
+		lockButton.Instance.Size = UDim2.new(0.5, -18, 0, 62)
+		lockButton.Instance.Position = UDim2.new(0.5, 6, 1, -12)
+	else
+		equipButton.Instance.Size = UDim2.new(1, -24, 0, 62)
+		equipButton.Instance.Position = UDim2.new(0, 12, 1, -84)
+		lockButton.Instance.Size = UDim2.new(1, -24, 0, 62)
+		lockButton.Instance.Position = UDim2.new(0, 12, 1, -12)
+	end
+	local statsH = if compact then 70 else 100
+	detailStats.AnchorPoint = Vector2.new(0, 1)
+	detailStats.Size = UDim2.new(1, -24, 0, statsH)
+	detailStats.Position = UDim2.new(0, 12, 1, -(buttons + 6))
+	detailRarity.AnchorPoint = Vector2.new(0, 1)
+	detailRarity.Position = UDim2.new(0, 12, 1, -(buttons + 6 + statsH + 4))
+	detailName.AnchorPoint = Vector2.new(0, 1)
+	detailName.Position = UDim2.new(0, 12, 1, -(buttons + 6 + statsH + 4 + 28 + 2))
+	detailPreview.Size = UDim2.new(1, -40, 1, -(buttons + 6 + statsH + 4 + 28 + 2 + 40 + 14))
+end
+
 local function refresh()
 	local data = StateController.Data
 	if data == nil then
@@ -20360,6 +20620,9 @@ function PetsScreen.Init()
 			toDelete = {}
 			refresh()
 		end,
+		OnResize = function(contentHeight: number)
+			layoutDetail(contentHeight - (BAR_H + 12) < 470)
+		end,
 		FirstSelection = function()
 			return equipBestButton.Instance
 		end,
@@ -20376,7 +20639,7 @@ function PetsScreen.Init()
 	summary = Create.Text({
 		Name = "Summary",
 		Text = "",
-		Size = UDim2.new(1, -420, 1, -16),
+		Size = UDim2.new(1, -440, 1, -16),
 		Position = UDim2.fromOffset(14, 8),
 		Font = Theme.Fonts.Display,
 		TextSize = 26,
@@ -20476,6 +20739,7 @@ function PetsScreen.Init()
 		Position = UDim2.fromOffset(12, 300),
 		Font = Theme.Fonts.Body,
 		TextSize = 24,
+		Scaled = true, -- shrinks to fit the shorter box on phones
 		Wrapped = true,
 		YAlign = Enum.TextYAlignment.Top,
 		Stroke = 1.4,
@@ -20503,6 +20767,8 @@ function PetsScreen.Init()
 		TextSize = 26,
 		OnClick = onSecondary,
 	})
+
+	layoutDetail(false)
 
 	UIController.Register("Pets", shell)
 	StateController.DataChanged:Connect(function()
@@ -20575,6 +20841,8 @@ type Refs = {
 local shell: MenuShell.Shell
 local refs: Refs
 local glowTween: Tween
+local columns: { GuiObject } = {} -- resets / keeps / unlocks cards (hidden on short panels)
+local compactInfo: TextLabel? = nil
 local flash: Frame
 local banner: Frame
 local bannerScale: UIScale
@@ -20917,7 +21185,18 @@ function RebirthScreen.Init()
 		Title = "Rebirth",
 		Icon = Theme.Icons.Rebirth,
 		Size = PANEL,
+		MinHeight = 560,
 		Accent = PINK,
+		OnResize = function(contentHeight: number)
+			-- short panels (phones): one summary line instead of the three cards
+			local compact = contentHeight < 600
+			for _, column in columns do
+				column.Visible = not compact
+			end
+			if compactInfo then
+				compactInfo.Visible = compact
+			end
+		end,
 		OnOpen = function()
 			task.defer(refresh)
 		end,
@@ -21081,6 +21360,21 @@ function RebirthScreen.Init()
 	line(keeps, Theme.Icons.Trails .. " Trails", 4)
 	line(keeps, Theme.Icons.World .. " Worlds", 5)
 	local unlockList = card(content, "Unlocks", UDim2.fromOffset((colW + 14) * 2, colTop), UDim2.fromOffset(colW, colH), GOLD, "NEXT REBIRTH UNLOCKS")
+	-- card() returns each card's line list; hide the whole card
+	columns = { resets.Parent :: GuiObject, keeps.Parent :: GuiObject, unlockList.Parent :: GuiObject }
+	local info = Create.Text({
+		Name = "CompactInfo",
+		Text = Theme.Icons.Skill .. " Resets Skill and Level  ·  " .. Theme.Icons.Wins .. " keeps Wins, gliders, pets, trails and worlds",
+		Size = UDim2.new(1, 0, 0, 30),
+		Position = UDim2.fromOffset(0, colTop),
+		Font = Theme.Fonts.Display,
+		TextSize = 26,
+		Scaled = true,
+		Stroke = 2,
+		Parent = content,
+	})
+	info.Visible = false
+	compactInfo = info
 	local unlocks: { TextLabel } = {}
 	for i = 1, MAX_UNLOCK_LINES do
 		local label = line(unlockList, "", i)
@@ -21178,9 +21472,9 @@ local PANEL = Vector2.new(1100, 640)
 type Row = { Key: string, Title: string, Hint: string, Icon: string }
 
 local ROWS: { Row } = {
-	{ Key = "Sfx", Title = "Sound effects", Hint = "Chimes, splashes, wind and UI sounds", Icon = "🔊" },
-	{ Key = "FollowCam", Title = "Follow camera", Hint = "Camera chases your glider down the river", Icon = "🎥" },
-	{ Key = "LowFx", Title = "Low effects", Hint = "Fewer particles for older devices", Icon = "✨" },
+	{ Key = "Sfx", Title = "Sound effects", Hint = "Chimes, splashes and wind", Icon = "🔊" },
+	{ Key = "FollowCam", Title = "Follow camera", Hint = "Chases your glider", Icon = "🎥" },
+	{ Key = "LowFx", Title = "Low effects", Hint = "For older devices", Icon = "✨" },
 }
 
 local shell: MenuShell.Shell
@@ -21403,11 +21697,9 @@ local IS_STUDIO = RunService:IsStudio()
 
 local PANEL = Vector2.new(1240, 740)
 local WIDTH = PANEL.X - 36 -- Panel content width
-local HEIGHT = PANEL.Y - 78 - 16 -- Panel content height (title 56 + 22)
 local TAB_H = 64
 local CODES_H = 76
 local PAGE_TOP = TAB_H + 12
-local PAGE_H = HEIGHT - PAGE_TOP - CODES_H - 12
 
 local TABS = {
 	{ Key = "Passes", Text = "Passes", Icon = "💎", Style = "Pink" },
@@ -21455,6 +21747,9 @@ type Entry = (data: { [string]: any }) -> ()
 local shell: MenuShell.Shell
 local tabs: MenuTabs.Tabs
 local pages: { [string]: GuiObject } = {}
+local codesBar: Frame
+local compact = false
+local currentPage = "Passes"
 local updaters: { Entry } = {}
 local codeBox: TextBox
 local codeStroke: UIStroke
@@ -21796,6 +22091,7 @@ local function buildCodesBar(parent: Frame)
 		Size = UDim2.new(1, 0, 0, CODES_H),
 		Parent = parent,
 	})
+	codesBar = bar
 	Create.Corner(16, bar)
 	codeStroke = Create.Stroke(bar, hex("#C98CFF"), 3, 0, true)
 	Create.Text({
@@ -21859,10 +22155,21 @@ end
 
 local PULSE = TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 1, true)
 
+-- Short panels (phones): the codes bar only shows on the Codes tab, other pages use its space.
+local function layoutPages()
+	local withBar = not compact or currentPage == "Codes"
+	codesBar.Visible = withBar
+	for _, page in pages do
+		page.Size = UDim2.new(1, 0, 1, -(PAGE_TOP + (if withBar then CODES_H + 12 else 0)))
+	end
+end
+
 local function showPage(key: string)
+	currentPage = key
 	for k, page in pages do
 		page.Visible = k == key
 	end
+	layoutPages()
 	if key == "Codes" then
 		codeStroke.Thickness = 3
 		TweenService:Create(codeStroke, PULSE, { Thickness = 7 }):Play()
@@ -21894,6 +22201,10 @@ function ShopScreen.Init()
 		OnShoulder = function(direction: number)
 			tabs:Cycle(direction)
 		end,
+		OnResize = function(contentHeight: number)
+			compact = contentHeight < 520
+			layoutPages()
+		end,
 		FirstSelection = function()
 			return tabs.Buttons[tabs.Selected].Instance
 		end,
@@ -21919,7 +22230,7 @@ function ShopScreen.Init()
 			Name = spec.Key .. "Page",
 			BackgroundTransparency = 1,
 			Position = UDim2.fromOffset(0, PAGE_TOP),
-			Size = UDim2.new(1, 0, 0, PAGE_H),
+			Size = UDim2.new(1, 0, 1, -(PAGE_TOP + CODES_H + 12)), -- the panel is shorter on phones
 			Visible = false,
 			Parent = content,
 		})
@@ -22051,7 +22362,7 @@ function TrailsScreen.Init()
 			Icon = Theme.Icons.Trails,
 			Title = trail.Name,
 			Subtitle = string.format("+%s%% Wins", Format.Short(trail.WinsBoost * 100)),
-			Description = string.upper(trail.Rarity) .. "\nA ribbon behind you and your glider.",
+			Description = string.upper(trail.Rarity),
 			ButtonText = "",
 			OnClick = function()
 				act(trail)
@@ -22539,7 +22850,9 @@ function Effects.Ring(pos: Vector3, normal: Vector3, radius: number, color: Colo
 	local p = basicPart(Enum.PartType.Cylinder)
 	p.Color = color
 	p.Transparency = 0.2
-	local cf = CFrame.lookAt(pos, pos + normal) * CFrame.Angles(0, math.rad(90), 0)
+	-- a vertical normal (rings on the ground) needs another up axis for lookAt
+	local up = if math.abs(normal.Unit.Y) > 0.99 then Vector3.xAxis else Vector3.yAxis
+	local cf = CFrame.lookAt(pos, pos + normal, up) * CFrame.Angles(0, math.rad(90), 0)
 	p.CFrame = cf
 	p.Size = Vector3.new(thickness or 0.15, radius * 0.4, radius * 0.4)
 	p.Parent = ensureFolder()
