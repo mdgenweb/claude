@@ -296,9 +296,76 @@ local EVENTS = {
 	SelectionGained = true, SelectionLost = true, AncestryChanged = true, Destroying = true,
 	PromptShown = true, PromptHidden = true,
 }
+-- Absolute (pixel) sizes like Roblox computes them: a ScreenGui covers the viewport minus the
+-- safe-area insets, each GuiObject is its parent's content size * Size.Scale + Size.Offset (less
+-- the parent's UIPadding), and UIScales multiply down the tree. List/grid layouts don't change
+-- sizes (except grid cells), which is all the client reads AbsoluteSize for.
+GUI_INSETS = { Top = 0, Bottom = 0, Left = 0, Right = 0 }
+local function uiScaleOf(inst)
+	for _, c in rawget(inst, "_children") do
+		local cp = rawget(c, "_props")
+		if cp.ClassName == "UIScale" then
+			return cp.Scale or 1
+		end
+	end
+	return 1
+end
+local function paddingOf(inst, contentW, contentH)
+	for _, c in rawget(inst, "_children") do
+		local cp = rawget(c, "_props")
+		if cp.ClassName == "UIPadding" then
+			local function u(v, total)
+				return if v then v.Scale * total + v.Offset else 0
+			end
+			return u(cp.PaddingLeft, contentW) + u(cp.PaddingRight, contentW), u(cp.PaddingTop, contentH) + u(cp.PaddingBottom, contentH)
+		end
+	end
+	return 0, 0
+end
+local function gridCellOf(inst)
+	for _, c in rawget(inst, "_children") do
+		local cp = rawget(c, "_props")
+		if cp.ClassName == "UIGridLayout" then
+			return cp.CellSize
+		end
+	end
+	return nil
+end
+-- returns content width, height (in this object's own units) and its cumulative scale
+local function measure(inst)
+	local props = rawget(inst, "_props")
+	local cn = props.ClassName
+	if cn == "ScreenGui" or cn == "BillboardGui" or cn == "SurfaceGui" then
+		local camera = FAKE_GAME:GetService("Workspace").CurrentCamera
+		local v = camera and camera.ViewportSize or Vector2.new(1800, 920)
+		if cn == "ScreenGui" and props.IgnoreGuiInset ~= true then
+			return v.X - GUI_INSETS.Left - GUI_INSETS.Right, v.Y - GUI_INSETS.Top - GUI_INSETS.Bottom, 1
+		end
+		return v.X, v.Y, 1
+	end
+	local parent = props.Parent
+	if parent == nil or typeof(parent) ~= "Instance" or not parent:IsA("GuiBase2d") then
+		return 0, 0, 1
+	end
+	local pw, ph, pscale = measure(parent)
+	local padW, padH = paddingOf(parent, pw, ph)
+	pw, ph = pw - padW, ph - padH
+	local size = props.Size or UDim2.fromOffset(100, 100)
+	local cell = gridCellOf(parent)
+	if cell then
+		size = cell
+	end
+	local w = pw * size.X.Scale + size.X.Offset
+	local h = ph * size.Y.Scale + size.Y.Offset
+	return w, h, pscale * uiScaleOf(inst)
+end
+function ABSOLUTE_SIZE(inst)
+	local w, h, scale = measure(inst)
+	return Vector2.new(w * scale, h * scale)
+end
 local GUI_DEFAULTS = {
-	AbsoluteSize = function()
-		return Vector2.new(120, 120)
+	AbsoluteSize = function(i)
+		return ABSOLUTE_SIZE(i)
 	end,
 	AbsolutePosition = function()
 		return Vector2.zero
@@ -359,7 +426,7 @@ Imt.__index = function(i, k)
 	end
 	local default = GUI_DEFAULTS[k]
 	if default and i:IsA("GuiBase2d") then
-		return default()
+		return default(i)
 	end
 	return nil
 end

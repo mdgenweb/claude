@@ -136,6 +136,32 @@ local function refreshDetail(data: { [string]: any })
 	end
 end
 
+-- Detail pane, stacked from the bottom so it fits any panel height: buttons, stats, rarity, name,
+-- and the preview takes what is left. Short panels (phones) put the two buttons side by side.
+local function layoutDetail(compact: boolean)
+	local buttons = if compact then 74 else 146
+	if compact then
+		equipButton.Instance.Size = UDim2.new(0.5, -18, 0, 62)
+		equipButton.Instance.Position = UDim2.new(0, 12, 1, -12)
+		lockButton.Instance.Size = UDim2.new(0.5, -18, 0, 62)
+		lockButton.Instance.Position = UDim2.new(0.5, 6, 1, -12)
+	else
+		equipButton.Instance.Size = UDim2.new(1, -24, 0, 62)
+		equipButton.Instance.Position = UDim2.new(0, 12, 1, -84)
+		lockButton.Instance.Size = UDim2.new(1, -24, 0, 62)
+		lockButton.Instance.Position = UDim2.new(0, 12, 1, -12)
+	end
+	local statsH = if compact then 70 else 100
+	detailStats.AnchorPoint = Vector2.new(0, 1)
+	detailStats.Size = UDim2.new(1, -24, 0, statsH)
+	detailStats.Position = UDim2.new(0, 12, 1, -(buttons + 6))
+	detailRarity.AnchorPoint = Vector2.new(0, 1)
+	detailRarity.Position = UDim2.new(0, 12, 1, -(buttons + 6 + statsH + 4))
+	detailName.AnchorPoint = Vector2.new(0, 1)
+	detailName.Position = UDim2.new(0, 12, 1, -(buttons + 6 + statsH + 4 + 28 + 2))
+	detailPreview.Size = UDim2.new(1, -40, 1, -(buttons + 6 + statsH + 4 + 28 + 2 + 40 + 14))
+end
+
 local function refresh()
 	local data = StateController.Data
 	if data == nil then
@@ -303,6 +329,9 @@ function PetsScreen.Init()
 			toDelete = {}
 			refresh()
 		end,
+		OnResize = function(contentHeight: number)
+			layoutDetail(contentHeight - (BAR_H + 12) < 470)
+		end,
 		FirstSelection = function()
 			return equipBestButton.Instance
 		end,
@@ -319,7 +348,7 @@ function PetsScreen.Init()
 	summary = Create.Text({
 		Name = "Summary",
 		Text = "",
-		Size = UDim2.new(1, -420, 1, -16),
+		Size = UDim2.new(1, -440, 1, -16),
 		Position = UDim2.fromOffset(14, 8),
 		Font = Theme.Fonts.Display,
 		TextSize = 26,
@@ -419,6 +448,7 @@ function PetsScreen.Init()
 		Position = UDim2.fromOffset(12, 300),
 		Font = Theme.Fonts.Body,
 		TextSize = 24,
+		Scaled = true, -- shrinks to fit the shorter box on phones
 		Wrapped = true,
 		YAlign = Enum.TextYAlignment.Top,
 		Stroke = 1.4,
@@ -446,6 +476,8 @@ function PetsScreen.Init()
 		TextSize = 26,
 		OnClick = onSecondary,
 	})
+
+	layoutDetail(false)
 
 	UIController.Register("Pets", shell)
 	StateController.DataChanged:Connect(function()

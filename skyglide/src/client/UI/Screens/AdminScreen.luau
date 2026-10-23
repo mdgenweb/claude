@@ -85,6 +85,7 @@ function AdminScreen.Init()
 		Title = "Admin / Diagnostics",
 		Icon = "🛠️",
 		Size = PANEL,
+		MinHeight = PANEL.Y, -- stacked sections; a developer tool, so no compact layout
 		Accent = Theme.Colors.Danger,
 		OnOpen = function()
 			local data = StateController.Data

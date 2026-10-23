@@ -102,7 +102,7 @@ function TrailsScreen.Init()
 			Icon = Theme.Icons.Trails,
 			Title = trail.Name,
 			Subtitle = string.format("+%s%% Wins", Format.Short(trail.WinsBoost * 100)),
-			Description = string.upper(trail.Rarity) .. "\nA ribbon behind you and your glider.",
+			Description = string.upper(trail.Rarity),
 			ButtonText = "",
 			OnClick = function()
 				act(trail)

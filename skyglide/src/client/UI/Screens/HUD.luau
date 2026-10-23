@@ -3,7 +3,7 @@
 -- original art:
 --   left         2-column menu tiles (Shop, Rebirth %, Pets, Trails, Inventory, Gifts badge),
 --                Settings gear and an Admin tile for admins; fades during the local flight
---   bottom-left  Rebirths, Wins and "Friend Boost +X%" (green + opens the invite prompt)
+--   bottom-left  Rebirths, Wins and "Friends +X%" boost (green + opens the invite prompt)
 --   bottom-mid   Skill / multiplier row, level bar, three Robux Skill packs
 --   top-mid      AUTO THROW (buy prompt or ON/OFF toggle); flight counter + banners below it
 --   right        potion timers above the Starter Pack / 2x Skill / 2x Wins offers
@@ -45,6 +45,7 @@ local HUD = {}
 local hex = Color3.fromHex
 local IS_STUDIO = RunService:IsStudio()
 local MARGIN = 18
+local COUNTERS_H = 3 * 52 + 2 * 12 + 8 -- bottom-left stat pills
 local POP = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 -- bottom-centre stack (design px, measured from the bottom edge)
@@ -53,7 +54,7 @@ local STACK_GAP = 8
 HUD.BottomStack = 12 + PACK_H + STACK_GAP + HudLevelBar.Height -- top of the level block
 HUD.ContextBottom = HUD.BottomStack + 14 -- where contextual panels (throw / pad) sit
 HUD.CounterTop = 92 -- flight counter top when no tutorial bar is shown
-HUD.CounterTopTutorial = 166
+HUD.CounterTopTutorial = 174
 
 local function purchaseAvailable(id: number): boolean
 	return id ~= 0 or IS_STUDIO
@@ -64,14 +65,20 @@ local function purchase(kind: string, key: string)
 end
 
 -- Left menu ---------------------------------------------------------------------------------------
-type MenuRefs = { Group: CanvasGroup, Rebirth: HudTile.Tile, Gifts: HudTile.Tile, Admin: HudTile.Tile }
+type MenuRefs = {
+	Group: CanvasGroup,
+	Rebirth: HudTile.Tile,
+	Gifts: HudTile.Tile,
+	Admin: HudTile.Tile,
+	Layout: (compact: boolean, designHeight: number) -> (),
+}
 
 local function buildMenu(root: Frame): MenuRefs
 	local TILE = 92
 	local GAP = 10
 	local PAD = 16
 	local width = TILE * 2 + GAP + PAD * 2
-	local height = TILE * 3 + GAP * 2 + GAP + 70 + PAD * 2
+	local height = TILE * 3 + GAP * 2 + GAP + 76 + PAD * 2
 	local group: CanvasGroup = Create("CanvasGroup", {
 		Name = "Menu",
 		BackgroundTransparency = 1,
@@ -121,7 +128,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Name = "Extras",
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(PAD, PAD + TILE * 3 + GAP * 3),
-		Size = UDim2.fromOffset(TILE * 2 + GAP, 70),
+		Size = UDim2.fromOffset(TILE * 2 + GAP, 76),
 		Parent = group,
 	})
 	Create.List(row, Enum.FillDirection.Horizontal, 12, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
@@ -129,7 +136,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Parent = row,
 		Name = "Settings",
 		Icon = Theme.Icons.Settings,
-		Size = 66,
+		Size = 72,
 		Round = true,
 		Top = hex("#E9EEF5"),
 		Bottom = hex("#8C96A8"),
@@ -142,7 +149,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Parent = row,
 		Name = "Admin",
 		Icon = "🛠️",
-		Size = 66,
+		Size = 72,
 		Top = hex("#FF6B6B"),
 		Bottom = hex("#7A0A0A"),
 		LayoutOrder = 2,
@@ -151,7 +158,32 @@ local function buildMenu(root: Frame): MenuRefs
 		end,
 	})
 	admin.Instance.Visible = false
-	return { Group = group, Rebirth = rebirth, Gifts = gifts, Admin = admin }
+
+	-- Short screens (phones in landscape): the settings row moves beside the tiles, and the column
+	-- is kept clear of the counters stacked in the bottom-left corner.
+	local rowLayout = row:FindFirstChildOfClass("UIListLayout") :: UIListLayout
+	local function layoutMenu(compact: boolean, designHeight: number)
+		if compact then
+			row.Position = UDim2.fromOffset(PAD + TILE * 2 + GAP * 2, PAD)
+			row.Size = UDim2.fromOffset(76, TILE * 2 + GAP)
+			rowLayout.FillDirection = Enum.FillDirection.Vertical
+			rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+			rowLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+			group.Size = UDim2.fromOffset(width + 86, TILE * 3 + GAP * 2 + PAD * 2)
+		else
+			row.Position = UDim2.fromOffset(PAD, PAD + TILE * 3 + GAP * 3)
+			row.Size = UDim2.fromOffset(TILE * 2 + GAP, 76)
+			rowLayout.FillDirection = Enum.FillDirection.Horizontal
+			rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			rowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+			group.Size = UDim2.fromOffset(width, height)
+		end
+		local h = group.Size.Y.Offset
+		local countersTop = designHeight - MARGIN - COUNTERS_H - 14
+		local centre = math.max(h / 2 + 8, math.min(designHeight / 2 - 70, countersTop - h / 2))
+		group.Position = UDim2.new(0, MARGIN - PAD, 0, centre)
+	end
+	return { Group = group, Rebirth = rebirth, Gifts = gifts, Admin = admin, Layout = layoutMenu }
 end
 
 -- Bottom-left counters ----------------------------------------------------------------------------
@@ -163,7 +195,7 @@ local function buildCounters(root: Frame): CounterRefs
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, MARGIN + 6, 1, -MARGIN),
-		Size = UDim2.fromOffset(340, 3 * 52 + 2 * 12 + 8),
+		Size = UDim2.fromOffset(340, COUNTERS_H),
 		ZIndex = 2,
 		Parent = root,
 	})
@@ -203,11 +235,11 @@ local function buildCounters(root: Frame): CounterRefs
 	})
 	friends.Instance.AnchorPoint = Vector2.new(0, 0.5)
 	friends.Instance.Position = UDim2.fromScale(0, 0.5)
-	friends:SetText("Friend Boost +0%")
+	friends:SetText("Friends +0%")
 	local invite = Button.new({
 		Parent = friendRow,
 		Name = "Invite",
-		Size = UDim2.fromOffset(60, 60),
+		Size = UDim2.fromOffset(72, 72),
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 274, 0.5, 0),
 		Style = "Green",
@@ -419,6 +451,15 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 			end,
 		})
 		priceChip(tile.Instance, if available then Theme.Icons.Robux .. tostring(robux) else "SOON")
+		-- the price chip sits on the bottom edge: lift the icon and label above it
+		local iconText = tile.Instance:FindFirstChild("Icon") :: TextLabel?
+		local labelText = tile.Instance:FindFirstChild("Label") :: TextLabel?
+		if iconText and labelText then
+			iconText.Position = UDim2.fromScale(0.5, 0.33)
+			iconText.Size = UDim2.fromScale(0.6, 0.5)
+			labelText.Position = UDim2.new(0.5, 0, 1, -15)
+			labelText.Size = UDim2.new(1, 4, 0.26, 0)
+		end
 		table.insert(offers, { Tile = tile, Kind = kind, Key = key, Owned = owned })
 	end
 	offer(1, "Product", "StarterPack", Theme.Icons.Star, "Starter", "#FFE27A", "#F07800", function(data)
@@ -494,6 +535,16 @@ function HUD.Init()
 
 	local menu = buildMenu(root)
 	local counters = buildCounters(root)
+	local function relayout()
+		local designHeight = root.AbsoluteSize.Y / math.max(UIController.Scale, 0.01)
+		if designHeight > 0 then
+			menu.Layout(designHeight < 760, designHeight)
+		end
+	end
+	UIController.ScaleChanged:Connect(function()
+		task.defer(relayout)
+	end)
+	relayout()
 	local levelBar, packs = buildBottom(root)
 	local offers, chips = buildRight(root)
 	HudThrowPanel.new(root, HUD.ContextBottom)
@@ -647,7 +698,7 @@ function HUD.Init()
 		-- counters
 		counters.Rebirths:SetText(Format.Commas(tonumber(data.Rebirths) or 0))
 		counters.Wins:SetText(Format.Short(tonumber(data.Wins) or 0))
-		counters.Friends:SetText(string.format("Friend Boost +%d%%", math.floor((tonumber(derived.FriendBoost) or 0) * 100 + 0.5)))
+		counters.Friends:SetText(string.format("Friends +%d%%", math.floor((tonumber(derived.FriendBoost) or 0) * 100 + 0.5)))
 		if previous then
 			if (tonumber(data.Wins) or 0) > (tonumber(previous.Wins) or 0) then
 				counters.Wins:Bump()

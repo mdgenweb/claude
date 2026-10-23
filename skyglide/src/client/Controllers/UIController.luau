@@ -228,7 +228,7 @@ function UIController.Init()
 		Name = "Toasts",
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 70),
+		Position = UDim2.new(0.5, 0, 0, 176), -- below AUTO THROW and the tutorial bar
 		Size = UDim2.fromOffset(560, 400),
 		Parent = layers.Toasts,
 	})

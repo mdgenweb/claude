@@ -162,6 +162,30 @@ local function priceAction(egg: Eggs.Egg): (string, string, boolean)
 	return "HATCH 1", "Green", true
 end
 
+-- Left column stacked from the bottom so it fits any panel height: hatch buttons, luck, price,
+-- name, and the egg preview takes what is left. Short panels put the buttons side by side.
+local function layoutLeft(compact: boolean)
+	local buttons = if compact then 82 else 164
+	if compact then
+		hatchOne.Instance.Size = UDim2.new(0.5, -18, 0, 70)
+		hatchOne.Instance.Position = UDim2.new(0, 12, 1, -12)
+		hatchThree.Instance.Size = UDim2.new(0.5, -18, 0, 70)
+		hatchThree.Instance.Position = UDim2.new(0.5, 6, 1, -12)
+	else
+		hatchOne.Instance.Size = UDim2.new(1, -24, 0, 70)
+		hatchOne.Instance.Position = UDim2.new(0, 12, 1, -94)
+		hatchThree.Instance.Size = UDim2.new(1, -24, 0, 70)
+		hatchThree.Instance.Position = UDim2.new(0, 12, 1, -12)
+	end
+	luckLabel.AnchorPoint = Vector2.new(0, 1)
+	luckLabel.Position = UDim2.new(0, 12, 1, -(buttons + 6))
+	eggPrice.AnchorPoint = Vector2.new(0, 1)
+	eggPrice.Position = UDim2.new(0, 12, 1, -(buttons + 6 + 28 + 4))
+	eggName.AnchorPoint = Vector2.new(0, 1)
+	eggName.Position = UDim2.new(0, 12, 1, -(buttons + 6 + 28 + 4 + 36 + 4))
+	eggPreview.Size = UDim2.new(1, -60, 1, -(buttons + 6 + 28 + 4 + 36 + 4 + 42 + 16))
+end
+
 local function refresh()
 	local egg = currentEgg
 	local data = StateController.Data
@@ -237,6 +261,19 @@ local overlay: TextButton
 local stage: Frame
 local subtitle: TextLabel
 local hint: TextLabel
+local stageScale: UIScale
+
+-- The stage (up to 540 design px tall) sits between the title (ends ~140) and the hint (starts
+-- ~110 from the bottom); short screens (phones) scale it down to fit that space.
+local function fitStage()
+	local designHeight = overlay.AbsoluteSize.Y / math.max(UIController.Scale, 0.01)
+	if designHeight <= 0 then
+		return
+	end
+	local space = designHeight - 250
+	stageScale.Scale = math.clamp(space / 540, 0.4, 1)
+	stage.Position = UDim2.new(0.5, 0, 0, 140 + space / 2)
+end
 local queue: { HatchPayload } = {}
 local playing = false
 local dismissable = false
@@ -244,7 +281,7 @@ local dismissSignal: BindableEvent
 
 local function clearStage()
 	for _, child in stage:GetChildren() do
-		if not child:IsA("UIListLayout") then
+		if child:IsA("GuiObject") then -- keeps the list layout and the fit scale
 			child:Destroy()
 		end
 	end
@@ -336,6 +373,7 @@ local function play(payload: HatchPayload)
 	dismissable = false
 	clearStage()
 	overlay.Visible = true
+	fitStage()
 	overlay.BackgroundTransparency = 1
 	TweenService:Create(overlay, TweenInfo.new(0.25), { BackgroundTransparency = 0.35 }):Play()
 	local egg = Eggs.Get(payload.Egg)
@@ -472,6 +510,13 @@ local function buildOverlay()
 		Parent = overlay,
 	})
 	Create.List(stage, Enum.FillDirection.Horizontal, 24, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+	stageScale = Instance.new("UIScale")
+	stageScale.Parent = stage
+	UIController.ScaleChanged:Connect(function()
+		if overlay.Visible then
+			fitStage()
+		end
+	end)
 	hint = Create.Text({
 		Text = "",
 		Size = UDim2.fromOffset(600, 40),
@@ -493,6 +538,9 @@ function EggScreen.Init()
 		Icon = Theme.Icons.Egg,
 		Size = PANEL,
 		Accent = Theme.Colors.Skill,
+		OnResize = function(contentHeight: number)
+			layoutLeft(contentHeight < 560)
+		end,
 		OnOpen = function(eggId: any)
 			if type(eggId) == "string" and Eggs.Get(eggId) then
 				currentEgg = Eggs.Get(eggId)
@@ -579,6 +627,7 @@ function EggScreen.Init()
 			hatch(3)
 		end,
 	})
+	layoutLeft(false)
 	local right: Frame = Create("Frame", {
 		Name = "Right",
 		BackgroundTransparency = 1,

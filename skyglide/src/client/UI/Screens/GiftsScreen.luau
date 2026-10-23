@@ -52,7 +52,9 @@ local function describe(reward: Rewards.Reward, data: { [string]: any }?): (stri
 		return Theme.Icons.Skill, string.format("Skill x%d reps", reward.Reps or 0)
 	elseif reward.Kind == "Potion" then
 		local boost = Boosts.Get(reward.Id or "")
-		return Theme.Icons.Potion, string.format("%dx %s", reward.Count or 1, if boost then boost.Name else "Potion")
+		local name = if boost then string.gsub(boost.Name, "^%d+x%s+", "") else "Potion" -- "2x Skill Potion" -> "Skill Potion"
+		local count = reward.Count or 1
+		return Theme.Icons.Potion, if count == 1 then name else string.format("%d %ss", count, name)
 	elseif reward.Kind == "Pet" then
 		local pet = Pets.Get(reward.Id or "")
 		return Theme.Icons.Pets, if pet then pet.Name else "Pet"
@@ -200,8 +202,9 @@ local function buildDaily(parent: Frame)
 		local stroke = Create.Stroke(day, Theme.Colors.PanelBorder, 2, 0, true)
 		Create.Text({
 			Text = "DAY " .. i,
-			Size = UDim2.new(1, -8, 0, 22),
-			Position = UDim2.fromOffset(4, 4),
+			Size = UDim2.new(1, -84, 0, 22), -- left of the TODAY / ✅ tag in the corner
+			Position = UDim2.fromOffset(8, 4),
+			XAlign = Enum.TextXAlignment.Left,
 			Font = Theme.Fonts.Display,
 			TextSize = 20,
 			Scaled = true,
@@ -262,6 +265,7 @@ local function buildGifts(parent: Frame)
 			LayoutOrder = i,
 			Accent = hex(if gift.Reward.Kind == "Pet" then "#FF8FC8" elseif gift.Reward.Kind == "Potion" then "#C98CFF" elseif gift.Reward.Kind == "Wins" then "#FFC53D" else "#5FB8FF"),
 			Rainbow = i == #Rewards.Gifts,
+			Compact = true,
 			Icon = icon,
 			Title = "",
 			Subtitle = "",

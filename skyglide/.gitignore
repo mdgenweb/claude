@@ -2,3 +2,4 @@ sourcemap.json
 /build/*.rbxl
 /tests/.bundle/
 __pycache__/
+tests/.ui/

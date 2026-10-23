@@ -19,7 +19,7 @@ export type Product = {
 local Monetization = {}
 
 Monetization.Passes = {
-	{ Key = "AutoThrow", Name = "Auto Throw", Description = "Throws for you whenever you stand in the Throw Zone.", Id = 0, Robux = 10, Icon = "Auto" },
+	{ Key = "AutoThrow", Name = "Auto Throw", Description = "Throws for you in the Throw Zone.", Id = 0, Robux = 10, Icon = "Auto" },
 	{ Key = "DoubleSkill", Name = "2x Skill", Description = "Doubles all Skill you earn, forever.", Id = 0, Robux = 49, Icon = "Skill" },
 	{ Key = "DoubleWins", Name = "2x Wins", Description = "Doubles all Wins you earn, forever.", Id = 0, Robux = 25, Icon = "Wins" },
 	{ Key = "PetSlots", Name = "+2 Pet Slots", Description = "Equip 2 more pets.", Id = 0, Robux = 99, Icon = "Pet" },

@@ -88,8 +88,8 @@ function HudThrowPanel.new(parent: Instance, bottomOffset: number): ThrowPanel
 	local keyHint = Create.Text({
 		Name = "KeyHint",
 		Text = "HOLD",
-		Size = UDim2.new(1, -20, 0.26, 0),
-		Position = UDim2.fromScale(0.5, 0.8),
+		Size = UDim2.new(1, -20, 0.31, 0),
+		Position = UDim2.fromScale(0.5, 0.81),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Font = Theme.Fonts.Display,
 		TextSize = 22,
@@ -102,7 +102,7 @@ function HudThrowPanel.new(parent: Instance, bottomOffset: number): ThrowPanel
 	local function refreshHint()
 		local last = UserInputService:GetLastInputType()
 		if last == Enum.UserInputType.Touch then
-			keyHint.Text = "HOLD & RELEASE"
+			keyHint.Text = "HOLD" -- one short word stays readable on small phones; the meter hint says when to let go
 		elseif string.find(last.Name, "Gamepad", 1, true) then
 			keyHint.Text = "HOLD [R2]"
 		else

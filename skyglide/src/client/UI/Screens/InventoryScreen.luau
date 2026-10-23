@@ -283,6 +283,10 @@ function InventoryScreen.Init()
 		})
 	end
 
+	-- start on the Gliders tab (MenuTabs starts with nothing selected)
+	tabs:Select("Gliders", true)
+	showPage("Gliders")
+
 	UIController.Register("Inventory", shell)
 	StateController.DataChanged:Connect(function()
 		if shell:IsOpen() then

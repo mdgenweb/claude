@@ -2,6 +2,7 @@
 -- Modal panel in the reference style: dark navy body, thin bright border, big display-font
 -- title, close button breaking out of the top-right corner, pop-in animation.
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
@@ -14,7 +15,9 @@ export type PanelProps = {
 	Parent: Instance,
 	Name: string,
 	Title: string?,
-	Size: Vector2, -- design pixels
+	Size: Vector2, -- design pixels (the height may shrink on short screens, see fit())
+	MinHeight: number?, -- shortest design height the content still works at (default 520)
+	OnResize: ((contentHeight: number) -> ())?, -- the panel height changed (screens re-layout)
 	OnClose: (() -> ())?,
 	TitleSize: number?,
 	Border: Color3?,
@@ -56,14 +59,29 @@ function Panel.new(props: PanelProps): Panel
 	})
 	local scale = Instance.new("UIScale")
 	scale.Parent = holder
-	-- extra shrink so big menus always fit small screens (phones in landscape)
+	-- Fits the panel to the screen. Wide, short screens (phones in landscape) would shrink a tall
+	-- panel until everything in it is tiny, so there the panel gets shorter instead (content
+	-- scrolls) and keeps the scale the width allows; touch screens may also grow a little.
+	local minHeight = math.min(props.Size.Y, props.MinHeight or 520)
+	local contentTop = 16
+	local lastHeight = props.Size.Y
 	local function fit(): number
 		local screen = root.AbsoluteSize
 		local s = math.max(UIController.Scale, 0.01)
 		if screen.X <= 0 or screen.Y <= 0 then
 			return 1
 		end
-		return math.min(1, screen.Y * 0.95 / (props.Size.Y * s), screen.X * 0.97 / (props.Size.X * s))
+		local grow = if UserInputService.TouchEnabled then 1.15 else 1
+		local byWidth = math.min(grow, screen.X * 0.97 / (props.Size.X * s))
+		local height = math.clamp(screen.Y * 0.95 / (s * byWidth), minHeight, props.Size.Y)
+		holder.Size = UDim2.fromOffset(props.Size.X, height)
+		if height ~= lastHeight then
+			lastHeight = height
+			if props.OnResize then
+				props.OnResize(height - contentTop - 16)
+			end
+		end
+		return math.min(byWidth, screen.Y * 0.95 / (height * s))
 	end
 	local body: Frame = Create("Frame", {
 		Name = "Body",
@@ -76,7 +94,6 @@ function Panel.new(props: PanelProps): Panel
 	Create.Stroke(body, props.Border or Theme.Colors.PanelBorder, 2, 0, true)
 
 	local title: TextLabel? = nil
-	local contentTop = 16
 	if props.Title then
 		title = Create.Text({
 			Name = "Title",
@@ -152,7 +169,7 @@ function Panel.new(props: PanelProps): Panel
 		local onClose = props.OnClose
 		Button.Close(holder, function()
 			onClose()
-		end, UDim2.new(1, -4, 0, 4), 62)
+		end, UDim2.new(1, -4, 0, 4), if UserInputService.TouchEnabled then 84 else 62)
 	end
 	return self :: Panel
 end

@@ -18,7 +18,9 @@ export type ShellProps = {
 	Name: string, -- UIController screen name
 	Title: string,
 	Icon: string?,
-	Size: Vector2, -- design pixels (keep <= 1300 x 760)
+	Size: Vector2, -- design pixels (keep <= 1300 x 760); the height shrinks on short screens
+	MinHeight: number?, -- shortest design height the content still works at (default 520)
+	OnResize: ((contentHeight: number) -> ())?, -- the content height changed (short screens)
 	Accent: Color3?,
 	OnOpen: ((...any) -> ())?, -- refresh content; receives UIController.Open's extra args
 	OnClose: (() -> ())?,
@@ -63,6 +65,8 @@ function MenuShell.new(props: ShellProps): Shell
 		Name = props.Name,
 		Title = (if props.Icon then props.Icon .. " " else "") .. string.upper(props.Title),
 		Size = props.Size,
+		MinHeight = props.MinHeight,
+		OnResize = props.OnResize,
 		TitleSize = 56,
 		Border = Theme.Colors.PanelBorder,
 		OnClose = function()

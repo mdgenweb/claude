@@ -145,8 +145,13 @@ def bundle(spec_path):
     harness = HARNESS.replace("__SOURCES__", "{\n" + entries + "\n}")
     spec = spec_path.read_text()
     lines = spec.split("\n")
-    before = [l.split(" ", 1)[1].strip() for l in lines[:3] if l.startswith("--!prelude-before ")]
-    after = [l.split(" ", 1)[1].strip() for l in lines[:3] if l.startswith("--!prelude-after ")]
+    header = []
+    for l in lines:
+        if not l.startswith("--!prelude-"):
+            break
+        header.append(l)
+    before = [l.split(" ", 1)[1].strip() for l in header if l.startswith("--!prelude-before ")]
+    after = [l.split(" ", 1)[1].strip() for l in header if l.startswith("--!prelude-after ")]
     if before:
         # full Roblox API mock that must exist before the harness (world/factory/client builds),
         # plus optional mocks that need the harness (fake DataModel) to exist first

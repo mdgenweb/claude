@@ -22,6 +22,7 @@ export type CardProps = {
 	ButtonText: string?, -- nil = no action button
 	ButtonStyle: string?,
 	OnClick: (() -> ())?,
+	Compact: boolean?, -- short cells (~196 px): smaller plate, title + subtitle + a 56 px button
 }
 
 export type Card = {
@@ -47,6 +48,11 @@ end
 
 function MenuCard.new(props: CardProps): Card
 	local accent = props.Accent
+	local compact = props.Compact == true
+	local plateSize = if compact then 64 else 92
+	local titleTop = if compact then 74 else 114
+	local titleH = if compact then 30 else 36
+	local buttonH = if compact then 56 else 62
 	local root: Frame = Create("Frame", {
 		Name = props.Name or "Card",
 		BackgroundColor3 = Color3.new(1, 1, 1),
@@ -67,7 +73,7 @@ function MenuCard.new(props: CardProps): Card
 	local glow: Frame = Create("Frame", {
 		Name = "Glow",
 		BackgroundColor3 = accent,
-		Size = UDim2.new(1, 0, 0, 130),
+		Size = UDim2.new(1, 0, 0, if compact then 96 else 130),
 		Parent = root,
 	})
 	Create.Corner(16, glow)
@@ -83,8 +89,8 @@ function MenuCard.new(props: CardProps): Card
 		Name = "Plate",
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 14),
-		Size = UDim2.fromOffset(92, 92),
+		Position = UDim2.new(0.5, 0, 0, if compact then 8 else 14),
+		Size = UDim2.fromOffset(plateSize, plateSize),
 		Rotation = -4,
 		Parent = root,
 	})
@@ -114,8 +120,8 @@ function MenuCard.new(props: CardProps): Card
 	local title = Create.Text({
 		Name = "Title",
 		Text = props.Title,
-		Position = UDim2.fromOffset(10, 114),
-		Size = UDim2.new(1, -20, 0, 36),
+		Position = UDim2.fromOffset(10, titleTop),
+		Size = UDim2.new(1, -20, 0, titleH),
 		Font = Theme.Fonts.Display,
 		TextSize = 32,
 		Scaled = true,
@@ -125,8 +131,8 @@ function MenuCard.new(props: CardProps): Card
 	local subtitle = Create.Text({
 		Name = "Subtitle",
 		Text = props.Subtitle or "",
-		Position = UDim2.fromOffset(10, 150),
-		Size = UDim2.new(1, -20, 0, 26),
+		Position = UDim2.fromOffset(10, titleTop + titleH),
+		Size = UDim2.new(1, -20, 0, if compact then 24 else 26),
 		Font = Theme.Fonts.Display,
 		TextSize = 24,
 		Scaled = true,
@@ -136,12 +142,12 @@ function MenuCard.new(props: CardProps): Card
 	})
 	subtitle.Visible = (props.Subtitle or "") ~= ""
 	local hasButton = props.ButtonText ~= nil
-	local descTop = if subtitle.Visible then 180 else 156
+	local descTop = titleTop + titleH + (if subtitle.Visible then 30 else 6)
 	local description = Create.Text({
 		Name = "Description",
 		Text = props.Description or "",
 		Position = UDim2.fromOffset(14, descTop),
-		Size = UDim2.new(1, -28, 1, -descTop - (if hasButton then 84 else 14)),
+		Size = UDim2.new(1, -28, 1, -descTop - (if hasButton then buttonH + 22 else 14)),
 		Font = Theme.Fonts.Body,
 		TextSize = 19,
 		Scaled = true,
@@ -158,8 +164,8 @@ function MenuCard.new(props: CardProps): Card
 			Parent = root,
 			Name = "Action",
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(0.5, 0, 1, -12),
-			Size = UDim2.new(1, -24, 0, 62),
+			Position = UDim2.new(0.5, 0, 1, if compact then -8 else -12),
+			Size = UDim2.new(1, -24, 0, buttonH),
 			Style = props.ButtonStyle or "Green",
 			Text = props.ButtonText,
 			TextSize = 30,

@@ -38,11 +38,9 @@ local IS_STUDIO = RunService:IsStudio()
 
 local PANEL = Vector2.new(1240, 740)
 local WIDTH = PANEL.X - 36 -- Panel content width
-local HEIGHT = PANEL.Y - 78 - 16 -- Panel content height (title 56 + 22)
 local TAB_H = 64
 local CODES_H = 76
 local PAGE_TOP = TAB_H + 12
-local PAGE_H = HEIGHT - PAGE_TOP - CODES_H - 12
 
 local TABS = {
 	{ Key = "Passes", Text = "Passes", Icon = "💎", Style = "Pink" },
@@ -90,6 +88,9 @@ type Entry = (data: { [string]: any }) -> ()
 local shell: MenuShell.Shell
 local tabs: MenuTabs.Tabs
 local pages: { [string]: GuiObject } = {}
+local codesBar: Frame
+local compact = false
+local currentPage = "Passes"
 local updaters: { Entry } = {}
 local codeBox: TextBox
 local codeStroke: UIStroke
@@ -431,6 +432,7 @@ local function buildCodesBar(parent: Frame)
 		Size = UDim2.new(1, 0, 0, CODES_H),
 		Parent = parent,
 	})
+	codesBar = bar
 	Create.Corner(16, bar)
 	codeStroke = Create.Stroke(bar, hex("#C98CFF"), 3, 0, true)
 	Create.Text({
@@ -494,10 +496,21 @@ end
 
 local PULSE = TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 1, true)
 
+-- Short panels (phones): the codes bar only shows on the Codes tab, other pages use its space.
+local function layoutPages()
+	local withBar = not compact or currentPage == "Codes"
+	codesBar.Visible = withBar
+	for _, page in pages do
+		page.Size = UDim2.new(1, 0, 1, -(PAGE_TOP + (if withBar then CODES_H + 12 else 0)))
+	end
+end
+
 local function showPage(key: string)
+	currentPage = key
 	for k, page in pages do
 		page.Visible = k == key
 	end
+	layoutPages()
 	if key == "Codes" then
 		codeStroke.Thickness = 3
 		TweenService:Create(codeStroke, PULSE, { Thickness = 7 }):Play()
@@ -529,6 +542,10 @@ function ShopScreen.Init()
 		OnShoulder = function(direction: number)
 			tabs:Cycle(direction)
 		end,
+		OnResize = function(contentHeight: number)
+			compact = contentHeight < 520
+			layoutPages()
+		end,
 		FirstSelection = function()
 			return tabs.Buttons[tabs.Selected].Instance
 		end,
@@ -554,7 +571,7 @@ function ShopScreen.Init()
 			Name = spec.Key .. "Page",
 			BackgroundTransparency = 1,
 			Position = UDim2.fromOffset(0, PAGE_TOP),
-			Size = UDim2.new(1, 0, 0, PAGE_H),
+			Size = UDim2.new(1, 0, 1, -(PAGE_TOP + CODES_H + 12)), -- the panel is shorter on phones
 			Visible = false,
 			Parent = content,
 		})

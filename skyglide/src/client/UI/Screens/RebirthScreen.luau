@@ -53,6 +53,8 @@ type Refs = {
 local shell: MenuShell.Shell
 local refs: Refs
 local glowTween: Tween
+local columns: { GuiObject } = {} -- resets / keeps / unlocks cards (hidden on short panels)
+local compactInfo: TextLabel? = nil
 local flash: Frame
 local banner: Frame
 local bannerScale: UIScale
@@ -395,7 +397,18 @@ function RebirthScreen.Init()
 		Title = "Rebirth",
 		Icon = Theme.Icons.Rebirth,
 		Size = PANEL,
+		MinHeight = 560,
 		Accent = PINK,
+		OnResize = function(contentHeight: number)
+			-- short panels (phones): one summary line instead of the three cards
+			local compact = contentHeight < 600
+			for _, column in columns do
+				column.Visible = not compact
+			end
+			if compactInfo then
+				compactInfo.Visible = compact
+			end
+		end,
 		OnOpen = function()
 			task.defer(refresh)
 		end,
@@ -559,6 +572,21 @@ function RebirthScreen.Init()
 	line(keeps, Theme.Icons.Trails .. " Trails", 4)
 	line(keeps, Theme.Icons.World .. " Worlds", 5)
 	local unlockList = card(content, "Unlocks", UDim2.fromOffset((colW + 14) * 2, colTop), UDim2.fromOffset(colW, colH), GOLD, "NEXT REBIRTH UNLOCKS")
+	-- card() returns each card's line list; hide the whole card
+	columns = { resets.Parent :: GuiObject, keeps.Parent :: GuiObject, unlockList.Parent :: GuiObject }
+	local info = Create.Text({
+		Name = "CompactInfo",
+		Text = Theme.Icons.Skill .. " Resets Skill and Level  ·  " .. Theme.Icons.Wins .. " keeps Wins, gliders, pets, trails and worlds",
+		Size = UDim2.new(1, 0, 0, 30),
+		Position = UDim2.fromOffset(0, colTop),
+		Font = Theme.Fonts.Display,
+		TextSize = 26,
+		Scaled = true,
+		Stroke = 2,
+		Parent = content,
+	})
+	info.Visible = false
+	compactInfo = info
 	local unlocks: { TextLabel } = {}
 	for i = 1, MAX_UNLOCK_LINES do
 		local label = line(unlockList, "", i)

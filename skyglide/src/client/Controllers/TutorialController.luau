@@ -29,7 +29,7 @@ local TutorialController = {}
 local localPlayer = Players.LocalPlayer
 local GOLD = Color3.fromHex("#FFD447")
 local POP = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local BAR_TOP = 96
+local BAR_TOP = 104 -- the STEP tag pokes 13 px above the bar; stay clear of AUTO THROW (ends at 88)
 local ARROW_HEIGHT = 10
 local NEAR = 12 -- studs: hide the beam once the player is this close (the arrow stays)
 
@@ -151,10 +151,10 @@ function TutorialController.Start()
 	local stepText = Create.Text({
 		Name = "Step",
 		Text = "",
-		Size = UDim2.fromOffset(90, 22),
-		Position = UDim2.fromOffset(18, -11),
+		Size = UDim2.fromOffset(120, 26),
+		Position = UDim2.fromOffset(18, -13),
 		Font = Theme.Fonts.Display,
-		TextSize = 20,
+		TextSize = 24,
 		Scaled = true,
 		Color = GOLD,
 		Stroke = 2.5,
@@ -165,7 +165,7 @@ function TutorialController.Start()
 	local hint = Create.Text({
 		Name = "Hint",
 		Text = "",
-		Size = UDim2.new(1, -250, 0, 44),
+		Size = UDim2.new(1, -284, 0, 44),
 		Position = UDim2.new(0, 18, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
 		Font = Theme.Fonts.Display,
@@ -179,7 +179,7 @@ function TutorialController.Start()
 	local chip: Frame = Create("Frame", {
 		Name = "Progress",
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -124, 0.5, 0),
+		Position = UDim2.new(1, -158, 0.5, 0), -- clear of the Skip button
 		Size = UDim2.fromOffset(92, 40),
 		BackgroundColor3 = Theme.Colors.Success,
 		Visible = false,
@@ -209,7 +209,7 @@ function TutorialController.Start()
 	skip = Button.new({
 		Parent = bar,
 		Name = "Skip",
-		Size = UDim2.fromOffset(104, 60),
+		Size = UDim2.fromOffset(140, 66),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, 0),
 		Style = "Grey",

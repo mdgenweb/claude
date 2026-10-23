@@ -27,9 +27,9 @@ local PANEL = Vector2.new(1100, 640)
 type Row = { Key: string, Title: string, Hint: string, Icon: string }
 
 local ROWS: { Row } = {
-	{ Key = "Sfx", Title = "Sound effects", Hint = "Chimes, splashes, wind and UI sounds", Icon = "🔊" },
-	{ Key = "FollowCam", Title = "Follow camera", Hint = "Camera chases your glider down the river", Icon = "🎥" },
-	{ Key = "LowFx", Title = "Low effects", Hint = "Fewer particles for older devices", Icon = "✨" },
+	{ Key = "Sfx", Title = "Sound effects", Hint = "Chimes, splashes and wind", Icon = "🔊" },
+	{ Key = "FollowCam", Title = "Follow camera", Hint = "Chases your glider", Icon = "🎥" },
+	{ Key = "LowFx", Title = "Low effects", Hint = "For older devices", Icon = "✨" },
 }
 
 local shell: MenuShell.Shell

@@ -19,6 +19,7 @@ local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local AudioController = require(Client.Controllers.AudioController)
 local Bus = require(Client.Controllers.Bus)
+local UIController = require(Client.Controllers.UIController)
 
 local HudLandingCard = {}
 
@@ -48,6 +49,20 @@ function HudLandingCard.new(root: Frame)
 	local cardStroke = Create.Stroke(card, WHITE, 4, 0, true)
 	local cardScale = Instance.new("UIScale")
 	cardScale.Parent = card
+	-- short screens (phones): a little smaller and lower, clear of the toasts and the bottom bar
+	local cardSize = 1
+	local function placeCard()
+		local designHeight = root.AbsoluteSize.Y / math.max(UIController.Scale, 0.01)
+		local compact = designHeight > 0 and designHeight < 760
+		cardSize = if compact then 0.85 else 1
+		card.Position = UDim2.fromScale(0.5, if compact then 0.56 else 0.42)
+	end
+	UIController.ScaleChanged:Connect(function()
+		placeCard()
+		if card.Visible and cardScale.Scale > 0 then
+			cardScale.Scale = cardSize
+		end
+	end)
 
 	local header: Frame = Create("Frame", {
 		Name = "Header",
@@ -284,6 +299,7 @@ function HudLandingCard.new(root: Frame)
 	end
 
 	local function show(payload: { [string]: any })
+		placeCard()
 		local zone = if type(payload.Zone) == "string" then Zones.Get(payload.Zone) else nil
 		local color = if zone then Color3.fromHex(zone.Color) else WHITE
 		zoneText.Text = if zone then zone.Name else "Splash!"
@@ -323,8 +339,8 @@ function HudLandingCard.new(root: Frame)
 		cardToken += 1
 		local token = cardToken
 		card.Visible = true
-		cardScale.Scale = 0.3
-		TweenService:Create(cardScale, POP, { Scale = 1 }):Play()
+		cardScale.Scale = 0.3 * cardSize
+		TweenService:Create(cardScale, POP, { Scale = cardSize }):Play()
 		if newBest then
 			AudioController.Play("NewBest")
 		else
@@ -347,6 +363,20 @@ function HudLandingCard.new(root: Frame)
 		end
 	end
 
+	-- starting the next throw dismisses the card (on phones it covers the THROW button)
+	Bus.ChargeChanged:Connect(function(on: any)
+		if on == true and card.Visible then
+			cardToken += 1
+			local token = cardToken
+			local out = TweenService:Create(cardScale, SHRINK, { Scale = 0 })
+			out:Play()
+			out.Completed:Once(function()
+				if token == cardToken then
+					card.Visible = false
+				end
+			end)
+		end
+	end)
 	Bus.FlightLanded:Connect(function(payload: any)
 		if type(payload) ~= "table" or payload.Cancelled or payload.Owner ~= true then
 			return
