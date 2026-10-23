@@ -1,8 +1,8 @@
 --!strict
 -- Pets menu ("Pets"): every owned pet in a rarity-bordered grid (equipped first, then strongest),
 -- a detail pane with Equip/Unequip and Lock/Unlock, Equip Best, and a multi-select delete mode
--- (locked pets can't be picked). Every action is a RequestPetAction intent; the server owns the
--- inventory and slot limits.
+-- (locked pets can't be picked), and an INDEX button that opens the collection book. Every action
+-- is a RequestPetAction intent; the server owns the inventory and slot limits.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -256,7 +256,7 @@ local function refresh()
 	local slotsMax = if type(derived.PetSlots) == "number" then derived.PetSlots else Economy.PetSlots
 	local equippedCount = if type(data.EquippedPets) == "table" then #data.EquippedPets else 0
 	summary.Text = string.format(
-		"%s Equipped %d/%d   ·   🎒 Storage %d/%d   ·   %s Pet boost x%s",
+		"%s Equipped %d/%d   ·   🎒 Storage %d/%d\n%s Pet boost x%s",
 		Theme.Icons.Check,
 		equippedCount,
 		slotsMax,
@@ -348,8 +348,8 @@ function PetsScreen.Init()
 	summary = Create.Text({
 		Name = "Summary",
 		Text = "",
-		Size = UDim2.new(1, -440, 1, -16),
-		Position = UDim2.fromOffset(14, 8),
+		Size = UDim2.new(1, -590, 1, -12),
+		Position = UDim2.fromOffset(14, 6),
 		Font = Theme.Fonts.Display,
 		TextSize = 26,
 		Scaled = true,
@@ -357,11 +357,24 @@ function PetsScreen.Init()
 		Stroke = 2,
 		Parent = bar,
 	})
+	Button.new({
+		Parent = bar,
+		Name = "OpenIndex",
+		Size = UDim2.fromOffset(170, 60),
+		Position = UDim2.new(1, -394, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Style = "Purple",
+		Text = "📖 INDEX",
+		TextSize = 24,
+		OnClick = function()
+			UIController.Open("Index")
+		end,
+	})
 	equipBestButton = Button.new({
 		Parent = bar,
 		Name = "EquipBest",
-		Size = UDim2.fromOffset(200, 60),
-		Position = UDim2.new(1, -214, 0.5, 0),
+		Size = UDim2.fromOffset(196, 60),
+		Position = UDim2.new(1, -186, 0.5, 0),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Style = "Green",
 		Text = "EQUIP BEST",
@@ -373,7 +386,7 @@ function PetsScreen.Init()
 	deleteButton = Button.new({
 		Parent = bar,
 		Name = "Delete",
-		Size = UDim2.fromOffset(190, 60),
+		Size = UDim2.fromOffset(170, 60),
 		Position = UDim2.new(1, -8, 0.5, 0),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Style = "Red",

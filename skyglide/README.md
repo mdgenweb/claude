@@ -19,7 +19,12 @@ The UI follows the look of the genre's big simulators, rebuilt with original cod
 * bold header bars on menus;
 * trophies that fly into the Wins counter and roll it up;
 * colour-coded toasts;
-* sunbursts behind big rewards.
+* sunbursts behind big rewards;
+* spinning rarity outlines;
+* hover tooltips;
+* striped header bars;
+* cards that pop in one by one;
+* a Pet Index (collection book) with silhouettes for pets not found yet.
 
 ## Play it in Roblox Studio
 
@@ -61,6 +66,7 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 Also included:
 
+* a Pet Index that records every pet you've owned, per egg and world;
 * playtime gifts and a 7-day daily streak;
 * codes (`LAUNCH`, `THERMAL`, `GLIDE`);
 * potions;

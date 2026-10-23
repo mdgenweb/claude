@@ -35,6 +35,7 @@ export type Profile = {
 	Pets: { [string]: OwnedPet },
 	EquippedPets: { string },
 	NextPetId: number,
+	Index: { [string]: boolean }, -- every pet id ever owned (the collection book)
 	Potions: { [string]: number },
 	Boosts: { [string]: number },
 	Daily: { Day: number, Streak: number },
@@ -63,7 +64,7 @@ export type Profile = {
 
 local Schema = {}
 
-Schema.CURRENT_VERSION = 1
+Schema.CURRENT_VERSION = 2
 
 function Schema.Default(): Profile
 	local now = os.time()
@@ -85,6 +86,7 @@ function Schema.Default(): Profile
 		Pets = {},
 		EquippedPets = {},
 		NextPetId = 1,
+		Index = {},
 		Potions = {},
 		Boosts = {},
 		Daily = { Day = 0, Streak = 0 },
@@ -114,7 +116,19 @@ end
 
 -- Migrations: index = version being upgraded FROM.
 local Migrations: { [number]: (any) -> any } = {
-	-- [1] = function(data) data.NewField = ...; return data end,
+	-- 1 -> 2: the pet Index. Earlier deletions are unknown, so it starts from the pets owned now.
+	[1] = function(data)
+		local index = {}
+		if type(data.Pets) == "table" then
+			for _, pet in data.Pets do
+				if type(pet) == "table" and type(pet.Id) == "string" then
+					index[pet.Id] = true
+				end
+			end
+		end
+		data.Index = index
+		return data
+	end,
 }
 
 local function num(v: any, default: number, min: number, max: number): number
@@ -217,6 +231,11 @@ function Schema.Sanitize(raw: any): Profile
 		end
 	end
 	p.NextPetId = int(data.NextPetId, 1, 1, 1e12)
+	-- the Index only holds real pet ids, and always includes every pet owned now
+	p.Index = boolSet(data.Index, Pets.Exists)
+	for _, pet in p.Pets do
+		p.Index[pet.Id] = true
+	end
 
 	if type(data.Potions) == "table" then
 		for id, n in data.Potions do
@@ -331,6 +350,7 @@ function Schema.PublicView(p: Profile): { [string]: any }
 		Trails = table.clone(p.Trails),
 		Pets = clonePets(p.Pets),
 		EquippedPets = table.clone(p.EquippedPets),
+		Index = table.clone(p.Index),
 		Potions = table.clone(p.Potions),
 		Boosts = table.clone(p.Boosts),
 		Daily = table.clone(p.Daily),

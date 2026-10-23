@@ -99,6 +99,7 @@ local MENUS = {
 	{ "menu_shop", "Shop" },
 	{ "menu_rebirth", "Rebirth" },
 	{ "menu_pets", "Pets" },
+	{ "menu_index", "Index" },
 	{ "menu_trails", "Trails" },
 	{ "menu_inventory", "Inventory" },
 	{ "menu_gifts", "Gifts" },
@@ -128,6 +129,17 @@ STEP(0.3)
 task.spawn(Net.Invoke, "RequestRedeemCode", false, "NOPE")
 STEP(0.3)
 capture("toasts", 0.1)
+
+-- hover tooltip (mouse devices only)
+for _, device in { "pc", "laptop" } do
+	SET_DEVICE(device)
+	STEP(0.3)
+	BUTTON("Shop").MouseEnter:Fire()
+	STEP(0.1)
+	DUMP_GUI("tooltip")
+	BUTTON("Shop").MouseLeave:Fire()
+end
+SET_DEVICE("pc")
 
 for _, e in CLIENT_ERRORS do
 	print("CLIENT ERROR: " .. e)

@@ -444,6 +444,8 @@ do
 	local reveal = playerGui:FindFirstChild("HatchReveal", true)
 	check(reveal ~= nil and SHOWN(reveal), "the hatch reveal plays")
 	STEP(3)
+	local newBadge = reveal and reveal:FindFirstChild("NewBadge", true)
+	check(newBadge ~= nil and SHOWN(newBadge), "a pet hatched for the first time shows NEW!")
 	CLICK(reveal)
 	STEP(1)
 	local petsAfter, newUid = 0, nil
@@ -452,6 +454,8 @@ do
 		newUid = uid
 	end
 	check(petsAfter == petsBefore + 1, "one pet hatched")
+	local hatchedId = if newUid then profile().Pets[newUid].Id else nil
+	check(hatchedId ~= nil and profile().Index[hatchedId] == true and State.Data.Index[hatchedId] == true, "the pet is recorded in the Index (server and client)")
 	check(profile().Wins == winsBeforeHatch - egg.Price, "the egg price was charged")
 	check(#profile().EquippedPets >= 1, "the new pet is equipped automatically")
 	STEP(1)
@@ -472,6 +476,22 @@ do
 	CLICK(BUTTON("EquipBest"))
 	settle()
 	check(#profile().EquippedPets >= 1, "EQUIP BEST equips it again")
+	CLICK(BUTTON("OpenIndex"))
+	STEP(0.5)
+	check(UI.Get("Index"):IsOpen(), "INDEX in the Pets menu opens the Index")
+	local indexRoot = playerGui:FindFirstChild("SkyGlide_Menus"):FindFirstChild("Root"):FindFirstChild("Index")
+	local PetDefs = MODULE("ReplicatedStorage/Shared/Definitions/Pets")
+	local found = hatchedId and indexRoot:FindFirstChild(hatchedId, true)
+	check(found ~= nil and SHOWN(found) and HAS_TEXT(found, PetDefs.Get(hatchedId).Name), "the Index card shows the hatched pet")
+	local unknownCard = nil
+	for _, entry in egg.Pets do
+		if not profile().Index[entry.Pet] then
+			unknownCard = indexRoot:FindFirstChild(entry.Pet, true)
+			break
+		end
+	end
+	check(unknownCard ~= nil and HAS_TEXT(unknownCard, "???"), "pets not found yet show ??? in the Index")
+	check(HAS_TEXT(indexRoot, "Discovered "), "the Index counts the pets discovered")
 	closeMenus()
 end
 

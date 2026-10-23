@@ -2,14 +2,16 @@
 -- Square HUD menu tile (left grid, right offers) in the simulator style: a bright gradient face
 -- with a thick dark outline and gloss, raised on a darker base (pressing sinks it), big emoji
 -- icon, chunky stroked label, optional caption over the icon ("83%"), a red count badge, a gold
--- "ready" glow, an attention wiggle (e.g. gifts waiting) and an optional glint sweep. The HUD
--- ticker drives the glow and wiggle through Animate. Gamepad-selectable; hover grows it.
+-- "ready" glow, an attention wiggle (e.g. gifts waiting), an optional glint sweep and an optional
+-- hover tooltip. The HUD ticker drives the glow and wiggle through Animate. Gamepad-selectable;
+-- hover grows it, thickens the outline and wiggles the icon.
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Shine = require(script.Parent.Shine)
+local Tooltip = require(script.Parent.Tooltip)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type TileProps = {
@@ -23,6 +25,7 @@ export type TileProps = {
 	LayoutOrder: number?,
 	Round: boolean?,
 	Shine: boolean?,
+	Tooltip: { Title: string, Text: string, Beside: GuiObject? }?,
 	OnClick: () -> (),
 }
 
@@ -48,6 +51,12 @@ local GOLD = Color3.fromHex("#FFD447")
 local GOLD_HOT = Color3.fromHex("#FFF6C2")
 local WIGGLE_EVERY = 2.4 -- seconds between attention wiggles
 local WIGGLE_TIME = 0.6
+local HOVER_WIGGLE = TweenInfo.new(0.07, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 1, true)
+-- Inner shadow: the lower part of a face darkens toward its bottom edge (depth under the gloss).
+local INNER_SHADOW = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(1, 0.7),
+})
 
 function HudTile.new(props: TileProps): Tile
 	local side = props.Size or 92
@@ -102,6 +111,18 @@ function HudTile.new(props: TileProps): Tile
 		Parent = face,
 	})
 	rounding(gloss, 12)
+	local inner: Frame = Create("Frame", {
+		Name = "InnerShadow",
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		Position = UDim2.fromScale(0, 0.5),
+		Size = UDim2.fromScale(1, 0.5),
+		Parent = face,
+	})
+	rounding(inner, 16)
+	local innerGradient = Instance.new("UIGradient")
+	innerGradient.Rotation = 90
+	innerGradient.Transparency = INNER_SHADOW
+	innerGradient.Parent = inner
 	if props.Shine then
 		Shine.Add(face, if props.Round then UDim.new(0.5, 0) else UDim.new(0, 16), 2)
 	end
@@ -261,12 +282,24 @@ function HudTile.new(props: TileProps): Tile
 	local DOWN = UDim2.fromOffset(0, depth - 1)
 	root.MouseEnter:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1.07 }):Play()
+		if not self.Glowing then
+			TweenService:Create(border, QUICK, { Thickness = Theme.Outline + 1.5 }):Play()
+			if not self.Attention then
+				TweenService:Create(icon, HOVER_WIGGLE, { Rotation = 12 }):Play()
+			end
+		end
 		AudioController.Play("Hover", nil, 0.05)
 	end)
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
 		TweenService:Create(face, QUICK, { Position = UP }):Play()
+		if not self.Glowing then
+			TweenService:Create(border, QUICK, { Thickness = Theme.Outline }):Play()
+		end
 	end)
+	if props.Tooltip then
+		Tooltip.Attach(root, props.Tooltip.Title, props.Tooltip.Text, props.Tooltip.Beside)
+	end
 	root.MouseButton1Down:Connect(function()
 		TweenService:Create(face, QUICK, { Position = DOWN }):Play()
 		TweenService:Create(scale, QUICK, { Scale = 0.96 }):Play()

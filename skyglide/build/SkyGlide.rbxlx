@@ -4164,6 +4164,7 @@ export type Profile = {
 	Pets: { [string]: OwnedPet },
 	EquippedPets: { string },
 	NextPetId: number,
+	Index: { [string]: boolean }, -- every pet id ever owned (the collection book)
 	Potions: { [string]: number },
 	Boosts: { [string]: number },
 	Daily: { Day: number, Streak: number },
@@ -4192,7 +4193,7 @@ export type Profile = {
 
 local Schema = {}
 
-Schema.CURRENT_VERSION = 1
+Schema.CURRENT_VERSION = 2
 
 function Schema.Default(): Profile
 	local now = os.time()
@@ -4214,6 +4215,7 @@ function Schema.Default(): Profile
 		Pets = {},
 		EquippedPets = {},
 		NextPetId = 1,
+		Index = {},
 		Potions = {},
 		Boosts = {},
 		Daily = { Day = 0, Streak = 0 },
@@ -4243,7 +4245,19 @@ end
 
 -- Migrations: index = version being upgraded FROM.
 local Migrations: { [number]: (any) -> any } = {
-	-- [1] = function(data) data.NewField = ...; return data end,
+	-- 1 -> 2: the pet Index. Earlier deletions are unknown, so it starts from the pets owned now.
+	[1] = function(data)
+		local index = {}
+		if type(data.Pets) == "table" then
+			for _, pet in data.Pets do
+				if type(pet) == "table" and type(pet.Id) == "string" then
+					index[pet.Id] = true
+				end
+			end
+		end
+		data.Index = index
+		return data
+	end,
 }
 
 local function num(v: any, default: number, min: number, max: number): number
@@ -4346,6 +4360,11 @@ function Schema.Sanitize(raw: any): Profile
 		end
 	end
 	p.NextPetId = int(data.NextPetId, 1, 1, 1e12)
+	-- the Index only holds real pet ids, and always includes every pet owned now
+	p.Index = boolSet(data.Index, Pets.Exists)
+	for _, pet in p.Pets do
+		p.Index[pet.Id] = true
+	end
 
 	if type(data.Potions) == "table" then
 		for id, n in data.Potions do
@@ -4460,6 +4479,7 @@ function Schema.PublicView(p: Profile): { [string]: any }
 		Trails = table.clone(p.Trails),
 		Pets = clonePets(p.Pets),
 		EquippedPets = table.clone(p.EquippedPets),
+		Index = table.clone(p.Index),
 		Potions = table.clone(p.Potions),
 		Boosts = table.clone(p.Boosts),
 		Daily = table.clone(p.Daily),
@@ -6469,13 +6489,17 @@ local function score(id: string): number
 	return if def then def.SkillBoost * 1000 + def.WinsBoost else 0
 end
 
--- Adds a pet, auto-equipping it when a slot is free or it beats the weakest equipped pet.
-local function addPet(player: Player, petId: string): string?
+-- Adds a pet, auto-equipping it when a slot is free or it beats the weakest equipped pet, and
+-- records it in the Index. Returns the new uid and whether this species is new to the Index.
+local function addPet(player: Player, petId: string): (string?, boolean)
 	local maxSlots = slots(player)
+	local discovered = false
 	local uid = DataService.Update(player, function(p)
 		local id = tostring(p.NextPetId)
 		p.NextPetId += 1
 		p.Pets[id] = { Id = petId, Locked = false }
+		discovered = not p.Index[petId]
+		p.Index[petId] = true
 		if #p.EquippedPets < maxSlots then
 			table.insert(p.EquippedPets, id)
 		else
@@ -6493,7 +6517,7 @@ local function addPet(player: Player, petId: string): string?
 		end
 		return id
 	end)
-	return uid
+	return uid, uid ~= nil and discovered
 end
 
 local function roll(egg: Eggs.Egg, luck: number): string
@@ -6518,14 +6542,14 @@ local function announce(player: Player, petId: string)
 	end
 end
 
-local function hatch(player: Player, egg: Eggs.Egg, count: number): { { Uid: string, Id: string } }
+local function hatch(player: Player, egg: Eggs.Egg, count: number): { { Uid: string, Id: string, New: boolean } }
 	local luck = StatService.Luck(player)
 	local results = {}
 	for _ = 1, count do
 		local petId = roll(egg, luck)
-		local uid = addPet(player, petId)
+		local uid, isNew = addPet(player, petId)
 		if uid then
-			table.insert(results, { Uid = uid, Id = petId })
+			table.insert(results, { Uid = uid, Id = petId, New = isNew })
 			announce(player, petId)
 		end
 	end
@@ -6554,14 +6578,14 @@ function PetService.GivePet(player: Player, petId: string, source: string)
 	if not Pets.Exists(petId) then
 		return
 	end
-	addPet(player, petId)
+	local _, isNew = addPet(player, petId)
 	mirror(player)
 	local def = Pets.Get(petId) :: Pets.Pet
 	local notify = registry.NotifyService
 	if notify then
 		notify.Toast(player, string.format("%s: you got %s!", source, def.Name), "Success")
 	end
-	hatchResult:FireClient(player, { Egg = "", Pets = { { Uid = "", Id = petId } }, Source = source })
+	hatchResult:FireClient(player, { Egg = "", Pets = { { Uid = "", Id = petId, New = isNew } }, Source = source })
 end
 
 local function eggPosition(egg: Eggs.Egg, worldId: number): Vector3?
@@ -13598,6 +13622,7 @@ local EXCLUSIVE: { [string]: boolean } = {
 	Shop = true,
 	Rebirth = true,
 	Pets = true,
+	Index = true,
 	Trails = true,
 	Inventory = true,
 	Gifts = true,
@@ -14292,6 +14317,7 @@ local SCREENS = {
 	"ShopScreen",
 	"RebirthScreen",
 	"PetsScreen",
+	"IndexScreen",
 	"EggScreen",
 	"TrailsScreen",
 	"InventoryScreen",
@@ -14352,10 +14378,10 @@ end
               <Properties>
                 <string name="Name">Button</string>
                 <string name="Source"><![CDATA[--!strict
--- Chunky simulator-style button: a gradient face with a thick dark outline, a gloss highlight and
--- a stroked label, raised on a darker base (Theme.Depth) like a 3D key. Hover grows it, pressing
--- sinks the face into the base, disabled turns it grey; click/hover sounds. Calls to action can
--- carry a glint sweep (Shine = true).
+-- Chunky simulator-style button: a gradient face with a thick dark outline, a gloss highlight, an
+-- inner shadow and a stroked label, raised on a darker base (Theme.Depth) like a 3D key. Hover
+-- grows it and thickens the outline, pressing sinks the face into the base, disabled turns it
+-- grey; click/hover sounds. Calls to action can carry a glint sweep (Shine = true).
 --
 -- Instance is the transparent hit box (face + base); Content is the face's content frame (it
 -- moves with the face), so extra labels go there.
@@ -14405,6 +14431,11 @@ local Button = {}
 local QUICK = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local MUTED: { [string]: boolean } = { Grey = true, Dark = true, Disabled = true }
+-- Inner shadow: the lower part of a face darkens toward its bottom edge (depth under the gloss).
+local INNER_SHADOW = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(1, 0.7),
+})
 
 function Button.new(props: ButtonProps): Button
 	local styleName = props.Style or "Grey"
@@ -14462,6 +14493,19 @@ function Button.new(props: ButtonProps): Button
 		Parent = face,
 	})
 	Create.Corner(math.max(corner - 2, 0), gloss)
+	local inner: Frame = Create("Frame", {
+		Name = "InnerShadow",
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		Position = UDim2.fromScale(0, 0.5),
+		Size = UDim2.fromScale(1, 0.5),
+		ZIndex = z + 1,
+		Parent = face,
+	})
+	Create.Corner(corner, inner)
+	local innerGradient = Instance.new("UIGradient")
+	innerGradient.Rotation = 90
+	innerGradient.Transparency = INNER_SHADOW
+	innerGradient.Parent = inner
 	local shine = if props.Shine then Shine.Add(face, UDim.new(0, corner), z + 2) else nil
 
 	local content: Frame = Create("Frame", {
@@ -14533,6 +14577,7 @@ function Button.new(props: ButtonProps): Button
 	root.MouseEnter:Connect(function()
 		if self.Enabled then
 			TweenService:Create(scale, QUICK, { Scale = 1.05 }):Play()
+			TweenService:Create(border, QUICK, { Thickness = Theme.Outline + 1.5 }):Play()
 			if not props.Silent then
 				AudioController.Play("Hover", nil, 0.05)
 			end
@@ -14541,6 +14586,7 @@ function Button.new(props: ButtonProps): Button
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
 		TweenService:Create(face, QUICK, { Position = UP }):Play()
+		TweenService:Create(border, QUICK, { Thickness = Theme.Outline }):Play()
 	end)
 	root.MouseButton1Down:Connect(function()
 		if self.Enabled then
@@ -16313,14 +16359,16 @@ return HudThrowPanel
 -- Square HUD menu tile (left grid, right offers) in the simulator style: a bright gradient face
 -- with a thick dark outline and gloss, raised on a darker base (pressing sinks it), big emoji
 -- icon, chunky stroked label, optional caption over the icon ("83%"), a red count badge, a gold
--- "ready" glow, an attention wiggle (e.g. gifts waiting) and an optional glint sweep. The HUD
--- ticker drives the glow and wiggle through Animate. Gamepad-selectable; hover grows it.
+-- "ready" glow, an attention wiggle (e.g. gifts waiting), an optional glint sweep and an optional
+-- hover tooltip. The HUD ticker drives the glow and wiggle through Animate. Gamepad-selectable;
+-- hover grows it, thickens the outline and wiggles the icon.
 local TweenService = game:GetService("TweenService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Shine = require(script.Parent.Shine)
+local Tooltip = require(script.Parent.Tooltip)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type TileProps = {
@@ -16334,6 +16382,7 @@ export type TileProps = {
 	LayoutOrder: number?,
 	Round: boolean?,
 	Shine: boolean?,
+	Tooltip: { Title: string, Text: string, Beside: GuiObject? }?,
 	OnClick: () -> (),
 }
 
@@ -16359,6 +16408,12 @@ local GOLD = Color3.fromHex("#FFD447")
 local GOLD_HOT = Color3.fromHex("#FFF6C2")
 local WIGGLE_EVERY = 2.4 -- seconds between attention wiggles
 local WIGGLE_TIME = 0.6
+local HOVER_WIGGLE = TweenInfo.new(0.07, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 1, true)
+-- Inner shadow: the lower part of a face darkens toward its bottom edge (depth under the gloss).
+local INNER_SHADOW = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(1, 0.7),
+})
 
 function HudTile.new(props: TileProps): Tile
 	local side = props.Size or 92
@@ -16413,6 +16468,18 @@ function HudTile.new(props: TileProps): Tile
 		Parent = face,
 	})
 	rounding(gloss, 12)
+	local inner: Frame = Create("Frame", {
+		Name = "InnerShadow",
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		Position = UDim2.fromScale(0, 0.5),
+		Size = UDim2.fromScale(1, 0.5),
+		Parent = face,
+	})
+	rounding(inner, 16)
+	local innerGradient = Instance.new("UIGradient")
+	innerGradient.Rotation = 90
+	innerGradient.Transparency = INNER_SHADOW
+	innerGradient.Parent = inner
 	if props.Shine then
 		Shine.Add(face, if props.Round then UDim.new(0.5, 0) else UDim.new(0, 16), 2)
 	end
@@ -16572,12 +16639,24 @@ function HudTile.new(props: TileProps): Tile
 	local DOWN = UDim2.fromOffset(0, depth - 1)
 	root.MouseEnter:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1.07 }):Play()
+		if not self.Glowing then
+			TweenService:Create(border, QUICK, { Thickness = Theme.Outline + 1.5 }):Play()
+			if not self.Attention then
+				TweenService:Create(icon, HOVER_WIGGLE, { Rotation = 12 }):Play()
+			end
+		end
 		AudioController.Play("Hover", nil, 0.05)
 	end)
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
 		TweenService:Create(face, QUICK, { Position = UP }):Play()
+		if not self.Glowing then
+			TweenService:Create(border, QUICK, { Thickness = Theme.Outline }):Play()
+		end
 	end)
+	if props.Tooltip then
+		Tooltip.Attach(root, props.Tooltip.Title, props.Tooltip.Text, props.Tooltip.Beside)
+	end
 	root.MouseButton1Down:Connect(function()
 		TweenService:Create(face, QUICK, { Position = DOWN }):Play()
 		TweenService:Create(scale, QUICK, { Scale = 0.96 }):Play()
@@ -16603,8 +16682,10 @@ return HudTile
               <Properties>
                 <string name="Name">ItemSlot</string>
                 <string name="Source"><![CDATA[--!strict
--- Square inventory slot: rarity-coloured border and glow, a lazily built 3D ViewportFrame preview,
--- a name strip, a small stat line, and corner badges (equipped check, lock, quantity).
+-- Square inventory slot: rarity-coloured border (spinning gradient for Legendary and up, see
+-- RarityFx) and glow, a lazily built 3D ViewportFrame preview (or a black silhouette for Index
+-- entries not found yet), a name strip, a small stat line, and corner badges (equipped check,
+-- lock, quantity).
 -- Slots are reused across refreshes (screens key them by uid/id), so previews are built once.
 local TweenService = game:GetService("TweenService")
 
@@ -16612,6 +16693,7 @@ local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Viewport = require(script.Parent.Viewport)
+local RarityFx = require(script.Parent.RarityFx)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type SlotProps = {
@@ -16624,6 +16706,7 @@ export type SlotProps = {
 	Stat: string?,
 	OnClick: (() -> ())?,
 	Spin: number?,
+	Silhouette: boolean?, -- draw the preview as a black shape (undiscovered)
 }
 
 export type Slot = {
@@ -16635,6 +16718,7 @@ export type Slot = {
 	SetTag: (Slot, string?) -> (), -- top-right badge text (e.g. "🔒", "x3")
 	SetSelected: (Slot, boolean) -> (),
 	SetDimmed: (Slot, boolean) -> (),
+	SetSilhouette: (Slot, boolean) -> (),
 	Destroy: (Slot) -> (),
 }
 
@@ -16656,6 +16740,7 @@ function ItemSlot.new(props: SlotProps): Slot
 	Create.Corner(14, root)
 	local gradient = Create.Gradient(root, Theme.RarityLight(props.Rarity):Lerp(Theme.Colors.Card, 0.55), Theme.Colors.CardDeep, 90)
 	local stroke = Create.Stroke(root, rarityColor, 3, 0, true)
+	RarityFx.Stroke(stroke, props.Rarity)
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
 
@@ -16715,6 +16800,14 @@ function ItemSlot.new(props: SlotProps): Slot
 	})
 
 	local built = false
+	local silhouette = props.Silhouette == true
+	local viewport: ViewportFrame? = nil
+	local function paint()
+		if viewport then
+			viewport.ImageColor3 = if silhouette then Color3.new(0, 0, 0) else Color3.new(1, 1, 1)
+			viewport.ImageTransparency = if silhouette then 0.15 else 0
+		end
+	end
 	local function ensurePreview()
 		if built then
 			return
@@ -16722,7 +16815,8 @@ function ItemSlot.new(props: SlotProps): Slot
 		built = true
 		local ok, model = pcall(props.Build)
 		if ok and model then
-			Viewport.Model(preview, model, { Spin = props.Spin or 0.6, Yaw = math.pi, Pitch = math.rad(-10), Zoom = 1.1 })
+			viewport = Viewport.Model(preview, model, { Spin = props.Spin or 0.6, Yaw = math.pi, Pitch = math.rad(-10), Zoom = 1.1 })
+			paint()
 		end
 	end
 	-- build the preview the first time the slot is actually on screen
@@ -16741,6 +16835,7 @@ function ItemSlot.new(props: SlotProps): Slot
 	end
 
 	local self = { Instance = root } :: any
+	local rarityNow = props.Rarity
 
 	function self.SetTitle(_: any, text: string)
 		title.Text = text
@@ -16749,7 +16844,8 @@ function ItemSlot.new(props: SlotProps): Slot
 		stat.Text = text
 	end
 	function self.SetRarity(_: any, rarity: string)
-		stroke.Color = Theme.Rarity(rarity)
+		RarityFx.Stroke(stroke, rarity)
+		rarityNow = rarity
 		gradient.Color = ColorSequence.new(Theme.RarityLight(rarity):Lerp(Theme.Colors.Card, 0.55), Theme.Colors.CardDeep)
 	end
 	function self.SetCorner(_: any, text: string?)
@@ -16760,7 +16856,16 @@ function ItemSlot.new(props: SlotProps): Slot
 	end
 	function self.SetSelected(_: any, selected: boolean)
 		stroke.Thickness = if selected then 6 else 3
-		stroke.Color = if selected then Color3.new(1, 1, 1) else rarityColor
+		RarityFx.SetEnabled(stroke, not selected)
+		if selected then
+			stroke.Color = Color3.new(1, 1, 1)
+		else
+			RarityFx.Stroke(stroke, rarityNow)
+		end
+	end
+	function self.SetSilhouette(_: any, on: boolean)
+		silhouette = on
+		paint()
 	end
 	function self.SetDimmed(_: any, dimmed: boolean)
 		root.BackgroundTransparency = if dimmed then 0.5 else 0
@@ -17113,19 +17218,22 @@ return MenuGrid
                 <string name="Name">MenuShell</string>
                 <string name="Source"><![CDATA[--!strict
 -- Shared shell for the menu screens (Shop, Rebirth, Gifts, Settings, Admin). Builds a Panel in the
--- "Menus" layer and dresses it in the simulator menu style: deep-blue gradient body, a solid accent
--- header bar with a gloss and a dark divider, coloured inner edge and a chunky emoji +
--- display-font title with a heavy stroke. It implements
+-- "Menus" layer and dresses it in the simulator menu style: deep-blue gradient body with faint
+-- diagonal stripes, a solid accent header bar (stripes, gloss, dark divider), coloured inner edge
+-- and a chunky emoji + display-font title with a heavy stroke and a white-to-gold gradient. On open
+-- the cards in the menu's grids pop in one after another. It implements
 -- the UIController Screen contract (Open/Close/IsOpen), keeps gamepad selection inside the panel,
 -- closes on gamepad B and forwards L1/R1 (or Q/E) to OnShoulder for tab cycling.
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Panel = require(script.Parent.Panel)
+local Pattern = require(script.Parent.Pattern)
 local UIController = require(UI.Parent.Controllers.UIController)
 
 export type ShellProps = {
@@ -17172,6 +17280,59 @@ function MenuShell.Shade(c: Color3, f: number): Color3
 	return Color3.new(c.R * f, c.G * f, c.B * f)
 end
 
+local POP_STAGGER = 0.03
+local POP_MAX = 30
+
+local function shownWithin(obj: Instance, root: Instance): boolean
+	local node: Instance? = obj
+	while node and node ~= root do
+		if node:IsA("GuiObject") and not node.Visible then
+			return false
+		end
+		node = node.Parent
+	end
+	return node == root
+end
+
+-- Pops the cards of every visible grid under `root` in one after another (Back easing), the
+-- genre's staggered entrance. Reuses a card's own UIScale when it has one.
+function MenuShell.PopIn(root: Instance)
+	local n = 0
+	for _, layout in root:GetDescendants() do
+		if not layout:IsA("UIGridLayout") then
+			continue
+		end
+		local container = layout.Parent
+		if container == nil or not shownWithin(container, root) then
+			continue
+		end
+		local items: { GuiObject } = {}
+		for _, child in container:GetChildren() do
+			if child:IsA("GuiObject") and child.Visible then
+				table.insert(items, child)
+			end
+		end
+		table.sort(items, function(a, b)
+			return a.LayoutOrder < b.LayoutOrder
+		end)
+		for _, item in items do
+			n += 1
+			if n > POP_MAX then
+				return
+			end
+			local scale = item:FindFirstChildOfClass("UIScale")
+			if scale == nil then
+				local created = Instance.new("UIScale")
+				created.Parent = item
+				scale = created
+			end
+			local s = scale :: UIScale
+			s.Scale = 0.55
+			TweenService:Create(s, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, (n - 1) * POP_STAGGER), { Scale = 1 }):Play()
+		end
+	end
+end
+
 function MenuShell.new(props: ShellProps): Shell
 	local accent = props.Accent or Theme.Colors.PanelEdge
 	local panel = Panel.new({
@@ -17207,11 +17368,13 @@ function MenuShell.new(props: ShellProps): Shell
 	end
 	-- solid accent header bar: rounded top (the body's corner), square bottom, gloss, dark divider
 	local HEADER = 74 -- + 4 px divider = the panel's content top (title 56 + 22)
+	-- faint stripes over the whole body (under everything else)
+	Pattern.Stripes(body, 0.045, 18, 0)
 	local header: Frame = Create("Frame", {
 		Name = "Header",
 		BackgroundColor3 = accent,
 		Size = UDim2.new(1, 0, 0, HEADER),
-		ZIndex = 0,
+		ZIndex = 1,
 		Parent = body,
 	})
 	Create.Corner(18, header)
@@ -17232,6 +17395,7 @@ function MenuShell.new(props: ShellProps): Shell
 		Parent = header,
 	})
 	Create.Corner(12, gloss)
+	Pattern.Stripes(header, 0.12, 18, 2)
 	Create("Frame", {
 		Name = "Shade",
 		BackgroundColor3 = MenuShell.Shade(accent, 0.6),
@@ -17254,15 +17418,18 @@ function MenuShell.new(props: ShellProps): Shell
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(5, 5),
 		Size = UDim2.new(1, -10, 1, -10),
-		ZIndex = 0,
+		ZIndex = 2,
 		Parent = body,
 	})
 	Create.Corner(14, edge)
 	Create.Stroke(edge, accent, 2, 0.35, true)
+	panel.Content.ZIndex = 2
 	local title = panel.Title
 	if title then
 		title.Size = UDim2.new(0.6, 0, 0, 58)
 		title.Position = UDim2.fromOffset(26, 9)
+		title.ZIndex = 2
+		Create.Gradient(title, Color3.new(1, 1, 1), Color3.fromHex("#FFE48A"), 90)
 		local stroke = title:FindFirstChildOfClass("UIStroke")
 		if stroke then
 			stroke.Thickness = 4.5
@@ -17317,6 +17484,7 @@ function MenuShell.new(props: ShellProps): Shell
 			props.OnOpen(...)
 		end
 		panel:Open()
+		MenuShell.PopIn(panel.Content)
 		local keys = { Enum.KeyCode.ButtonB }
 		if props.OnShoulder then
 			table.insert(keys, Enum.KeyCode.ButtonL1)
@@ -17792,6 +17960,117 @@ return Panel
             </Item>
             <Item class="ModuleScript" referent="114">
               <Properties>
+                <string name="Name">Pattern</string>
+                <string name="Source"><![CDATA[--!strict
+-- Subtle diagonal stripes for panel backgrounds and header bars (the genre's patterned panels),
+-- drawn without images: one white overlay whose UIGradient transparency alternates between clear
+-- and faint, rotated. A UIGradient holds at most 20 keypoints, so one overlay draws up to 9 soft
+-- stripes. Pure decoration: it sits under the panel's content and takes no input.
+local Pattern = {}
+
+-- `strength` is how opaque the stripes get (0.04 is a hint, 0.12 is clearly visible).
+function Pattern.Stripes(parent: GuiObject, strength: number, corner: number, zIndex: number?, bands: number?): Frame
+	local overlay = Instance.new("Frame")
+	overlay.Name = "Pattern"
+	overlay.BackgroundColor3 = Color3.new(1, 1, 1)
+	overlay.BorderSizePixel = 0
+	overlay.Size = UDim2.fromScale(1, 1)
+	overlay.ZIndex = zIndex or 1
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, corner)
+	c.Parent = overlay
+	local n = math.clamp(bands or 9, 1, 9)
+	local points = {}
+	for i = 0, 2 * n do
+		table.insert(points, NumberSequenceKeypoint.new(i / (2 * n), if i % 2 == 0 then 1 else 1 - strength))
+	end
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 35
+	gradient.Transparency = NumberSequence.new(points)
+	gradient.Parent = overlay
+	overlay.Parent = parent
+	return overlay
+end
+
+return Pattern
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="115">
+              <Properties>
+                <string name="Name">RarityFx</string>
+                <string name="Source"><![CDATA[--!strict
+-- Rarity outlines in the genre's style: plain rarity-coloured strokes for the low tiers, and for
+-- Legendary and up a gradient stroke that spins around the item (gold for Legendary, rainbow for
+-- Mythic and Secret). The spin is a native looping tween, so it costs no script time per frame.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local Rarity = require(ReplicatedStorage:WaitForChild("Shared").Config.Rarity)
+
+local UI = script.Parent.Parent
+local Theme = require(UI.Theme)
+
+local RarityFx = {}
+
+local SPIN = TweenInfo.new(2.6, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1)
+local LEGENDARY = Rarity.Order("Legendary")
+local MYTHIC = Rarity.Order("Mythic")
+
+-- True when the tier gets the animated outline.
+function RarityFx.Animated(rarity: string): boolean
+	return Rarity.Order(rarity) >= LEGENDARY
+end
+
+local function sequence(rarity: string): ColorSequence
+	if Rarity.Order(rarity) >= MYTHIC then
+		return Theme.Rainbow
+	end
+	local light, color, dark = Theme.RarityLight(rarity), Theme.Rarity(rarity), Theme.RarityDark(rarity)
+	return ColorSequence.new({
+		ColorSequenceKeypoint.new(0, light),
+		ColorSequenceKeypoint.new(0.3, color),
+		ColorSequenceKeypoint.new(0.5, dark),
+		ColorSequenceKeypoint.new(0.7, color),
+		ColorSequenceKeypoint.new(1, light),
+	})
+end
+
+-- Styles `stroke` for `rarity` (call again when the rarity changes).
+function RarityFx.Stroke(stroke: UIStroke, rarity: string)
+	local gradient = stroke:FindFirstChild("RarityGradient") :: UIGradient?
+	if not RarityFx.Animated(rarity) then
+		stroke.Color = Theme.Rarity(rarity)
+		if gradient then
+			gradient:Destroy()
+		end
+		return
+	end
+	stroke.Color = Color3.new(1, 1, 1) -- the gradient supplies the colour
+	if gradient == nil then
+		local g = Instance.new("UIGradient")
+		g.Name = "RarityGradient"
+		g.Parent = stroke
+		TweenService:Create(g, SPIN, { Rotation = 360 }):Play()
+		gradient = g
+	end
+	(gradient :: UIGradient).Color = sequence(rarity)
+end
+
+-- Turns the animated outline off and on (e.g. while the item shows a selection outline).
+function RarityFx.SetEnabled(stroke: UIStroke, enabled: boolean)
+	local gradient = stroke:FindFirstChild("RarityGradient") :: UIGradient?
+	if gradient then
+		gradient.Enabled = enabled
+	end
+end
+
+return RarityFx
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="116">
+              <Properties>
                 <string name="Name">Rays</string>
                 <string name="Source"><![CDATA[--!strict
 -- Sunburst behind big rewards (hatch reveals, special landings): long beams through the centre,
@@ -17889,7 +18168,7 @@ return Rays
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="115">
+            <Item class="ModuleScript" referent="117">
               <Properties>
                 <string name="Name">RewardFly</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18026,7 +18305,7 @@ return RewardFly
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="116">
+            <Item class="ModuleScript" referent="118">
               <Properties>
                 <string name="Name">Shine</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18108,7 +18387,152 @@ return Shine
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="117">
+            <Item class="ModuleScript" referent="119">
+              <Properties>
+                <string name="Name">Tooltip</string>
+                <string name="Source"><![CDATA[--!strict
+-- Hover tooltips for HUD buttons (mouse and gamepad selection; touch has no hover): a small
+-- raised dark card with a gold title and one line of help, placed beside the target (or beside a
+-- container such as the whole menu column, so it never covers the neighbouring buttons) on the
+-- side with more room. One shared card on the Toasts layer, so it shows above everything; opening a
+-- menu hides it.
+local UserInputService = game:GetService("UserInputService")
+
+local UI = script.Parent.Parent
+local Theme = require(UI.Theme)
+local Create = require(UI.Create)
+local UIController = require(UI.Parent.Controllers.UIController)
+
+local Tooltip = {}
+
+local WIDTH, HEIGHT = 300, 84
+local GAP = 14
+
+local card: Frame? = nil
+local titleLabel: TextLabel
+local bodyLabel: TextLabel
+local owner: GuiObject? = nil
+
+local function ensure(): Frame?
+	local current = card
+	if current and current.Parent then
+		return current
+	end
+	local layer: Frame? = UIController.Layer("Toasts")
+	if layer == nil then
+		return nil
+	end
+	local frame: Frame = Create("Frame", {
+		Name = "Tooltip",
+		BackgroundColor3 = Theme.Colors.PanelDeep,
+		BackgroundTransparency = 0.04,
+		Size = UDim2.fromOffset(WIDTH, HEIGHT),
+		Visible = false,
+		ZIndex = 50,
+		Parent = layer,
+	})
+	Create.Corner(14, frame)
+	Create.Stroke(frame, Theme.Colors.Stroke, Theme.Outline, 0, true)
+	Create.Gradient(frame, Theme.Colors.PanelLight, Theme.Colors.PanelDeep, 90)
+	titleLabel = Create.Text({
+		Name = "Title",
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 30),
+		Position = UDim2.fromOffset(12, 8),
+		Font = Theme.Fonts.Display,
+		TextSize = 26,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Color = Theme.Colors.Skill,
+		Stroke = 2.2,
+		ZIndex = 51,
+		Parent = frame,
+	})
+	bodyLabel = Create.Text({
+		Name = "Body",
+		Text = "",
+		Size = UDim2.new(1, -24, 0, 36),
+		Position = UDim2.fromOffset(12, 40),
+		Font = Theme.Fonts.Body,
+		TextSize = 19,
+		Scaled = true,
+		Wrapped = true,
+		XAlign = Enum.TextXAlignment.Left,
+		YAlign = Enum.TextYAlignment.Top,
+		Stroke = 1.4,
+		ZIndex = 51,
+		Parent = frame,
+	})
+	card = frame
+	UIController.ScreenOpened:Connect(function()
+		Tooltip.Hide()
+	end)
+	return frame
+end
+
+local function show(target: GuiObject, title: string, body: string, beside: GuiObject?)
+	local frame = ensure()
+	if frame == nil then
+		return
+	end
+	local root = frame.Parent :: Frame
+	local s = math.max(UIController.Scale, 0.01)
+	local pos = (target.AbsolutePosition - root.AbsolutePosition) / s
+	local size = target.AbsoluteSize / s
+	local box = beside or target
+	local boxPos = (box.AbsolutePosition - root.AbsolutePosition) / s
+	local boxSize = box.AbsoluteSize / s
+	local screen = root.AbsoluteSize / s
+	local rightSide = boxPos.X + boxSize.X / 2 < screen.X / 2
+	local x = if rightSide then boxPos.X + boxSize.X + GAP else boxPos.X - GAP - WIDTH
+	local y = math.clamp(pos.Y + size.Y / 2 - HEIGHT / 2, 8, math.max(8, screen.Y - HEIGHT - 8))
+	frame.Position = UDim2.fromOffset(x, y)
+	titleLabel.Text = title
+	bodyLabel.Text = body
+	frame.Visible = true
+	owner = target
+end
+
+function Tooltip.Hide()
+	owner = nil
+	if card then
+		card.Visible = false
+	end
+end
+
+-- Shows `title` / `body` beside `target` (or beside `beside`) while the mouse is over it or a
+-- gamepad selects it.
+function Tooltip.Attach(target: GuiObject, title: string, body: string, beside: GuiObject?)
+	target.MouseEnter:Connect(function()
+		if UserInputService.MouseEnabled then
+			show(target, title, body, beside)
+		end
+	end)
+	target.MouseLeave:Connect(function()
+		if owner == target then
+			Tooltip.Hide()
+		end
+	end)
+	target.SelectionGained:Connect(function()
+		show(target, title, body, beside)
+	end)
+	target.SelectionLost:Connect(function()
+		if owner == target then
+			Tooltip.Hide()
+		end
+	end)
+	target.AncestryChanged:Connect(function()
+		if owner == target and not target:IsDescendantOf(game) then
+			Tooltip.Hide()
+		end
+	end)
+end
+
+return Tooltip
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="120">
               <Properties>
                 <string name="Name">Viewport</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18193,7 +18617,7 @@ return Viewport
               </Properties>
             </Item>
           </Item>
-          <Item class="ModuleScript" referent="118">
+          <Item class="ModuleScript" referent="121">
             <Properties>
               <string name="Name">Create</string>
               <string name="Source"><![CDATA[--!strict
@@ -18377,11 +18801,11 @@ return Create
 ]]></string>
             </Properties>
           </Item>
-          <Item class="Folder" referent="119">
+          <Item class="Folder" referent="122">
             <Properties>
               <string name="Name">Screens</string>
             </Properties>
-            <Item class="ModuleScript" referent="120">
+            <Item class="ModuleScript" referent="123">
               <Properties>
                 <string name="Name">AdminScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18613,7 +19037,7 @@ return AdminScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="121">
+            <Item class="ModuleScript" referent="124">
               <Properties>
                 <string name="Name">EggScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -18650,6 +19074,7 @@ local Button = require(Components.Button)
 local MenuShell = require(Components.MenuShell)
 local Viewport = require(Components.Viewport)
 local Rays = require(Components.Rays)
+local RarityFx = require(Components.RarityFx)
 
 local EggScreen = {}
 
@@ -18717,7 +19142,7 @@ local function oddsFor(egg: Eggs.Egg)
 			Parent = list,
 		})
 		Create.Corner(12, row)
-		Create.Stroke(row, Theme.Rarity(pet.Rarity), 3, 0, true)
+		RarityFx.Stroke(Create.Stroke(row, Theme.Rarity(pet.Rarity), 3, 0, true), pet.Rarity)
 		local preview: Frame = Create("Frame", {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromOffset(90, 90),
@@ -18874,7 +19299,7 @@ end
 
 -- Hatch reveal ------------------------------------------------------------------------------------
 
-type HatchPayload = { Egg: string, Pets: { { Uid: string, Id: string } }, Source: string? }
+type HatchPayload = { Egg: string, Pets: { { Uid: string, Id: string, New: boolean? } }, Source: string? }
 
 local overlay: TextButton
 local stage: Frame
@@ -18906,7 +19331,7 @@ local function clearStage()
 	end
 end
 
-local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, width: number)
+local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, width: number, isNew: boolean)
 	local card: Frame = Create("Frame", {
 		Name = "Reveal",
 		BackgroundTransparency = 1,
@@ -18955,7 +19380,40 @@ local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, w
 	})
 	name.TextTransparency = 1
 	info.TextTransparency = 1
+	-- first of its kind: a tilted "NEW!" badge (the pet joins the Index)
+	local newBadge: Frame? = nil
+	if isNew then
+		local badge: Frame = Create("Frame", {
+			Name = "NewBadge",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, width * 0.3, 0, 40),
+			Size = UDim2.fromOffset(150, 52),
+			Rotation = 10,
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			Visible = false,
+			ZIndex = 5,
+			Parent = card,
+		})
+		Create.Corner(14, badge)
+		Create.Gradient(badge, Color3.fromHex("#FFE27A"), Color3.fromHex("#F07800"), 90)
+		Create.Stroke(badge, Theme.Colors.Stroke, 3.5, 0, true)
+		Create.Text({
+			Name = "Text",
+			Text = "NEW!",
+			Size = UDim2.new(1, -16, 1, -10),
+			Position = UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Font = Theme.Fonts.Display,
+			TextSize = 38,
+			Scaled = true,
+			Stroke = 3,
+			ZIndex = 6,
+			Parent = badge,
+		})
+		newBadge = badge
+	end
 	return {
+		NewBadge = newBadge,
 		Card = card,
 		View = view,
 		Glow = glow,
@@ -18987,7 +19445,7 @@ local function play(payload: HatchPayload)
 	for _, result in payload.Pets do
 		local pet = Pets.Get(result.Id)
 		if pet then
-			table.insert(cards, revealCard(payload, pet, result.Id, width))
+			table.insert(cards, revealCard(payload, pet, result.Id, width, result.New == true))
 			bestOrder = math.max(bestOrder, Rarity.Order(pet.Rarity))
 		end
 	end
@@ -19031,6 +19489,14 @@ local function play(payload: HatchPayload)
 		TweenService:Create(c.Glow, TweenInfo.new(0.4), { BackgroundTransparency = 0.55 }):Play()
 		c.Rays:Show(Theme.RarityLight(c.Pet.Rarity), if Rarity.Order(c.Pet.Rarity) >= 4 then 1 else 0.6)
 		TweenService:Create(c.Name, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+		local badge = c.NewBadge
+		if badge then
+			badge.Visible = true
+			local pop = Instance.new("UIScale")
+			pop.Scale = 0
+			pop.Parent = badge
+			TweenService:Create(pop, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0.3), { Scale = 1 }):Play()
+		end
 		TweenService:Create(c.Info, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 	end
 	if bestOrder >= Rarity.Order("Legendary") then
@@ -19274,7 +19740,7 @@ return EggScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="122">
+            <Item class="ModuleScript" referent="125">
               <Properties>
                 <string name="Name">EventBanner</string>
                 <string name="Source"><![CDATA[--!strict
@@ -19369,7 +19835,7 @@ return EventBanner
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="123">
+            <Item class="ModuleScript" referent="126">
               <Properties>
                 <string name="Name">GiftsScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -19699,7 +20165,7 @@ return GiftsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="124">
+            <Item class="ModuleScript" referent="127">
               <Properties>
                 <string name="Name">HUD</string>
                 <string name="Source"><![CDATA[--!strict
@@ -19807,6 +20273,14 @@ local function buildMenu(root: Frame): MenuRefs
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = grid
 
+	local TIPS: { [string]: string } = {
+		Shop = "Game passes, Skill packs, potions and codes.",
+		Rebirth = "Reset Skill for a bigger permanent multiplier.",
+		Pets = "Equip pets to multiply your Skill.",
+		Trails = "Trails add Wins to every landing.",
+		Inventory = "Your gliders, relics and potions.",
+		Gifts = "Playtime gifts and the daily streak.",
+	}
 	local function tile(order: number, name: string, icon: string, label: string, top: string, bottom: string): HudTile.Tile
 		return HudTile.new({
 			Parent = grid,
@@ -19817,6 +20291,7 @@ local function buildMenu(root: Frame): MenuRefs
 			Top = hex(top),
 			Bottom = hex(bottom),
 			LayoutOrder = order,
+			Tooltip = { Title = label, Text = TIPS[name] or "", Beside = group :: GuiObject },
 			OnClick = function()
 				UIController.Toggle(name)
 			end,
@@ -19846,6 +20321,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Top = hex("#E9EEF5"),
 		Bottom = hex("#8C96A8"),
 		LayoutOrder = 1,
+		Tooltip = { Title = "Settings", Text = "Sound, camera, effects and your stats.", Beside = group :: GuiObject },
 		OnClick = function()
 			UIController.Toggle("Settings")
 		end,
@@ -20129,12 +20605,15 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 	local function offer(order: number, kind: string, key: string, icon: string, label: string, top: string, bottom: string, owned: (data: { [string]: any }) -> boolean)
 		local id = 0
 		local robux = 0
+		local tip = ""
 		if kind == "Pass" then
 			local pass = Monetization.Pass(key)
 			id, robux = if pass then pass.Id else 0, if pass then pass.Robux else 0
+			tip = if pass then pass.Description else ""
 		else
 			local product = Monetization.Product(key)
 			id, robux = if product then product.Id else 0, if product then product.Robux else 0
+			tip = if product then product.Description else ""
 		end
 		local available = purchaseAvailable(id)
 		local tile = HudTile.new({
@@ -20147,6 +20626,7 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 			Bottom = hex(if available then bottom else "#5A6070"),
 			LayoutOrder = order,
 			Shine = available,
+			Tooltip = { Title = label, Text = tip, Beside = column :: GuiObject },
 			OnClick = function()
 				if available then
 					purchase(kind, key)
@@ -20497,7 +20977,407 @@ return HUD
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="125">
+            <Item class="ModuleScript" referent="128">
+              <Properties>
+                <string name="Name">IndexScreen</string>
+                <string name="Source"><![CDATA[--!strict
+-- Index menu ("Index"): the pet collection book that simulators keep. One tab per world plus
+-- Special (the Robux egg and the exclusive pets). Each egg is a section with its own completion
+-- bar, and every pet is a card: pets found so far show their model, name and boost, the rest a
+-- black silhouette with "???" (their rarity outline still shows). An overall bar counts every
+-- pet in the game. Discoveries come from the server (PlayerData.Index, set when a pet is first
+-- owned); the screen only reads them. Cards are built when a tab is first shown and stay static
+-- (no spin), so a closed Index costs nothing per frame.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Pets = require(Shared.Definitions.Pets)
+local Eggs = require(Shared.Definitions.Eggs)
+local Worlds = require(Shared.Definitions.Worlds)
+local Format = require(Shared.Util.Format)
+local PetFactory = require(Shared.Visual.PetFactory)
+
+local Client = script.Parent.Parent.Parent
+local StateController = require(Client.Controllers.StateController)
+local UIController = require(Client.Controllers.UIController)
+local Theme = require(Client.UI.Theme)
+local Create = require(Client.UI.Create)
+local Components = Client.UI.Components
+local MenuShell = require(Components.MenuShell)
+local MenuTabs = require(Components.MenuTabs)
+local MenuGrid = require(Components.MenuGrid)
+local ItemSlot = require(Components.ItemSlot)
+
+local IndexScreen = {}
+
+local PANEL = Vector2.new(1240, 740)
+local WIDTH = PANEL.X - 36
+local TAB_H = 64
+local SUMMARY_H = 48
+local LIST_TOP = TAB_H + 12 + SUMMARY_H + 12
+local HEADER_H = 44
+local COLUMNS = 7
+local GAP = 12
+local INSET = 8
+local CARD_W = math.floor((WIDTH - MenuGrid.ScrollBar - INSET * 2 - GAP * (COLUMNS - 1)) / COLUMNS)
+local CARD_H = 184
+local GOLD_TOP = Color3.fromHex("#FFE27A")
+local GOLD_BOTTOM = Color3.fromHex("#F2A900")
+local SPECIAL = "Special"
+
+type Section = { Title: string, Icon: string, Pets: { string } }
+type Card = { Slot: ItemSlot.Slot, PetId: string }
+type SectionRefs = { Pets: { string }, Count: TextLabel, Fill: Frame, Cards: { Card } }
+
+local shell: MenuShell.Shell
+local tabs: MenuTabs.Tabs
+local pages: { [string]: ScrollingFrame } = {}
+local built: { [string]: { SectionRefs } } = {}
+local summaryText: TextLabel
+local summaryFill: Frame
+local summaryPercent: TextLabel
+
+-- Pet ids of an egg, in its listed order, without repeats.
+local function eggPets(egg: Eggs.Egg): { string }
+	local out, seen = {}, {}
+	for _, entry in egg.Pets do
+		if not seen[entry.Pet] then
+			seen[entry.Pet] = true
+			table.insert(out, entry.Pet)
+		end
+	end
+	return out
+end
+
+local function sectionsFor(tab: string): { Section }
+	local sections: { Section } = {}
+	if tab == SPECIAL then
+		for _, egg in Eggs.List do
+			if egg.World == nil then
+				table.insert(sections, { Title = egg.Name, Icon = Theme.Icons.Egg, Pets = eggPets(egg) })
+			end
+		end
+		local exclusives = {}
+		for _, pet in Pets.List do
+			if pet.Exclusive then
+				table.insert(exclusives, pet.Id)
+			end
+		end
+		if #exclusives > 0 then
+			table.insert(sections, { Title = "Exclusives", Icon = Theme.Icons.Star, Pets = exclusives })
+		end
+	else
+		local world = tonumber(tab)
+		for _, egg in Eggs.List do
+			if egg.World == world then
+				table.insert(sections, { Title = egg.Name, Icon = Theme.Icons.Egg, Pets = eggPets(egg) })
+			end
+		end
+	end
+	return sections
+end
+
+local function found(): { [string]: boolean }
+	local data = StateController.Data
+	return if data and type(data.Index) == "table" then data.Index else {}
+end
+
+-- A thin rounded progress bar; returns the fill.
+local function bar(parent: Instance, size: UDim2, position: UDim2, anchor: Vector2): Frame
+	local track: Frame = Create("Frame", {
+		Name = "Bar",
+		BackgroundColor3 = Theme.Colors.LevelTrack,
+		Size = size,
+		Position = position,
+		AnchorPoint = anchor,
+		Parent = parent,
+	})
+	Create.Round(track)
+	Create.Stroke(track, Theme.Colors.Stroke, 2.5, 0, true)
+	local fill: Frame = Create("Frame", {
+		Name = "Fill",
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Size = UDim2.fromScale(0, 1),
+		Parent = track,
+	})
+	Create.Round(fill)
+	Create.Gradient(fill, GOLD_TOP, GOLD_BOTTOM, 90)
+	return fill
+end
+
+local function setFill(fill: Frame, have: number, total: number)
+	local f = if total > 0 then have / total else 0
+	fill.Size = UDim2.fromScale(f, 1)
+	fill.Visible = f > 0
+end
+
+local function buildCard(parent: Instance, petId: string, order: number): Card?
+	local pet = Pets.Get(petId)
+	if not pet then
+		return nil
+	end
+	local slot = ItemSlot.new({
+		Parent = parent,
+		Name = petId,
+		LayoutOrder = order,
+		Rarity = pet.Rarity,
+		Build = function()
+			return PetFactory.ForId(petId, 3)
+		end,
+		Spin = 0,
+		Silhouette = true,
+		Title = "???",
+		Stat = pet.Rarity,
+	})
+	return { Slot = slot, PetId = petId }
+end
+
+local function buildPage(tab: string)
+	local page = pages[tab]
+	local refs: { SectionRefs } = {}
+	local y = 0
+	for i, section in sectionsFor(tab) do
+		local rows = math.max(1, math.ceil(#section.Pets / COLUMNS))
+		local height = HEADER_H + 8 + rows * CARD_H + (rows - 1) * GAP
+		local frame: Frame = Create("Frame", {
+			Name = "Section" .. i,
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(0, y),
+			Size = UDim2.new(1, 0, 0, height),
+			Parent = page,
+		})
+		local header: Frame = Create("Frame", {
+			Name = "Header",
+			BackgroundColor3 = Theme.Colors.CardDeep,
+			Size = UDim2.new(1, 0, 0, HEADER_H),
+			Parent = frame,
+		})
+		Create.Corner(12, header)
+		Create.Text({
+			Name = "Title",
+			Text = section.Icon .. " " .. section.Title,
+			Size = UDim2.new(0.45, 0, 1, -10),
+			Position = UDim2.new(0, 12, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Font = Theme.Fonts.Display,
+			TextSize = 28,
+			Scaled = true,
+			XAlign = Enum.TextXAlignment.Left,
+			Stroke = 2.2,
+			Parent = header,
+		})
+		local fill = bar(header, UDim2.new(0.3, 0, 0, 18), UDim2.new(1, -110, 0.5, 0), Vector2.new(1, 0.5))
+		local count = Create.Text({
+			Name = "Count",
+			Text = "",
+			Size = UDim2.fromOffset(90, 30),
+			Position = UDim2.new(1, -12, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Font = Theme.Fonts.Display,
+			TextSize = 26,
+			Scaled = true,
+			XAlign = Enum.TextXAlignment.Right,
+			Stroke = 2,
+			Parent = header,
+		})
+		local grid: Frame = Create("Frame", {
+			Name = "Cards",
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(0, HEADER_H + 8),
+			Size = UDim2.new(1, 0, 0, height - HEADER_H - 8),
+			Parent = frame,
+		})
+		local layout = Instance.new("UIGridLayout")
+		layout.CellSize = UDim2.fromOffset(CARD_W, CARD_H)
+		layout.CellPadding = UDim2.fromOffset(GAP, GAP)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Parent = grid
+		local cards: { Card } = {}
+		for n, petId in section.Pets do
+			local card = buildCard(grid, petId, n)
+			if card then
+				table.insert(cards, card)
+			end
+		end
+		table.insert(refs, { Pets = section.Pets, Count = count, Fill = fill, Cards = cards })
+		y += height + 16
+	end
+	page.CanvasSize = UDim2.fromOffset(0, y + INSET * 2)
+	built[tab] = refs
+end
+
+local function refresh()
+	local index = found()
+	-- whole game
+	local total, have = #Pets.List, 0
+	for _, pet in Pets.List do
+		if index[pet.Id] then
+			have += 1
+		end
+	end
+	summaryText.Text = string.format("📖 Discovered %d / %d pets", have, total)
+	summaryPercent.Text = Format.Percent(if total > 0 then have / total * 100 else 0)
+	setFill(summaryFill, have, total)
+	-- tab labels: a check once a tab is complete
+	for key, button in tabs.Buttons do
+		local all, got = 0, 0
+		for _, section in sectionsFor(key) do
+			for _, petId in section.Pets do
+				all += 1
+				if index[petId] then
+					got += 1
+				end
+			end
+		end
+		local world = tonumber(key)
+		local def = if world then Worlds.Get(world) else nil
+		local name = if def then def.Name else SPECIAL
+		button:SetText((if all > 0 and got == all then Theme.Icons.Check .. " " else "") .. name)
+	end
+	-- the built tab pages
+	for _, refs in built do
+		for _, section in refs do
+			local got = 0
+			for _, card in section.Cards do
+				local pet = Pets.Get(card.PetId) :: Pets.Pet
+				local isFound = index[card.PetId] == true
+				if isFound then
+					got += 1
+				end
+				card.Slot:SetSilhouette(not isFound)
+				card.Slot:SetTitle(if isFound then pet.Name else "???")
+				card.Slot:SetStat(if isFound then "x" .. Format.Short(1 + pet.SkillBoost) .. " Skill" else pet.Rarity)
+			end
+			section.Count.Text = string.format("%d/%d", got, #section.Cards)
+			section.Count.TextColor3 = if got == #section.Cards then Theme.Colors.Success else Theme.Colors.Text
+			setFill(section.Fill, got, #section.Cards)
+		end
+	end
+end
+
+local function showPage(key: string)
+	if built[key] == nil then
+		buildPage(key)
+	end
+	for k, page in pages do
+		page.Visible = k == key
+	end
+	refresh()
+end
+
+function IndexScreen.Init()
+	shell = MenuShell.new({
+		Name = "Index",
+		Title = "Index",
+		Icon = "📖",
+		Size = PANEL,
+		Accent = Color3.fromHex("#C98CFF"),
+		OnOpen = function()
+			-- open on the world the player is in
+			local data = StateController.Data
+			local world = if data then tostring(tonumber(data.World) or 1) else "1"
+			if tabs.Buttons[world] then
+				tabs:Select(world, true)
+				showPage(world)
+			else
+				refresh()
+			end
+		end,
+		OnShoulder = function(direction: number)
+			tabs:Cycle(direction)
+		end,
+		FirstSelection = function()
+			return tabs.Buttons[tabs.Selected].Instance
+		end,
+	})
+	local content = shell.Content
+	local specs: { MenuTabs.TabSpec } = {}
+	for i = 1, Worlds.Count do
+		local def = Worlds.Get(i)
+		table.insert(specs, { Key = tostring(i), Text = if def then def.Name else ("World " .. i), Style = "Blue" })
+	end
+	table.insert(specs, { Key = SPECIAL, Text = SPECIAL, Style = "Purple" })
+	tabs = MenuTabs.new({
+		Parent = content,
+		Tabs = specs,
+		Size = UDim2.new(1, 0, 0, TAB_H),
+		TabWidth = math.floor((WIDTH - 12 * (#specs - 1)) / #specs),
+		OnChanged = showPage,
+	})
+
+	local summary: Frame = Create("Frame", {
+		Name = "Summary",
+		BackgroundColor3 = Theme.Colors.CardDeep,
+		Position = UDim2.fromOffset(0, TAB_H + 12),
+		Size = UDim2.new(1, 0, 0, SUMMARY_H),
+		Parent = content,
+	})
+	Create.Corner(14, summary)
+	summaryText = Create.Text({
+		Name = "Text",
+		Text = "",
+		Size = UDim2.new(0.42, 0, 1, -12),
+		Position = UDim2.new(0, 14, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Font = Theme.Fonts.Display,
+		TextSize = 28,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Left,
+		Stroke = 2.2,
+		Parent = summary,
+	})
+	summaryFill = bar(summary, UDim2.new(0.44, 0, 0, 22), UDim2.new(1, -120, 0.5, 0), Vector2.new(1, 0.5))
+	summaryPercent = Create.Text({
+		Name = "Percent",
+		Text = "",
+		Size = UDim2.fromOffset(96, 32),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Font = Theme.Fonts.Display,
+		TextSize = 28,
+		Scaled = true,
+		XAlign = Enum.TextXAlignment.Right,
+		Color = Theme.Colors.Skill,
+		Stroke = 2.2,
+		Parent = summary,
+	})
+
+	for _, spec in specs do
+		local page: ScrollingFrame = Create("ScrollingFrame", {
+			Name = "Page_" .. spec.Key,
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(0, LIST_TOP),
+			Size = UDim2.new(1, 0, 1, -LIST_TOP),
+			CanvasSize = UDim2.new(),
+			ScrollingDirection = Enum.ScrollingDirection.Y,
+			ScrollBarThickness = MenuGrid.ScrollBar,
+			ScrollBarImageColor3 = Theme.Colors.PanelEdge,
+			VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar,
+			Selectable = false,
+			ClipsDescendants = true,
+			Visible = false,
+			Parent = content,
+		})
+		Create.Padding(page, INSET, INSET)
+		pages[spec.Key] = page
+	end
+
+	tabs:Select("1", true)
+	showPage("1")
+
+	UIController.Register("Index", shell)
+	StateController.DataChanged:Connect(function()
+		if shell:IsOpen() then
+			refresh()
+		end
+	end)
+end
+
+return IndexScreen
+]]></string>
+              </Properties>
+            </Item>
+            <Item class="ModuleScript" referent="129">
               <Properties>
                 <string name="Name">InventoryScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -20811,7 +21691,7 @@ return InventoryScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="126">
+            <Item class="ModuleScript" referent="130">
               <Properties>
                 <string name="Name">Notifications</string>
                 <string name="Source"><![CDATA[--!strict
@@ -20852,14 +21732,14 @@ return Notifications
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="127">
+            <Item class="ModuleScript" referent="131">
               <Properties>
                 <string name="Name">PetsScreen</string>
                 <string name="Source"><![CDATA[--!strict
 -- Pets menu ("Pets"): every owned pet in a rarity-bordered grid (equipped first, then strongest),
 -- a detail pane with Equip/Unequip and Lock/Unlock, Equip Best, and a multi-select delete mode
--- (locked pets can't be picked). Every action is a RequestPetAction intent; the server owns the
--- inventory and slot limits.
+-- (locked pets can't be picked), and an INDEX button that opens the collection book. Every action
+-- is a RequestPetAction intent; the server owns the inventory and slot limits.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -21113,7 +21993,7 @@ local function refresh()
 	local slotsMax = if type(derived.PetSlots) == "number" then derived.PetSlots else Economy.PetSlots
 	local equippedCount = if type(data.EquippedPets) == "table" then #data.EquippedPets else 0
 	summary.Text = string.format(
-		"%s Equipped %d/%d   ·   🎒 Storage %d/%d   ·   %s Pet boost x%s",
+		"%s Equipped %d/%d   ·   🎒 Storage %d/%d\n%s Pet boost x%s",
 		Theme.Icons.Check,
 		equippedCount,
 		slotsMax,
@@ -21205,8 +22085,8 @@ function PetsScreen.Init()
 	summary = Create.Text({
 		Name = "Summary",
 		Text = "",
-		Size = UDim2.new(1, -440, 1, -16),
-		Position = UDim2.fromOffset(14, 8),
+		Size = UDim2.new(1, -590, 1, -12),
+		Position = UDim2.fromOffset(14, 6),
 		Font = Theme.Fonts.Display,
 		TextSize = 26,
 		Scaled = true,
@@ -21214,11 +22094,24 @@ function PetsScreen.Init()
 		Stroke = 2,
 		Parent = bar,
 	})
+	Button.new({
+		Parent = bar,
+		Name = "OpenIndex",
+		Size = UDim2.fromOffset(170, 60),
+		Position = UDim2.new(1, -394, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Style = "Purple",
+		Text = "📖 INDEX",
+		TextSize = 24,
+		OnClick = function()
+			UIController.Open("Index")
+		end,
+	})
 	equipBestButton = Button.new({
 		Parent = bar,
 		Name = "EquipBest",
-		Size = UDim2.fromOffset(200, 60),
-		Position = UDim2.new(1, -214, 0.5, 0),
+		Size = UDim2.fromOffset(196, 60),
+		Position = UDim2.new(1, -186, 0.5, 0),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Style = "Green",
 		Text = "EQUIP BEST",
@@ -21230,7 +22123,7 @@ function PetsScreen.Init()
 	deleteButton = Button.new({
 		Parent = bar,
 		Name = "Delete",
-		Size = UDim2.fromOffset(190, 60),
+		Size = UDim2.fromOffset(170, 60),
 		Position = UDim2.new(1, -8, 0.5, 0),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Style = "Red",
@@ -21349,7 +22242,7 @@ return PetsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="128">
+            <Item class="ModuleScript" referent="132">
               <Properties>
                 <string name="Name">RebirthScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -22007,7 +22900,7 @@ return RebirthScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="129">
+            <Item class="ModuleScript" referent="133">
               <Properties>
                 <string name="Name">SettingsScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -22221,7 +23114,7 @@ return SettingsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="130">
+            <Item class="ModuleScript" referent="134">
               <Properties>
                 <string name="Name">ShopScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -22822,7 +23715,7 @@ return ShopScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="131">
+            <Item class="ModuleScript" referent="135">
               <Properties>
                 <string name="Name">TrailsScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -22965,7 +23858,7 @@ return TrailsScreen
 ]]></string>
               </Properties>
             </Item>
-            <Item class="ModuleScript" referent="132">
+            <Item class="ModuleScript" referent="136">
               <Properties>
                 <string name="Name">WorldScreen</string>
                 <string name="Source"><![CDATA[--!strict
@@ -23186,7 +24079,7 @@ return WorldScreen
               </Properties>
             </Item>
           </Item>
-          <Item class="ModuleScript" referent="133">
+          <Item class="ModuleScript" referent="137">
             <Properties>
               <string name="Name">Theme</string>
               <string name="Source"><![CDATA[--!strict
@@ -23331,11 +24224,11 @@ return Theme
             </Properties>
           </Item>
         </Item>
-        <Item class="Folder" referent="134">
+        <Item class="Folder" referent="138">
           <Properties>
             <string name="Name">VFX</string>
           </Properties>
-          <Item class="ModuleScript" referent="135">
+          <Item class="ModuleScript" referent="139">
             <Properties>
               <string name="Name">Effects</string>
               <string name="Source"><![CDATA[--!strict
@@ -23592,7 +24485,7 @@ return Effects
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="136">
+          <Item class="ModuleScript" referent="140">
             <Properties>
               <string name="Name">FlightFX</string>
               <string name="Source"><![CDATA[--!strict
@@ -23931,7 +24824,7 @@ return FlightFX
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="137">
+          <Item class="ModuleScript" referent="141">
             <Properties>
               <string name="Name">ThermalRings</string>
               <string name="Source"><![CDATA[--!strict
@@ -24047,7 +24940,7 @@ return ThermalRings
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="138">
+  <Item class="Workspace" referent="142">
     <Properties>
       <string name="Name">Workspace</string>
       <float name="Gravity">196.2</float>

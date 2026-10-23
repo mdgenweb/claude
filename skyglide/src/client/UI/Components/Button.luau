@@ -1,8 +1,8 @@
 --!strict
--- Chunky simulator-style button: a gradient face with a thick dark outline, a gloss highlight and
--- a stroked label, raised on a darker base (Theme.Depth) like a 3D key. Hover grows it, pressing
--- sinks the face into the base, disabled turns it grey; click/hover sounds. Calls to action can
--- carry a glint sweep (Shine = true).
+-- Chunky simulator-style button: a gradient face with a thick dark outline, a gloss highlight, an
+-- inner shadow and a stroked label, raised on a darker base (Theme.Depth) like a 3D key. Hover
+-- grows it and thickens the outline, pressing sinks the face into the base, disabled turns it
+-- grey; click/hover sounds. Calls to action can carry a glint sweep (Shine = true).
 --
 -- Instance is the transparent hit box (face + base); Content is the face's content frame (it
 -- moves with the face), so extra labels go there.
@@ -52,6 +52,11 @@ local Button = {}
 local QUICK = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local SPRING = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local MUTED: { [string]: boolean } = { Grey = true, Dark = true, Disabled = true }
+-- Inner shadow: the lower part of a face darkens toward its bottom edge (depth under the gloss).
+local INNER_SHADOW = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(1, 0.7),
+})
 
 function Button.new(props: ButtonProps): Button
 	local styleName = props.Style or "Grey"
@@ -109,6 +114,19 @@ function Button.new(props: ButtonProps): Button
 		Parent = face,
 	})
 	Create.Corner(math.max(corner - 2, 0), gloss)
+	local inner: Frame = Create("Frame", {
+		Name = "InnerShadow",
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		Position = UDim2.fromScale(0, 0.5),
+		Size = UDim2.fromScale(1, 0.5),
+		ZIndex = z + 1,
+		Parent = face,
+	})
+	Create.Corner(corner, inner)
+	local innerGradient = Instance.new("UIGradient")
+	innerGradient.Rotation = 90
+	innerGradient.Transparency = INNER_SHADOW
+	innerGradient.Parent = inner
 	local shine = if props.Shine then Shine.Add(face, UDim.new(0, corner), z + 2) else nil
 
 	local content: Frame = Create("Frame", {
@@ -180,6 +198,7 @@ function Button.new(props: ButtonProps): Button
 	root.MouseEnter:Connect(function()
 		if self.Enabled then
 			TweenService:Create(scale, QUICK, { Scale = 1.05 }):Play()
+			TweenService:Create(border, QUICK, { Thickness = Theme.Outline + 1.5 }):Play()
 			if not props.Silent then
 				AudioController.Play("Hover", nil, 0.05)
 			end
@@ -188,6 +207,7 @@ function Button.new(props: ButtonProps): Button
 	root.MouseLeave:Connect(function()
 		TweenService:Create(scale, QUICK, { Scale = 1 }):Play()
 		TweenService:Create(face, QUICK, { Position = UP }):Play()
+		TweenService:Create(border, QUICK, { Thickness = Theme.Outline }):Play()
 	end)
 	root.MouseButton1Down:Connect(function()
 		if self.Enabled then

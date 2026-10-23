@@ -103,6 +103,14 @@ local function buildMenu(root: Frame): MenuRefs
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = grid
 
+	local TIPS: { [string]: string } = {
+		Shop = "Game passes, Skill packs, potions and codes.",
+		Rebirth = "Reset Skill for a bigger permanent multiplier.",
+		Pets = "Equip pets to multiply your Skill.",
+		Trails = "Trails add Wins to every landing.",
+		Inventory = "Your gliders, relics and potions.",
+		Gifts = "Playtime gifts and the daily streak.",
+	}
 	local function tile(order: number, name: string, icon: string, label: string, top: string, bottom: string): HudTile.Tile
 		return HudTile.new({
 			Parent = grid,
@@ -113,6 +121,7 @@ local function buildMenu(root: Frame): MenuRefs
 			Top = hex(top),
 			Bottom = hex(bottom),
 			LayoutOrder = order,
+			Tooltip = { Title = label, Text = TIPS[name] or "", Beside = group :: GuiObject },
 			OnClick = function()
 				UIController.Toggle(name)
 			end,
@@ -142,6 +151,7 @@ local function buildMenu(root: Frame): MenuRefs
 		Top = hex("#E9EEF5"),
 		Bottom = hex("#8C96A8"),
 		LayoutOrder = 1,
+		Tooltip = { Title = "Settings", Text = "Sound, camera, effects and your stats.", Beside = group :: GuiObject },
 		OnClick = function()
 			UIController.Toggle("Settings")
 		end,
@@ -425,12 +435,15 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 	local function offer(order: number, kind: string, key: string, icon: string, label: string, top: string, bottom: string, owned: (data: { [string]: any }) -> boolean)
 		local id = 0
 		local robux = 0
+		local tip = ""
 		if kind == "Pass" then
 			local pass = Monetization.Pass(key)
 			id, robux = if pass then pass.Id else 0, if pass then pass.Robux else 0
+			tip = if pass then pass.Description else ""
 		else
 			local product = Monetization.Product(key)
 			id, robux = if product then product.Id else 0, if product then product.Robux else 0
+			tip = if product then product.Description else ""
 		end
 		local available = purchaseAvailable(id)
 		local tile = HudTile.new({
@@ -443,6 +456,7 @@ local function buildRight(root: Frame): ({ OfferRef }, { ChipRef })
 			Bottom = hex(if available then bottom else "#5A6070"),
 			LayoutOrder = order,
 			Shine = available,
+			Tooltip = { Title = label, Text = tip, Beside = column :: GuiObject },
 			OnClick = function()
 				if available then
 					purchase(kind, key)

@@ -1,6 +1,8 @@
 --!strict
--- Square inventory slot: rarity-coloured border and glow, a lazily built 3D ViewportFrame preview,
--- a name strip, a small stat line, and corner badges (equipped check, lock, quantity).
+-- Square inventory slot: rarity-coloured border (spinning gradient for Legendary and up, see
+-- RarityFx) and glow, a lazily built 3D ViewportFrame preview (or a black silhouette for Index
+-- entries not found yet), a name strip, a small stat line, and corner badges (equipped check,
+-- lock, quantity).
 -- Slots are reused across refreshes (screens key them by uid/id), so previews are built once.
 local TweenService = game:GetService("TweenService")
 
@@ -8,6 +10,7 @@ local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Viewport = require(script.Parent.Viewport)
+local RarityFx = require(script.Parent.RarityFx)
 local AudioController = require(UI.Parent.Controllers.AudioController)
 
 export type SlotProps = {
@@ -20,6 +23,7 @@ export type SlotProps = {
 	Stat: string?,
 	OnClick: (() -> ())?,
 	Spin: number?,
+	Silhouette: boolean?, -- draw the preview as a black shape (undiscovered)
 }
 
 export type Slot = {
@@ -31,6 +35,7 @@ export type Slot = {
 	SetTag: (Slot, string?) -> (), -- top-right badge text (e.g. "🔒", "x3")
 	SetSelected: (Slot, boolean) -> (),
 	SetDimmed: (Slot, boolean) -> (),
+	SetSilhouette: (Slot, boolean) -> (),
 	Destroy: (Slot) -> (),
 }
 
@@ -52,6 +57,7 @@ function ItemSlot.new(props: SlotProps): Slot
 	Create.Corner(14, root)
 	local gradient = Create.Gradient(root, Theme.RarityLight(props.Rarity):Lerp(Theme.Colors.Card, 0.55), Theme.Colors.CardDeep, 90)
 	local stroke = Create.Stroke(root, rarityColor, 3, 0, true)
+	RarityFx.Stroke(stroke, props.Rarity)
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
 
@@ -111,6 +117,14 @@ function ItemSlot.new(props: SlotProps): Slot
 	})
 
 	local built = false
+	local silhouette = props.Silhouette == true
+	local viewport: ViewportFrame? = nil
+	local function paint()
+		if viewport then
+			viewport.ImageColor3 = if silhouette then Color3.new(0, 0, 0) else Color3.new(1, 1, 1)
+			viewport.ImageTransparency = if silhouette then 0.15 else 0
+		end
+	end
 	local function ensurePreview()
 		if built then
 			return
@@ -118,7 +132,8 @@ function ItemSlot.new(props: SlotProps): Slot
 		built = true
 		local ok, model = pcall(props.Build)
 		if ok and model then
-			Viewport.Model(preview, model, { Spin = props.Spin or 0.6, Yaw = math.pi, Pitch = math.rad(-10), Zoom = 1.1 })
+			viewport = Viewport.Model(preview, model, { Spin = props.Spin or 0.6, Yaw = math.pi, Pitch = math.rad(-10), Zoom = 1.1 })
+			paint()
 		end
 	end
 	-- build the preview the first time the slot is actually on screen
@@ -137,6 +152,7 @@ function ItemSlot.new(props: SlotProps): Slot
 	end
 
 	local self = { Instance = root } :: any
+	local rarityNow = props.Rarity
 
 	function self.SetTitle(_: any, text: string)
 		title.Text = text
@@ -145,7 +161,8 @@ function ItemSlot.new(props: SlotProps): Slot
 		stat.Text = text
 	end
 	function self.SetRarity(_: any, rarity: string)
-		stroke.Color = Theme.Rarity(rarity)
+		RarityFx.Stroke(stroke, rarity)
+		rarityNow = rarity
 		gradient.Color = ColorSequence.new(Theme.RarityLight(rarity):Lerp(Theme.Colors.Card, 0.55), Theme.Colors.CardDeep)
 	end
 	function self.SetCorner(_: any, text: string?)
@@ -156,7 +173,16 @@ function ItemSlot.new(props: SlotProps): Slot
 	end
 	function self.SetSelected(_: any, selected: boolean)
 		stroke.Thickness = if selected then 6 else 3
-		stroke.Color = if selected then Color3.new(1, 1, 1) else rarityColor
+		RarityFx.SetEnabled(stroke, not selected)
+		if selected then
+			stroke.Color = Color3.new(1, 1, 1)
+		else
+			RarityFx.Stroke(stroke, rarityNow)
+		end
+	end
+	function self.SetSilhouette(_: any, on: boolean)
+		silhouette = on
+		paint()
 	end
 	function self.SetDimmed(_: any, dimmed: boolean)
 		root.BackgroundTransparency = if dimmed then 0.5 else 0

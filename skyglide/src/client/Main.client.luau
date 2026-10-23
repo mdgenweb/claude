@@ -19,6 +19,7 @@ local SCREENS = {
 	"ShopScreen",
 	"RebirthScreen",
 	"PetsScreen",
+	"IndexScreen",
 	"EggScreen",
 	"TrailsScreen",
 	"InventoryScreen",

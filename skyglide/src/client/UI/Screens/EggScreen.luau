@@ -32,6 +32,7 @@ local Button = require(Components.Button)
 local MenuShell = require(Components.MenuShell)
 local Viewport = require(Components.Viewport)
 local Rays = require(Components.Rays)
+local RarityFx = require(Components.RarityFx)
 
 local EggScreen = {}
 
@@ -99,7 +100,7 @@ local function oddsFor(egg: Eggs.Egg)
 			Parent = list,
 		})
 		Create.Corner(12, row)
-		Create.Stroke(row, Theme.Rarity(pet.Rarity), 3, 0, true)
+		RarityFx.Stroke(Create.Stroke(row, Theme.Rarity(pet.Rarity), 3, 0, true), pet.Rarity)
 		local preview: Frame = Create("Frame", {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromOffset(90, 90),
@@ -256,7 +257,7 @@ end
 
 -- Hatch reveal ------------------------------------------------------------------------------------
 
-type HatchPayload = { Egg: string, Pets: { { Uid: string, Id: string } }, Source: string? }
+type HatchPayload = { Egg: string, Pets: { { Uid: string, Id: string, New: boolean? } }, Source: string? }
 
 local overlay: TextButton
 local stage: Frame
@@ -288,7 +289,7 @@ local function clearStage()
 	end
 end
 
-local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, width: number)
+local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, width: number, isNew: boolean)
 	local card: Frame = Create("Frame", {
 		Name = "Reveal",
 		BackgroundTransparency = 1,
@@ -337,7 +338,40 @@ local function revealCard(payload: HatchPayload, pet: Pets.Pet, petId: string, w
 	})
 	name.TextTransparency = 1
 	info.TextTransparency = 1
+	-- first of its kind: a tilted "NEW!" badge (the pet joins the Index)
+	local newBadge: Frame? = nil
+	if isNew then
+		local badge: Frame = Create("Frame", {
+			Name = "NewBadge",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, width * 0.3, 0, 40),
+			Size = UDim2.fromOffset(150, 52),
+			Rotation = 10,
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			Visible = false,
+			ZIndex = 5,
+			Parent = card,
+		})
+		Create.Corner(14, badge)
+		Create.Gradient(badge, Color3.fromHex("#FFE27A"), Color3.fromHex("#F07800"), 90)
+		Create.Stroke(badge, Theme.Colors.Stroke, 3.5, 0, true)
+		Create.Text({
+			Name = "Text",
+			Text = "NEW!",
+			Size = UDim2.new(1, -16, 1, -10),
+			Position = UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Font = Theme.Fonts.Display,
+			TextSize = 38,
+			Scaled = true,
+			Stroke = 3,
+			ZIndex = 6,
+			Parent = badge,
+		})
+		newBadge = badge
+	end
 	return {
+		NewBadge = newBadge,
 		Card = card,
 		View = view,
 		Glow = glow,
@@ -369,7 +403,7 @@ local function play(payload: HatchPayload)
 	for _, result in payload.Pets do
 		local pet = Pets.Get(result.Id)
 		if pet then
-			table.insert(cards, revealCard(payload, pet, result.Id, width))
+			table.insert(cards, revealCard(payload, pet, result.Id, width, result.New == true))
 			bestOrder = math.max(bestOrder, Rarity.Order(pet.Rarity))
 		end
 	end
@@ -413,6 +447,14 @@ local function play(payload: HatchPayload)
 		TweenService:Create(c.Glow, TweenInfo.new(0.4), { BackgroundTransparency = 0.55 }):Play()
 		c.Rays:Show(Theme.RarityLight(c.Pet.Rarity), if Rarity.Order(c.Pet.Rarity) >= 4 then 1 else 0.6)
 		TweenService:Create(c.Name, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+		local badge = c.NewBadge
+		if badge then
+			badge.Visible = true
+			local pop = Instance.new("UIScale")
+			pop.Scale = 0
+			pop.Parent = badge
+			TweenService:Create(pop, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0.3), { Scale = 1 }):Play()
+		end
 		TweenService:Create(c.Info, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 	end
 	if bestOrder >= Rarity.Order("Legendary") then

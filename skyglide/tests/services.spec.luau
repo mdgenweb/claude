@@ -264,6 +264,26 @@ check(profile.Pets[anyUid] ~= nil, "locked pet not deleted")
 check(HANDLERS.RequestPetAction(player, "EquipBest").ok and #profile.EquippedPets == Economy.PetSlots, "equip best")
 check(not HANDLERS.RequestPetAction(player, "Equip", "nope").ok, "equip unknown pet refused")
 check(not HANDLERS.RequestPetAction(player, "Delete", "notatable").ok, "bad delete args refused")
+check(next(profile.Index) ~= nil, "hatched pets are recorded in the Index")
+do
+	local victim, victimId = nil, nil
+	for uid, pet in profile.Pets do
+		if not pet.Locked then
+			victim, victimId = uid, pet.Id
+			break
+		end
+	end
+	if victim and victimId then
+		local stillOwned = false
+		HANDLERS.RequestPetAction(player, "Delete", { victim })
+		for _, pet in profile.Pets do
+			stillOwned = stillOwned or pet.Id == victimId
+		end
+		check(profile.Pets[victim] == nil and profile.Index[victimId] == true, "deleting a pet keeps its Index entry" .. (if stillOwned then " (another copy is owned)" else ""))
+	else
+		check(false, "an unlocked pet to delete")
+	end
+end
 
 -- 9. rebirth ----------------------------------------------------------------------------------------
 check(not HANDLERS.RequestRebirth(player).ok, "rebirth needs max level")

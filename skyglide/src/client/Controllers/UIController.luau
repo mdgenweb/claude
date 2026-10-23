@@ -40,6 +40,7 @@ local EXCLUSIVE: { [string]: boolean } = {
 	Shop = true,
 	Rebirth = true,
 	Pets = true,
+	Index = true,
 	Trails = true,
 	Inventory = true,
 	Gifts = true,

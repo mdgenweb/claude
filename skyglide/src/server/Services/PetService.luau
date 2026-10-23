@@ -62,13 +62,17 @@ local function score(id: string): number
 	return if def then def.SkillBoost * 1000 + def.WinsBoost else 0
 end
 
--- Adds a pet, auto-equipping it when a slot is free or it beats the weakest equipped pet.
-local function addPet(player: Player, petId: string): string?
+-- Adds a pet, auto-equipping it when a slot is free or it beats the weakest equipped pet, and
+-- records it in the Index. Returns the new uid and whether this species is new to the Index.
+local function addPet(player: Player, petId: string): (string?, boolean)
 	local maxSlots = slots(player)
+	local discovered = false
 	local uid = DataService.Update(player, function(p)
 		local id = tostring(p.NextPetId)
 		p.NextPetId += 1
 		p.Pets[id] = { Id = petId, Locked = false }
+		discovered = not p.Index[petId]
+		p.Index[petId] = true
 		if #p.EquippedPets < maxSlots then
 			table.insert(p.EquippedPets, id)
 		else
@@ -86,7 +90,7 @@ local function addPet(player: Player, petId: string): string?
 		end
 		return id
 	end)
-	return uid
+	return uid, uid ~= nil and discovered
 end
 
 local function roll(egg: Eggs.Egg, luck: number): string
@@ -111,14 +115,14 @@ local function announce(player: Player, petId: string)
 	end
 end
 
-local function hatch(player: Player, egg: Eggs.Egg, count: number): { { Uid: string, Id: string } }
+local function hatch(player: Player, egg: Eggs.Egg, count: number): { { Uid: string, Id: string, New: boolean } }
 	local luck = StatService.Luck(player)
 	local results = {}
 	for _ = 1, count do
 		local petId = roll(egg, luck)
-		local uid = addPet(player, petId)
+		local uid, isNew = addPet(player, petId)
 		if uid then
-			table.insert(results, { Uid = uid, Id = petId })
+			table.insert(results, { Uid = uid, Id = petId, New = isNew })
 			announce(player, petId)
 		end
 	end
@@ -147,14 +151,14 @@ function PetService.GivePet(player: Player, petId: string, source: string)
 	if not Pets.Exists(petId) then
 		return
 	end
-	addPet(player, petId)
+	local _, isNew = addPet(player, petId)
 	mirror(player)
 	local def = Pets.Get(petId) :: Pets.Pet
 	local notify = registry.NotifyService
 	if notify then
 		notify.Toast(player, string.format("%s: you got %s!", source, def.Name), "Success")
 	end
-	hatchResult:FireClient(player, { Egg = "", Pets = { { Uid = "", Id = petId } }, Source = source })
+	hatchResult:FireClient(player, { Egg = "", Pets = { { Uid = "", Id = petId, New = isNew } }, Source = source })
 end
 
 local function eggPosition(egg: Eggs.Egg, worldId: number): Vector3?

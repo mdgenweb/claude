@@ -1,18 +1,21 @@
 --!strict
 -- Shared shell for the menu screens (Shop, Rebirth, Gifts, Settings, Admin). Builds a Panel in the
--- "Menus" layer and dresses it in the simulator menu style: deep-blue gradient body, a solid accent
--- header bar with a gloss and a dark divider, coloured inner edge and a chunky emoji +
--- display-font title with a heavy stroke. It implements
+-- "Menus" layer and dresses it in the simulator menu style: deep-blue gradient body with faint
+-- diagonal stripes, a solid accent header bar (stripes, gloss, dark divider), coloured inner edge
+-- and a chunky emoji + display-font title with a heavy stroke and a white-to-gold gradient. On open
+-- the cards in the menu's grids pop in one after another. It implements
 -- the UIController Screen contract (Open/Close/IsOpen), keeps gamepad selection inside the panel,
 -- closes on gamepad B and forwards L1/R1 (or Q/E) to OnShoulder for tab cycling.
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local UI = script.Parent.Parent
 local Theme = require(UI.Theme)
 local Create = require(UI.Create)
 local Panel = require(script.Parent.Panel)
+local Pattern = require(script.Parent.Pattern)
 local UIController = require(UI.Parent.Controllers.UIController)
 
 export type ShellProps = {
@@ -59,6 +62,59 @@ function MenuShell.Shade(c: Color3, f: number): Color3
 	return Color3.new(c.R * f, c.G * f, c.B * f)
 end
 
+local POP_STAGGER = 0.03
+local POP_MAX = 30
+
+local function shownWithin(obj: Instance, root: Instance): boolean
+	local node: Instance? = obj
+	while node and node ~= root do
+		if node:IsA("GuiObject") and not node.Visible then
+			return false
+		end
+		node = node.Parent
+	end
+	return node == root
+end
+
+-- Pops the cards of every visible grid under `root` in one after another (Back easing), the
+-- genre's staggered entrance. Reuses a card's own UIScale when it has one.
+function MenuShell.PopIn(root: Instance)
+	local n = 0
+	for _, layout in root:GetDescendants() do
+		if not layout:IsA("UIGridLayout") then
+			continue
+		end
+		local container = layout.Parent
+		if container == nil or not shownWithin(container, root) then
+			continue
+		end
+		local items: { GuiObject } = {}
+		for _, child in container:GetChildren() do
+			if child:IsA("GuiObject") and child.Visible then
+				table.insert(items, child)
+			end
+		end
+		table.sort(items, function(a, b)
+			return a.LayoutOrder < b.LayoutOrder
+		end)
+		for _, item in items do
+			n += 1
+			if n > POP_MAX then
+				return
+			end
+			local scale = item:FindFirstChildOfClass("UIScale")
+			if scale == nil then
+				local created = Instance.new("UIScale")
+				created.Parent = item
+				scale = created
+			end
+			local s = scale :: UIScale
+			s.Scale = 0.55
+			TweenService:Create(s, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, (n - 1) * POP_STAGGER), { Scale = 1 }):Play()
+		end
+	end
+end
+
 function MenuShell.new(props: ShellProps): Shell
 	local accent = props.Accent or Theme.Colors.PanelEdge
 	local panel = Panel.new({
@@ -94,11 +150,13 @@ function MenuShell.new(props: ShellProps): Shell
 	end
 	-- solid accent header bar: rounded top (the body's corner), square bottom, gloss, dark divider
 	local HEADER = 74 -- + 4 px divider = the panel's content top (title 56 + 22)
+	-- faint stripes over the whole body (under everything else)
+	Pattern.Stripes(body, 0.045, 18, 0)
 	local header: Frame = Create("Frame", {
 		Name = "Header",
 		BackgroundColor3 = accent,
 		Size = UDim2.new(1, 0, 0, HEADER),
-		ZIndex = 0,
+		ZIndex = 1,
 		Parent = body,
 	})
 	Create.Corner(18, header)
@@ -119,6 +177,7 @@ function MenuShell.new(props: ShellProps): Shell
 		Parent = header,
 	})
 	Create.Corner(12, gloss)
+	Pattern.Stripes(header, 0.12, 18, 2)
 	Create("Frame", {
 		Name = "Shade",
 		BackgroundColor3 = MenuShell.Shade(accent, 0.6),
@@ -141,15 +200,18 @@ function MenuShell.new(props: ShellProps): Shell
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(5, 5),
 		Size = UDim2.new(1, -10, 1, -10),
-		ZIndex = 0,
+		ZIndex = 2,
 		Parent = body,
 	})
 	Create.Corner(14, edge)
 	Create.Stroke(edge, accent, 2, 0.35, true)
+	panel.Content.ZIndex = 2
 	local title = panel.Title
 	if title then
 		title.Size = UDim2.new(0.6, 0, 0, 58)
 		title.Position = UDim2.fromOffset(26, 9)
+		title.ZIndex = 2
+		Create.Gradient(title, Color3.new(1, 1, 1), Color3.fromHex("#FFE48A"), 90)
 		local stroke = title:FindFirstChildOfClass("UIStroke")
 		if stroke then
 			stroke.Thickness = 4.5
@@ -204,6 +266,7 @@ function MenuShell.new(props: ShellProps): Shell
 			props.OnOpen(...)
 		end
 		panel:Open()
+		MenuShell.PopIn(panel.Content)
 		local keys = { Enum.KeyCode.ButtonB }
 		if props.OnShoulder then
 			table.insert(keys, Enum.KeyCode.ButtonL1)

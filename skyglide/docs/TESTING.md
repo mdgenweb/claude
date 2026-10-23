@@ -99,7 +99,7 @@ It then plays a whole session:
 
 Any error inside a handler, tween, render step or scheduled task fails the spec.
 
-### `playthrough.spec.luau` (end to end, 172 checks)
+### `playthrough.spec.luau` (end to end, 178 checks)
 
 Boots the **real server** (`Main.server.luau`) and the **real client** (`Main.client.luau`) in one VM. They talk through loopback remotes with 60 ms of latency each way, and the player only acts through the GUI: buttons, proximity prompts, keys, touch and gamepad. `tests/_servermock.luau` supplies:
 
@@ -120,7 +120,9 @@ It also checks the UI feedback:
 * the Gifts tile shakes while a reward waits;
 * Wins fly into the counter, which rolls up to the server's total;
 * a new best lights the sunburst;
-* a refused code shows a red toast.
+* a refused code shows a red toast;
+* a first hatch shows NEW! and lands in the Index, on the server and the client;
+* the Index (opened from Pets) shows the pet, and "???" for pets not found yet.
 
 Any client error, network-rule violation or unexpected server warning fails the spec.
 
@@ -130,7 +132,7 @@ Any client error, network-rule violation or unexpected server warning fails the 
 python3 tests/ui_render.py --luau /path/to/luau   # PNGs and report.txt in tests/.ui/
 ```
 
-`tests/ui_layout.luau` drives the real client and server into 20 screen states, including the HUD, the throw meter, a flight, the landing card, every menu, the hatch reveal and toasts. It dumps the GUI tree on six devices:
+`tests/ui_layout.luau` drives the real client and server into 22 screen states, including the HUD, the throw meter, a flight, the landing card, every menu (the Index too), the hatch reveal, toasts and a hover tooltip. It dumps the GUI tree on six devices:
 
 * PC 1920×1080;
 * laptop 1366×768;
@@ -155,7 +157,7 @@ It reports:
 * **tiny-text:** text under 9 px;
 * **cut-off:** fixed-size text wider than its box.
 
-It also reports any client error raised while driving the screens. The current result is 120 screens and 0 issues.
+It also reports any client error raised while driving the screens. The current result is 128 screens and 0 issues.
 
 ### Maps: `tests/map_render.py`
 
@@ -204,7 +206,7 @@ Every step below is also played automatically by `playthrough.spec.luau` (step n
 4. **Rings.** Thermal rings approach. "TAP!" pulses and tapping on time shows PERFECT (x2). The chime rises with each ring.
 5. **Landing.** The glider splashes in a zone (the banner names it). The result card shows Wins, Skill and XP, and goes away when you start the next throw. Trophies fly into the Wins counter, which rolls up. A new best spins a sunburst behind the card. The camera returns.
 6. **Shop.** Buy the Notebook Glider (2 Wins) at the pedestals. It shows EQUIPPED, the held glider changes, and Items lists it.
-7. **Eggs.** Hatch a Beach Egg (50 Wins). The reveal plays and the pet follows you. Check that the Pets menu equip and lock work.
+7. **Eggs.** Hatch a Beach Egg (50 Wins). The reveal plays (NEW! on a first-time pet) and the pet follows you. Check that the Pets menu equip and lock work, and that INDEX shows the pet while the others are "???" silhouettes.
 8. **Gifts.** Claim the 1-minute gift and the daily reward. The badge count updates.
 9. **Codes.** `LAUNCH` gives Wins and a potion once. Use the potion from Items → Potions and confirm the multiplier doubles.
 10. **Rebirth.** Use Admin → Max Level, then Rebirth. Skill resets, the multiplier goes x1→x3 and the level cap rises to 40.

@@ -116,7 +116,7 @@ Client to server traffic is intents only. Server to client events:
 | `FlightLanded` | Broadcast `{Id, UserId, World, Distance, Zone}`. The owner gets more: `{Wins, Skill, Perfects, Rings, NewBest, NewZone, Special?, UnlockedWorld?, Owner = true}`. A cancelled flight sends `{Id, UserId, Cancelled = true}` |
 | `ChargeState` | `{Charging, StartedAt (server time), Reason?}`. Reason is NotInZone, Flying, Cooldown, Loading, Dead or Launched |
 | `TrainResult` | `{Amount, Pad}` |
-| `HatchResult` | `{Egg, Pets = {{Uid, Id}}, Source?}` |
+| `HatchResult` | `{Egg, Pets = {{Uid, Id, New}}, Source?}` (`New`: first of its kind, shows "NEW!") |
 | `ServerInfo` | `{Kind = "Relics", Relics = {[id] = {Sold, Stock}}}` or `{Kind = "Leaderboards", Boards = {[stat] = {{Name, Value}}}}`; stat is Wins, BestDistance or Rebirths |
 | `WorldChanged` | worldId |
 
@@ -127,7 +127,7 @@ Client to server traffic is intents only. Server to client events:
 * **Stats and progress:** `Skill, Wins, Level, XP, Rebirths, World`
 * **Worlds:** `Worlds{["1"]=true}`
 * **Gear:** `Glider, Gliders{[id]=true}, Relic ("" or id), Relics{}, Trail ("" or id), Trails{}`
-* **Pets:** `Pets{[uid]={Id,Locked}}, EquippedPets{uid}`
+* **Pets:** `Pets{[uid]={Id,Locked}}, EquippedPets{uid}, Index{[petId]=true}` (every species ever owned; deleting a pet keeps its entry; profile version 2 seeds it from the pets owned)
 * **Potions and boosts:** `Potions{[id]=count}, Boosts{[id]=unixExpiry}`
 * **Daily and tutorial:** `Daily{Day,Streak}, Tutorial{Step,Progress,Done}`
 * **Settings:** `Settings{AutoTrain,AutoThrow,FollowCam,Sfx,LowFx}`
@@ -188,7 +188,12 @@ Clients update labels and prompt text locally from their own data (LOCKED / UNLO
   * Bus (signals)
   * Net (`Invoke(name, quiet, ...)`, `Fire(name, ...)`)
   * CameraController, WorldController, TrainingController, ThrowController, FlightRenderer, PetFollowController, TutorialController
-* **Screens** (`Init()`, registered by name with UIController): Notifications, HUD, Shop, Rebirth, Pets, Egg, Trails, Inventory, Gifts, World, Settings, Admin.
+* **Screens** (`Init()`, registered by name with UIController): Notifications, HUD, Shop, Rebirth, Pets, Index, Egg, Trails, Inventory, Gifts, World, Settings, Admin.
+* **Index** (the pet collection book, opened from the Pets menu):
+  * one tab per world plus Special (the Robux egg and the exclusive pets);
+  * a section per egg with a completion bar, and an overall "Discovered N / M pets" bar;
+  * found pets show their model, name and boost; the rest are black silhouettes (`ViewportFrame.ImageColor3`) marked "???", with their rarity outline still showing;
+  * cards are built when a tab is first shown and don't spin, so a closed Index costs nothing per frame.
 * **HUD layout** (OBSERVED from the reference, original art):
   * Left: a 2-column tile grid. Rows: Shop, Rebirth (with % badge); Pets, Trails; Inventory, Gifts (with red count badge).
   * Bottom-left: Rebirths counter, Wins counter, and "Friends +X%" (the friend boost) with a green + (invite).
@@ -197,9 +202,16 @@ Clients update labels and prompt text locally from their own data (LOCKED / UNLO
   * Right: offer tiles for Starter Pack, 2x Skill and 2x Wins.
   * Contextual: a big green THROW button and launch meter while in the Throw Zone; a pad panel ("UNLOCKED 1x SKILL", AUTO toggle, TRAIN button) while on a pad.
 * **Visual style (simulator UI kit, original art):** the look follows the conventions of the genre's big simulators. It is built entirely from code: frames, gradients, strokes and emoji, with no images, icons or asset ids taken from any game.
-  * **Raised keys:** every button, tile and toast is a gradient face with a thick dark outline (`Theme.Outline`) and a gloss highlight. It sits on a darker base `Theme.Depth` px tall. Pressing sinks the face into the base, and hover grows it. Grey, dark and disabled keys are flat colours.
+  * **Raised keys:** every button, tile and toast is a gradient face with a thick dark outline (`Theme.Outline`), a gloss highlight and an inner shadow. It sits on a darker base `Theme.Depth` px tall. Pressing sinks the face into the base. Hover grows it and thickens the outline, and HUD tiles also wiggle their icon. Grey, dark and disabled keys are flat colours.
+  * **Tooltips** (`Components/Tooltip`): mouse hover or gamepad selection on HUD tiles and offers shows a small card beside the menu column. Offer tooltips use the product's own description.
+  * **Rarity outlines** (`Components/RarityFx`): Legendary and higher get a gradient outline that spins (gold for Legendary, rainbow for Mythic and Secret). It is a native looping tween on a UIGradient inside the UIStroke, and it is used on pet slots, Index cards and the egg odds list.
   * **Glint:** calls to action carry a shine sweep (`Components/Shine`): a white overlay whose UIGradient is transparent except for one diagonal band. Its Offset is tweened across every ~3.4 s from one shared scheduler, at random phases. These are the hatch, rebirth, claim and card buttons, AUTO THROW, the Skill packs and the offer tiles. Muted styles hide the glint.
-  * **Menus:** a solid accent header bar with a gloss and a dark divider, a red close key, and a soft drop shadow (`Theme.Shadow`).
+  * **Menus:**
+    * a solid accent header bar with a gloss and a dark divider;
+    * a white-to-gold gradient title;
+    * faint diagonal stripes on the body and stronger ones on the header (`Components/Pattern`: one overlay whose UIGradient transparency alternates, no images);
+    * a red close key and a soft drop shadow (`Theme.Shadow`);
+    * on open, grid cards pop in one after another (`MenuShell.PopIn`).
   * **Feedback:**
     * Wins earned burst out of the landing card and fly into the Wins counter (`Components/RewardFly`, pooled, coin tick on arrival). The counter then pops and rolls up to the new total (`HudStatPill:SetValue`).
     * The Gifts tile shakes every few seconds while a reward is waiting.

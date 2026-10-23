@@ -5,7 +5,8 @@ tests/ui_layout.luau boots the real client and server (headless mocks) and dumps
 tree in every screen state on every device. This script lays those dumps out the way Roblox does
 (UDim2 + AnchorPoint, UIScale, UIPadding, UIListLayout, UIGridLayout, UIAspectRatioConstraint,
 ScrollingFrame canvases, ClipsDescendants, ZIndex, safe-area insets), draws PNGs (gradients with
-colour/transparency keypoints, Rotation and Offset; rotated subtrees) and reports:
+colour/transparency keypoints, Rotation and Offset, also on outlines and text; rotated subtrees)
+and reports:
 
   * offscreen   - a visible button that is not fully on the screen
   * overlap     - two visible buttons on the same layer covering each other
@@ -462,7 +463,16 @@ def draw_node(img, dump, node, W, H):
     stroke = mods.get("UIStroke")
     if stroke and enum(stroke.get("ApplyStrokeMode"), "Contextual") == "Border" and stroke.get("Enabled") is not False:
         t = max(1, int(round(num(stroke.get("Thickness"), 1) * node.scale)))
-        d.rounded_rectangle(box, radius=radius, outline=rgba(color(stroke.get("Color"), (0, 0, 0)), num(stroke.get("Transparency"), 0)), width=t)
+        sgrad = stroke_gradient(dump, node.id)
+        if sgrad and node.w >= 1 and node.h >= 1:
+            # a UIGradient inside the UIStroke colours the outline (rarity outlines)
+            g = gradient_image(int(node.w) + 1, int(node.h) + 1, sgrad, color(stroke.get("Color"), (0, 0, 0)), num(stroke.get("Transparency"), 0))
+            ring = Image.new("L", g.size, 0)
+            ImageDraw.Draw(ring).rounded_rectangle((0, 0, g.size[0] - 1, g.size[1] - 1), radius=radius, outline=255, width=t)
+            g.putalpha(Image.composite(g.getchannel("A"), Image.new("L", g.size, 0), ring))
+            layer.alpha_composite(g, (int(node.x), int(node.y)))
+        else:
+            d.rounded_rectangle(box, radius=radius, outline=rgba(color(stroke.get("Color"), (0, 0, 0)), num(stroke.get("Transparency"), 0)), width=t)
     if node.cls in TEXT_CLASSES:
         draw_text(d, layer, node, mods)
     if clip != (0, 0, W, H):
@@ -470,6 +480,18 @@ def draw_node(img, dump, node, W, H):
         ImageDraw.Draw(mask).rectangle((clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]), fill=255)
         layer.putalpha(Image.composite(layer.getchannel("A"), Image.new("L", (W, H), 0), mask))
     img.alpha_composite(layer)
+
+
+def stroke_gradient(dump, nid):
+    """Props of an enabled UIGradient inside the node's UIStroke, if any."""
+    for cid in dump["children"].get(nid, []):
+        if dump["nodes"][cid]["props"].get("ClassName") == "UIStroke":
+            for gid in dump["children"].get(cid, []):
+                gp = dump["nodes"][gid]["props"]
+                if gp.get("ClassName") == "UIGradient" and gp.get("Enabled") is not False:
+                    return gp
+            return None
+    return None
 
 
 def color_stops(seq):
@@ -538,6 +560,13 @@ def draw_text(d, layer, node, mods):
     if stroke and enum(stroke.get("ApplyStrokeMode"), "Contextual") != "Border":
         stroke_w = max(1, int(round(num(stroke.get("Thickness"), 1) * node.scale)))
         stroke_c = rgba(color(stroke.get("Color"), (0, 0, 0)), num(stroke.get("Transparency"), 0))
+    grad = mods.get("UIGradient")
+    if grad and grad.get("Enabled") is not False and node.w >= 1 and node.h >= 1:
+        # gradient text: outline first (stroke colour inside too), then the fill through the gradient
+        fill_mask = Image.new("L", layer.size, 0)
+        mask_d = ImageDraw.Draw(fill_mask)
+    else:
+        grad, mask_d, fill_mask = None, None, None
     line_h = size * 1.15
     total_h = line_h * len(lines)
     ya = enum(p.get("TextYAlignment"), "Center")
@@ -557,10 +586,22 @@ def draw_text(d, layer, node, mods):
                     glyph = glyph.resize((int(gs * 136 / 128), gs))
                     layer.alpha_composite(glyph, (int(x), int(y + (line_h - gs) / 2)))
                 x += size * 1.05
+            elif mask_d is not None:
+                if stroke_w:
+                    d.text((x, y + (line_h - size) / 2), ch, font=f, fill=stroke_c, stroke_width=stroke_w, stroke_fill=stroke_c)
+                mask_d.text((x, y + (line_h - size) / 2), ch, font=f, fill=255)
+                x += f.getlength(ch)
             else:
                 d.text((x, y + (line_h - size) / 2), ch, font=f, fill=tc, stroke_width=stroke_w, stroke_fill=stroke_c)
                 x += f.getlength(ch)
         y += line_h
+    if mask_d is not None:
+        gx, gy = int(node.x), int(node.y)
+        g = gradient_image(int(node.w) + 1, int(node.h) + 1, grad, tc[:3], num(p.get("TextTransparency"), 0))
+        full = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+        full.paste(g, (gx, gy))
+        full.putalpha(Image.composite(full.getchannel("A"), Image.new("L", layer.size, 0), fill_mask))
+        layer.alpha_composite(full)
 
 
 # ---------------------------------------------------------------------------------------------
