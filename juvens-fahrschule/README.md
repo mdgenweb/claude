@@ -7,34 +7,35 @@ One-page site for Juvens Fahrschule, Borghagener Str. 1, 44581 Castrop-Rauxel (H
 
 ## Design
 
-A calm, airy layout on light concrete tones with generous spacing. German road signage appears only at a few signature moments, drawn in CSS and SVG, so the page uses no stock photos.
-
-The page has seven sections: hero, classes, route, reviews, costs, FAQ, and pre-registration with contact. A sign-off section and the footer follow.
+The concept is a bright whiteboard, like the board in a theory lesson. The page is clean and white, with thick marker headlines and hand-drawn circles, underlines and highlighter strokes that draw themselves. Every block sits on its own standout colour area, and the page is light-only.
 
 - **Hero intro (about 2.5 s, plays once):**
-  - The headline lines slide up.
-  - The posts grow and the Autobahn direction sign (Wegweiser) drops in with a slight spring. Its arrows slide in.
-  - The office-hours plate (Zusatzzeichen) swings into place.
-  - The driving-school car rolls in with turning wheels and parks between the posts. The body dips forward as it brakes, rebounds, and the mirror indicator blinks twice.
-  - A light glint sweeps across the sign.
-- **Vehicles:** detailed SVG illustrations defined once in a hidden `<svg class="svg-defs">` and reused with `<use>`:
-  - The car is a compact hatchback in side view, with shaded paint, tinted glass with reflections, door seams and handles, an LED headlight, five twin-spoke alloys with red calipers, the roof sign and the Juvens livery.
-  - The motorbike and the scooter are drawn the same way.
-  - The road car is a matching top view.
-- **Buttons:** arrow shapes with a gradient, inner highlight and soft shadow. On hover they lift, the tip extends and a glint passes across. On click a ripple spreads from the press point.
-- **Classes:** three clear cards (Auto, Motorrad, Roller & Mofa), each listing its classes with age. On hover the vehicle rolls forward and its wheels turn. The card link preselects the class in the form.
-- **Route ("Ablauf"):** a grey road with nine real traffic signs, one per step. The driving-school car eases after the scroll position, and the stop markers turn from grey to yellow to green.
-- **Reviews (Google look):** set in Roboto with Google colours and Material buttons.
-  - A rating panel shows the Google logo, "5,0" and stars. When it scrolls into view the logo pops in, the stars fill one by one and the numbers count up.
-  - Below it, a carousel of review cards in Google style: a large card in the centre, smaller cards left and right. It advances to the right every 6 s, pauses on hover or focus, and supports swipe, arrow buttons and the keyboard.
-- **Pre-registration and contact:** the contact details sit beside the form. The licence plate above the form updates live with the visitor's initials.
-- **Sign-off:** a town-exit sign. "Beifahrersitz" is crossed out and the next place is "Fahrersitz, 0 km". The footer ends on a road strip with "JUVENS" painted on it.
+  - The marker headline appears line by line, then a red marker circle draws itself around "selbst."
+  - The Autobahn direction sign (Wegweiser) drops onto its posts and the office-hours plate swings in.
+  - The driving-school car rolls in, kicking up dust from its wheels. It dips as it brakes, blinks twice, and then keeps puffing exhaust while it waits.
+- **Classes:** one large panel per vehicle class: Auto in blue, Motorrad in black, Roller & Mofa in red.
+  - Each panel has a big marker headline, a giant class letter in the background, the age facts, a button and a detailed vehicle illustration.
+  - The vehicle drives in with a dust cloud when its panel arrives, then idles with exhaust puffs.
+  - On larger screens the panels stack on scroll: each new panel slides over the previous one, which scales back and dims.
+- **Route ("Ablauf"):** a grey road with nine real traffic signs, inside a light panel.
+  - The driving-school car glides smoothly after the scroll position and kicks up dust while it moves.
+  - When the page stands still, the car idles with a slight engine shake and exhaust puffs. The particles are drawn on a canvas.
+- **Reviews (Google look):** a Google rating panel with an animated logo, stars and count-up, and a carousel of review cards in Google style. The section sits on a Google-grey background.
+- **Costs:** a yellow sticky note with tape, and hand-drawn check marks for each cost item.
+- **Pre-registration and contact:** a blue board with the contact details, plus a white form card. The licence plate on the form updates live with the visitor's initials.
+- **Sign-off:** a town-exit sign. "Beifahrersitz" is crossed out and the next place is "Fahrersitz, 0 km". The footer ends on a road strip with "JUVENS" painted in marker.
+- **Buttons:** chunky marker stickers with a thick black border and a hard offset shadow. On hover they lift and tilt slightly and the arrow slides. On click they press flat and a ripple spreads.
 
-Text blocks keep their resting position readable and only settle into place on scroll. All motion is switched off under `prefers-reduced-motion`.
+Vehicles and signs are SVG illustrations, defined once in a hidden `<svg class="svg-defs">` and reused with `<use>`. Text stays readable at rest and only settles into place on scroll. All motion, including the particles, is switched off under `prefers-reduced-motion`.
 
-**Fonts:** Barlow for headlines and Barlow Semi Condensed for sign lettering. Both are open alternatives to DIN 1451, the typeface on German road signs. Body text is Atkinson Hyperlegible Next with a 1.7 line height.
+**Fonts:**
+- Permanent Marker (thick marker) for headlines.
+- Shantell Sans (marker-style but easy to read) for buttons, labels and sub-headings.
+- Atkinson Hyperlegible Next for body text.
+- Barlow Semi Condensed for road-sign lettering.
+- Roboto in the Google section.
 
-**Colours:** approximations of Verkehrsblau, Verkehrsgelb and Verkehrsrot on light concrete neutrals, with a full dark mode.
+**Colours:** white base with marker blue, red, black and Juvens yellow. Road signs keep their official colours.
 
 ## Reviews
 
