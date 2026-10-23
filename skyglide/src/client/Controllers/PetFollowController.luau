@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PetFactory = require(Shared.Visual.PetFactory)
+local FactoryKit = require(Shared.Visual.FactoryKit)
 local Pets = require(Shared.Definitions.Pets)
 
 local Bus = require(script.Parent.Bus)
@@ -22,7 +23,7 @@ local MAX_DISTANCE = 200
 local NEAR_DISTANCE = 70
 local PET_SIZE = 2.2
 
-type Follower = { Model: Model, Id: string, Position: Vector3, Facing: Vector3 }
+type Follower = { Model: Model, Root: BasePart?, Offset: CFrame, Id: string, Position: Vector3, Facing: Vector3 }
 type Entry = { Player: Player, Ids: { string }, Followers: { Follower } }
 
 local entries: { [Player]: Entry } = {}
@@ -82,8 +83,9 @@ local function rebuild(entry: Entry)
 		end
 		local model = PetFactory.ForId(id, PET_SIZE)
 		model.Name = "Pet_" .. id
+		local petRoot, offset = FactoryKit.Rig(model)
 		model.Parent = folder
-		table.insert(entry.Followers, { Model = model, Id = id, Position = start, Facing = Vector3.new(0, 0, -1) })
+		table.insert(entry.Followers, { Model = model, Root = petRoot, Offset = offset, Id = id, Position = start, Facing = Vector3.new(0, 0, -1) })
 	end
 end
 
@@ -167,7 +169,13 @@ local function step(dt: number)
 			local bob = if moving then math.abs(math.sin(t * 9 + i)) * 0.9 else math.sin(t * 2.5 + i) * 0.25 + 0.25
 			local pos = f.Position + Vector3.new(0, PET_SIZE * 0.5 + bob, 0)
 			local look = if f.Facing.Magnitude > 0.01 then f.Facing else Vector3.new(0, 0, -1)
-			f.Model:PivotTo(CFrame.lookAt(pos, pos + look))
+			local cf = CFrame.lookAt(pos, pos + look)
+			local petRoot = f.Root
+			if petRoot then
+				petRoot.CFrame = cf * f.Offset
+			else
+				f.Model:PivotTo(cf)
+			end
 		end
 	end
 end

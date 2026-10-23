@@ -12,6 +12,7 @@
 
 -- Virtual time -------------------------------------------------------------------------------------
 local realOs = os
+REAL_CLOCK = realOs.clock -- wall-clock timer for performance measurements
 TIME_OFFSET = 0
 local EPOCH = 1760000000
 os = setmetatable({

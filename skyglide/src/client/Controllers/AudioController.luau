@@ -40,6 +40,12 @@ local function acquire(name: string, parent: Instance): Sound?
 		pool = {}
 		pools[name] = pool
 	end
+	-- 3D sounds die with their temporary emitter part; drop those from the pool
+	for i = #pool, 1, -1 do
+		if pool[i].Parent == nil then
+			table.remove(pool, i)
+		end
+	end
 	for _, s in pool do
 		if not s.IsPlaying and s.Parent == parent then
 			return s

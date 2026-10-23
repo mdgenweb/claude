@@ -15,6 +15,7 @@ local Format = require(Shared.Util.Format)
 local Themes = require(Shared.Visual.Themes)
 local GliderFactory = require(Shared.Visual.GliderFactory)
 local EggFactory = require(Shared.Visual.EggFactory)
+local FactoryKit = require(Shared.Visual.FactoryKit)
 local Worlds = require(Shared.Definitions.Worlds)
 local Zones = require(Shared.Definitions.Zones)
 local Training = require(Shared.Definitions.Training)
@@ -175,6 +176,7 @@ local function placeDisplay(model: Model, display: Model, center: Vector3)
 	anchorAll(display)
 	centerPivot(display)
 	display:PivotTo(CFrame.new(center))
+	FactoryKit.Rig(display) -- the client spins it by moving the root only
 	display:SetAttribute("Spin", true)
 	display.Parent = model
 end

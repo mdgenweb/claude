@@ -3,7 +3,8 @@
 
   * station overlap - the footprints of two stations (pads, pedestals, eggs, portals, boards, the
                       throw zone, the spawn) intersect, so they would stand inside each other
-  * underground     - a solid, visible part sits entirely below the ground plane
+  * underground     - a solid, visible part sits entirely below the ground plane (the river
+                      channel's bed and water are meant to be there and are skipped)
 
 usage: python3 tests/map_render.py --luau PATH [--out DIR]
 Exit code 1 when anything is reported.
@@ -92,7 +93,8 @@ def main():
                 x0, z0, x1, z1 = footprint(p)
                 b = stations.get(st)
                 stations[st] = (x0, z0, x1, z1) if b is None else (min(b[0], x0), min(b[1], z0), max(b[2], x1), max(b[3], z1))
-            if p["collide"] and p["t"] < 0.9 and p["p"][1] + p["s"][1] / 2 < -6 and p["s"][1] < 200:
+            in_river = p["path"].startswith("Channel") or p["name"] in ("Bed", "Water", "Riverbed")
+            if not in_river and p["collide"] and p["t"] < 0.9 and p["p"][1] + p["s"][1] / 2 < -6 and p["s"][1] < 200:
                 issues.append(f"{name}: underground: {p['path']}/{p['name']} at y={p['p'][1]:.1f}")
         keys = sorted(stations)
         for i in range(len(keys)):

@@ -24,6 +24,7 @@ local Zones = require(Shared.Definitions.Zones)
 local Trails = require(Shared.Definitions.Trails)
 local Themes = require(Shared.Visual.Themes)
 local GliderFactory = require(Shared.Visual.GliderFactory)
+local FactoryKit = require(Shared.Visual.FactoryKit)
 
 local Client = script.Parent.Parent
 local Theme = require(Client.UI.Theme)
@@ -67,6 +68,7 @@ type Rig = {
 	Id: string,
 	Model: Model,
 	Root: BasePart,
+	Offset: CFrame, -- Root.CFrame = pivot * Offset (the model is rigged: only Root is anchored)
 	Trail: Trail,
 	A0: Attachment,
 	A1: Attachment,
@@ -265,6 +267,7 @@ local function buildRig(id: string): Rig
 		root = fallback
 	end
 	local r = root :: BasePart
+	local _, offset = FactoryKit.Rig(model)
 	local a0 = Instance.new("Attachment")
 	a0.Name = "SGTrailL"
 	a0.Parent = r
@@ -307,7 +310,7 @@ local function buildRig(id: string): Rig
 	aura.Lifetime = NumberRange.new(0.4, 0.8)
 	aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0) })
 	aura.Transparency = NumberSequence.new(0.1, 1)
-	return { Id = id, Model = model, Root = r, Trail = trail, A0 = a0, A1 = a1, Sparks = sparks, Lift = lift, Aura = aura }
+	return { Id = id, Model = model, Root = r, Offset = offset, Trail = trail, A0 = a0, A1 = a1, Sparks = sparks, Lift = lift, Aura = aura }
 end
 
 local function acquireRig(id: string): Rig
@@ -571,7 +574,7 @@ local function placeGlider(view: View, t: number): Vector3
 	else
 		cf = view.LastCF.Rotation + p
 	end
-	view.Rig.Model:PivotTo(cf)
+	view.Rig.Root.CFrame = cf * view.Rig.Offset
 	view.LastCF = cf
 	if not view.TrailArmed then
 		view.TrailArmed = true
@@ -642,7 +645,7 @@ local function updateView(view: View, now: number, clock: number)
 		-- bob down into the water, nose dipping
 		local k = clock - view.LandedAt
 		local cf = CFrame.new(view.LandPos - Vector3.new(0, k * SINK_SPEED, 0)) * view.LastCF.Rotation * CFrame.Angles(-math.min(k, 0.6) * 0.6, 0, 0)
-		view.Rig.Model:PivotTo(cf)
+		view.Rig.Root.CFrame = cf * view.Rig.Offset
 	end
 	if view.IsLocal then
 		stepRings(view, clock)
@@ -719,7 +722,7 @@ local function onFlightStarted(raw: any)
 		setHeldHidden(held, true)
 	end
 	local start = hand or pathPoint(plan, 0)
-	rig.Model:PivotTo(CFrame.new(start))
+	rig.Root.CFrame = CFrame.new(start) * rig.Offset
 	rig.Model.Parent = getFolder()
 
 	local view: View = {

@@ -280,6 +280,32 @@ function FactoryKit.Finish(b: Builder, anchored: boolean): Model
 	return b.Model
 end
 
+-- Prepares a model that moves every frame (pet followers, spinning displays, flying gliders): only
+-- the primary part stays anchored and every other part is welded to it, so a move is one CFrame
+-- write on the root instead of one per part. Returns the root and the CFrame that turns a target
+-- pivot into the root's CFrame (root.CFrame = pivot * offset).
+function FactoryKit.Rig(model: Model): (BasePart?, CFrame)
+	local root = model.PrimaryPart
+	if root == nil then
+		return nil, CFrame.identity
+	end
+	root.Anchored = true
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d ~= root then
+			d.Anchored = false
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Massless = true
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = root
+			weld.Part1 = d
+			weld.Parent = d
+		end
+	end
+	return root, root.PivotOffset:Inverse()
+end
+
 -- Template cache: build once per key, hand out clones (cheap) afterwards. Bounded so callers
 -- that pass many distinct sizes can't grow it forever.
 export type Cache = { Map: { [string]: Model }, Count: number, Limit: number }

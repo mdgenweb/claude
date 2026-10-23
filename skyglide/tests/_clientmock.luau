@@ -464,7 +464,11 @@ method("GetAttributeChangedSignal", function(i, name)
 end)
 local baseSetAttribute = baseIndex(Instance.new("Folder"), "SetAttribute")
 method("SetAttribute", function(i, k, v)
+	local old = rawget(i, "_attrs")[k]
 	baseSetAttribute(i, k, v)
+	if old == v then
+		return -- Roblox only signals real changes
+	end
 	local store = rawget(i, "_attrSignals")
 	if store and store[k] then
 		store[k]:Fire()

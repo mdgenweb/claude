@@ -499,6 +499,9 @@ function Inst.IsA(i, class)
 	return isA(rawget(i, "_props").ClassName, class)
 end
 function Inst.Destroy(i)
+	if rawget(i, "_destroyed") then
+		return -- Roblox: destroying twice is a no-op
+	end
 	i.Parent = nil
 	local function kill(n)
 		for _, c in table.clone(children(n)) do

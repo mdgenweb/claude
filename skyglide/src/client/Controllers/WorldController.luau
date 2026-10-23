@@ -42,6 +42,7 @@ local effects: Effects? = nil
 local worldsFolder: Instance? = nil
 local spinners: { Model } = {}
 local spinBase: { [Model]: CFrame } = {}
+local spinRoot: { [Model]: { Root: BasePart, Offset: CFrame } } = {} -- rigged displays: move the root only
 
 -- Lighting ----------------------------------------------------------------------------------------
 
@@ -322,6 +323,14 @@ end
 local function track(model: Instance)
 	if model:IsA("Model") and model:GetAttribute("Spin") == true and not spinBase[model] then
 		spinBase[model] = model:GetPivot()
+		local root = model.PrimaryPart
+		if root and root.Anchored then
+			-- the server rigged it (only the root anchored, the rest welded): one CFrame per frame
+			local welded = model:FindFirstChildWhichIsA("WeldConstraint", true) ~= nil
+			if welded then
+				spinRoot[model] = { Root = root, Offset = root.PivotOffset:Inverse() }
+			end
+		end
 		table.insert(spinners, model)
 	end
 end
@@ -347,12 +356,19 @@ local function stepSpinners()
 		if model.Parent == nil then
 			table.remove(spinners, i)
 			spinBase[model] = nil
+			spinRoot[model] = nil
 			continue
 		end
 		local base = spinBase[model]
 		if (base.Position - camPos).Magnitude < 150 then
 			local phase = i * 0.7
-			model:PivotTo(base * CFrame.new(0, math.sin(t * 2 + phase) * 0.35, 0) * CFrame.Angles(0, t * 0.9 + phase, 0))
+			local cf = base * CFrame.new(0, math.sin(t * 2 + phase) * 0.35, 0) * CFrame.Angles(0, t * 0.9 + phase, 0)
+			local rig = spinRoot[model]
+			if rig then
+				rig.Root.CFrame = cf * rig.Offset
+			else
+				model:PivotTo(cf)
+			end
 		end
 	end
 end
