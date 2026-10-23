@@ -7,25 +7,25 @@ One-page site for Juvens Fahrschule, Borghagener Str. 1, 44581 Castrop-Rauxel (H
 
 ## Design
 
-Every visual element is German road signage drawn in CSS and SVG, so the page uses no stock photos:
+A calm, airy layout on light concrete tones with generous spacing. German road signage appears only at a few signature moments, drawn in CSS and SVG, so the page uses no stock photos.
 
-- **Hero:** an Autobahn direction sign (Wegweiser) that doubles as navigation. An hours plate (Zusatzzeichen) hangs underneath, and a round inspection sticker (HU-Plakette) shows the 5.0 rating.
-- **Buttons:** arrow direction signs (Pfeilwegweiser), yellow for main actions and white for secondary ones. On hover they catch a light glint, like a reflective sign in headlights.
-- **Section labels:** small Zusatzzeichen plates.
-- **Classes:** laid out as the back of the EU driving licence card. "Wählen" preselects the class in the form.
-- **"Ablauf":** a grey road on a light background. Each of the nine stops has its own real traffic sign:
-  - Info sign, first-aid sign, a document sign and a § sign
-  - Priority road and Autobahn
-  - STOP and Tempo 50
-  - End of all restrictions
+The page has seven sections: hero, classes, route, reviews, costs, FAQ, and pre-registration with contact. A sign-off section and the footer follow.
 
-  A driving-school car follows the scroll. The stop markers turn from grey to yellow to green.
-- **Reviews:** a carousel with a large card in the centre and smaller cards left and right. It advances to the right on its own, pauses on hover or focus, and supports swipe, arrow buttons and the keyboard.
-- **Contact and close:** the contact section uses a town sign (Ortstafel). The closing call to action is a town-exit sign: "Beifahrersitz" is crossed out and the next place is "Fahrersitz, 0 km". The footer ends on a road strip with "JUVENS" painted on it.
+- **Hero intro (about 2.5 s, plays once):**
+  - The headline lines slide up.
+  - The posts grow and the Autobahn direction sign (Wegweiser) drops in with a slight spring. Its arrows slide in.
+  - The office-hours plate (Zusatzzeichen) swings into place.
+  - A side-view driving-school car rolls in with turning wheels, parks between the posts, settles on its suspension and blinks its indicator twice.
+- **Buttons:** filled arrow shapes, yellow for main actions and dark for secondary ones. The arrow tip extends on hover.
+- **Classes:** three clear cards (Auto, Motorrad, Roller & Mofa), each listing its classes with age. The card link preselects the class in the form.
+- **Route ("Ablauf"):** a grey road with nine real traffic signs, one per step. The driving-school car eases after the scroll position, and the stop markers turn from grey to yellow to green.
+- **Reviews:** a carousel with a large card in the centre and smaller cards left and right. It advances to the right every 6 s, pauses on hover or focus, and supports swipe, arrow buttons and the keyboard.
+- **Pre-registration and contact:** the contact details sit beside the form. The licence plate above the form updates live with the visitor's initials.
+- **Sign-off:** a town-exit sign. "Beifahrersitz" is crossed out and the next place is "Fahrersitz, 0 km". The footer ends on a road strip with "JUVENS" painted on it.
 
-All motion is switched off under `prefers-reduced-motion`.
+Text blocks keep their resting position readable and only settle into place on scroll. All motion is switched off under `prefers-reduced-motion`.
 
-**Fonts:** Barlow Condensed for headlines and Barlow Semi Condensed for sign lettering. Both are open alternatives to DIN 1451, the typeface on German road signs. Body text is Atkinson Hyperlegible Next.
+**Fonts:** Barlow for headlines and Barlow Semi Condensed for sign lettering. Both are open alternatives to DIN 1451, the typeface on German road signs. Body text is Atkinson Hyperlegible Next with a 1.7 line height.
 
 **Colours:** approximations of Verkehrsblau, Verkehrsgelb and Verkehrsrot on light concrete neutrals, with a full dark mode.
 
