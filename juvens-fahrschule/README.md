@@ -15,11 +15,18 @@ The page has seven sections: hero, classes, route, reviews, costs, FAQ, and pre-
   - The headline lines slide up.
   - The posts grow and the Autobahn direction sign (Wegweiser) drops in with a slight spring. Its arrows slide in.
   - The office-hours plate (Zusatzzeichen) swings into place.
-  - A side-view driving-school car rolls in with turning wheels, parks between the posts, settles on its suspension and blinks its indicator twice.
-- **Buttons:** filled arrow shapes, yellow for main actions and dark for secondary ones. The arrow tip extends on hover.
-- **Classes:** three clear cards (Auto, Motorrad, Roller & Mofa), each listing its classes with age. The card link preselects the class in the form.
+  - The driving-school car rolls in with turning wheels and parks between the posts. The body dips forward as it brakes, rebounds, and the mirror indicator blinks twice.
+  - A light glint sweeps across the sign.
+- **Vehicles:** detailed SVG illustrations defined once in a hidden `<svg class="svg-defs">` and reused with `<use>`:
+  - The car is a compact hatchback in side view, with shaded paint, tinted glass with reflections, door seams and handles, an LED headlight, five twin-spoke alloys with red calipers, the roof sign and the Juvens livery.
+  - The motorbike and the scooter are drawn the same way.
+  - The road car is a matching top view.
+- **Buttons:** arrow shapes with a gradient, inner highlight and soft shadow. On hover they lift, the tip extends and a glint passes across. On click a ripple spreads from the press point.
+- **Classes:** three clear cards (Auto, Motorrad, Roller & Mofa), each listing its classes with age. On hover the vehicle rolls forward and its wheels turn. The card link preselects the class in the form.
 - **Route ("Ablauf"):** a grey road with nine real traffic signs, one per step. The driving-school car eases after the scroll position, and the stop markers turn from grey to yellow to green.
-- **Reviews:** a carousel with a large card in the centre and smaller cards left and right. It advances to the right every 6 s, pauses on hover or focus, and supports swipe, arrow buttons and the keyboard.
+- **Reviews (Google look):** set in Roboto with Google colours and Material buttons.
+  - A rating panel shows the Google logo, "5,0" and stars. When it scrolls into view the logo pops in, the stars fill one by one and the numbers count up.
+  - Below it, a carousel of review cards in Google style: a large card in the centre, smaller cards left and right. It advances to the right every 6 s, pauses on hover or focus, and supports swipe, arrow buttons and the keyboard.
 - **Pre-registration and contact:** the contact details sit beside the form. The licence plate above the form updates live with the visitor's initials.
 - **Sign-off:** a town-exit sign. "Beifahrersitz" is crossed out and the next place is "Fahrersitz, 0 km". The footer ends on a road strip with "JUVENS" painted on it.
 
@@ -31,7 +38,13 @@ Text blocks keep their resting position readable and only settle into place on s
 
 ## Reviews
 
-No individual Google review texts could be retrieved, so the carousel shows verbatim quotes from review portals, each linked to its source (deutschefahrschulen.com and topfahrschulen.com). To swap in real Google reviews, replace the `<figure class="rv">` blocks in `#reviews`; the carousel adapts to any number of slides. The dot buttons and the "1 / 5" labels need updating by hand.
+No individual Google review texts could be retrieved, so the cards show verbatim quotes from review portals. Each card names its portal as the author and links to the source (deutschefahrschulen.com and topfahrschulen.com).
+
+To show real Google reviews with names, either:
+- replace the `<figure class="rv">` blocks in `#reviews` with reviews the school has approved, or
+- load them live through the Google Places API.
+
+The carousel adapts to any number of slides; only the dot buttons need updating by hand.
 
 ## Confirm with the owner before launch
 
