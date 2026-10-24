@@ -11,6 +11,9 @@ yards, then rebirth for a permanent Scrap bonus.
 *Renders above come from the game's own builder code run outside Roblox and drawn with
 three.js. Roblox lighting (neon glow, shadows, sky) will look richer in Studio.*
 
+**Preview page** (3D mech viewer for every level, tool and finish, plus the UI style):
+https://claude.ai/artifact/3812iomkK3Lcw7M3c2kR34 (private to the owner until shared)
+
 ## Open it
 
 **Option A: just play.** Open `PickYourMech.rbxlx` in Roblox Studio and press **Play**.
