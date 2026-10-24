@@ -2784,20 +2784,21 @@ local function laneSign(parent: Instance, area: number, lane: number): TextLabel
 		block(
 			parent,
 			"SignPost",
-			Vector3.new(0.8, 9, 0.8),
-			CFrame.new(x + side * half, 4.5, -1),
+			Vector3.new(0.8, 15, 0.8),
+			CFrame.new(x + side * half, 7.5, -1),
 			C.SteelDark,
 			Enum.Material.Metal
 		)
 	end
-	local beam = block(parent, "Sign", Vector3.new(Layout.LaneWidth - 1, 2.6, 0.6), CFrame.new(x, 9.5, -1), C.Ink)
+	-- High enough that a zoomed-out camera behind the mech looks under it.
+	local beam = block(parent, "Sign", Vector3.new(Layout.LaneWidth - 1, 2.6, 0.6), CFrame.new(x, 15.5, -1), C.Ink)
 	beam.Name = string.format("Lane%d_Area%d", lane, area)
 	deco(
 		block(
 			parent,
 			"SignGlow",
 			Vector3.new(Layout.LaneWidth - 1, 0.3, 0.7),
-			CFrame.new(x, 8.1, -1),
+			CFrame.new(x, 14.1, -1),
 			color,
 			Enum.Material.Neon
 		)

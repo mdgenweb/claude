@@ -21,6 +21,11 @@ and press **Play**. The whole map, every model and all UI are built by scripts w
 starts. `PickYourMech.rbxlx` is the same place in XML; if a download renames it to `.xml` or
 `.txt`, rename it back or use the `.rbxl`.
 
+**Play in the browser:** `web/` holds a three.js build of the same game (same models,
+rules and UI, generated from this code), playable on PC or phone. Serve the folder
+(`npx serve web`) and open it, or use the hosted copy:
+https://claude.ai/artifact/BwQeZuLyaLhHFdZnSXTNTf (private to the owner until shared).
+
 **Option B: develop with Rojo** (live sync from this folder):
 ```bash
 aftman install            # or: rokit install (installs rojo, selene, stylua)

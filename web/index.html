@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Pick Your Mech! Playtest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Luckiest+Guy&display=swap">
+<style>
+/* Layout: full-screen 3D game; HUD on a 1280x720 reference canvas scaled to the screen,
+   exactly like the Roblox build (src/client/UI). Single dark game look by design. */
+:root {
+  color-scheme: dark;
+  --ink: #0E1118; --navy-top: #34405A; --navy: #1E2638; --navy-deep: #0F1420;
+  --white: #FFFFFF; --muted: #B8C4DA; --gold: #FFD12E; --cyan: #5BE7FF; --good: #6CFF5C;
+  --green-t: #8CF55A; --green-b: #2DBE2A; --orange-t: #FFB24A; --orange-b: #FF7417;
+  --blue-t: #62CCFF; --blue-b: #1F7BEA; --purple-t: #CF92FF; --purple-b: #8B3FF0;
+  --yellow-t: #FFE85E; --yellow-b: #FFB300; --red-t: #FF7070; --red-b: #E02D2D;
+  --lime-t: #D4FF5A; --lime-b: #7BD81E; --steel-t: #8A97AD; --steel-b: #535F75;
+  --display: "Luckiest Guy", "Arial Black", Impact, sans-serif;
+  --body: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --o2: 0 2px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 -2px 0 var(--ink), 2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink);
+  --o3: 0 3px 0 var(--ink), 3px 0 0 var(--ink), -3px 0 0 var(--ink), 0 -3px 0 var(--ink), 3px 3px 0 var(--ink), -3px 3px 0 var(--ink), 3px -3px 0 var(--ink), -3px -3px 0 var(--ink), 0 6px 0 var(--ink);
+  --back: cubic-bezier(.34, 1.56, .64, 1);
+}
+html, body { height: 100%; margin: 0; overflow: hidden; background: #9fd3ff; overscroll-behavior: none; }
+body { font-family: var(--body); color: var(--white); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+#labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+#hud { position: fixed; inset: 0; pointer-events: none; overflow: hidden;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+#ui { position: absolute; left: env(safe-area-inset-left, 0px); top: env(safe-area-inset-top, 0px); transform-origin: 0 0; }
+#ui > * { pointer-events: auto; }
+#ui .pass { pointer-events: none; }
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid var(--yellow-t); outline-offset: 3px; }
+
+/* chunky kit (mirrors UIKit.luau) */
+.sf { position: relative; border: 3px solid var(--ink); border-radius: 14px; background: linear-gradient(var(--t, var(--navy-top)), var(--b, var(--navy))); box-shadow: 0 5px 0 rgba(14,17,24,.9); }
+.sh::before { content: ""; position: absolute; left: 5px; right: 5px; top: 4px; height: 40%; background: rgba(255,255,255,.2); border-radius: 9px; pointer-events: none; }
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: .4em; min-height: 46px; padding: .3em .9em; cursor: pointer;
+  font-family: var(--display); font-size: 22px; color: #fff; text-shadow: var(--o2); border: 3px solid var(--ink); border-radius: 12px;
+  background: linear-gradient(var(--t, var(--green-t)), var(--b, var(--green-b))); box-shadow: 0 5px 0 rgba(14,17,24,.9); transition: transform .12s var(--back); }
+.btn::before { content: ""; position: absolute; left: 5px; right: 5px; top: 4px; height: 40%; background: rgba(255,255,255,.22); border-radius: 8px; pointer-events: none; }
+@media (hover: hover) { .btn:hover, .nb:hover { transform: scale(1.07) rotate(-3deg); } }
+.btn:active, .nb:active { transform: scale(.92) translateY(3px); }
+.btn.off { --t: var(--steel-t); --b: var(--steel-b); }
+.btn.shake { animation: shake .25s; }
+@keyframes shake { 25% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } 75% { transform: rotate(-3deg); } }
+.g { --t: var(--green-t); --b: var(--green-b); } .o { --t: var(--orange-t); --b: var(--orange-b); } .bl { --t: var(--blue-t); --b: var(--blue-b); }
+.p { --t: var(--purple-t); --b: var(--purple-b); } .y { --t: var(--yellow-t); --b: var(--yellow-b); } .r { --t: var(--red-t); --b: var(--red-b); }
+.l { --t: var(--lime-t); --b: var(--lime-b); } .s { --t: var(--steel-t); --b: var(--steel-b); } .n { --t: var(--navy-top); --b: var(--navy); }
+.chip { display: inline-flex; align-items: center; justify-content: center; gap: .3em; padding: 0 .7em; height: 30px; font-family: var(--display); font-size: 17px; text-shadow: var(--o2);
+  border: 2.5px solid var(--ink); border-radius: 999px; background: linear-gradient(var(--t, var(--green-t)), var(--b, var(--green-b))); box-shadow: 0 3px 0 rgba(14,17,24,.9); white-space: nowrap; }
+.badge { position: absolute; top: -10px; right: -10px; min-width: 28px; height: 28px; padding: 0 4px; display: none; place-items: center; font-family: var(--display); font-size: 15px; text-shadow: var(--o2);
+  border: 2.5px solid var(--ink); border-radius: 999px; background: linear-gradient(var(--red-t), var(--red-b)); animation: pulse .5s ease-in-out infinite alternate; z-index: 3; }
+.badge.on { display: grid; }
+@keyframes pulse { to { transform: scale(1.18); } }
+@keyframes bob { to { transform: translateY(-6px); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pop { from { transform: scale(.4); } }
+
+/* HUD */
+.abs { position: absolute; }
+#top { left: 50%; top: 8px; width: 540px; height: 100px; margin-left: -270px; pointer-events: none; }
+#scrapPill { left: 30px; top: 10px; width: 290px; height: 58px; border-radius: 999px; display: flex; align-items: center; padding-left: 62px; }
+#coin { left: 0; top: 2px; width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; font-size: 40px; z-index: 2; }
+#scrap { font-family: var(--display); font-size: 40px; color: var(--gold); text-shadow: var(--o3); padding-top: 7px; line-height: 1; }
+#powerPill { left: 340px; top: 14px; width: 196px; height: 50px; border-radius: 999px; display: flex; align-items: center; padding-left: 48px; gap: 10px; }
+#bolt { left: 318px; top: 9px; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; font-size: 32px; z-index: 2; }
+#power { font-family: var(--display); font-size: 32px; color: var(--cyan); text-shadow: var(--o2); padding-top: 5px; }
+#multi { left: 100px; top: 72px; display: none; }
+#nav { left: 18px; top: 50%; transform: translateY(-50%); display: grid; gap: 24px; }
+.nb { position: relative; width: 78px; height: 78px; border-radius: 18px; display: grid; place-items: center; font-size: 42px; cursor: pointer; border: 3px solid var(--ink);
+  background: linear-gradient(var(--t), var(--b)); box-shadow: 0 5px 0 rgba(14,17,24,.9); transition: transform .12s var(--back); padding: 0; }
+.nb::before { content: ""; position: absolute; left: 5px; right: 5px; top: 4px; height: 40%; background: rgba(255,255,255,.22); border-radius: 12px; pointer-events: none; }
+.nb .lbl { position: absolute; left: 50%; bottom: -15px; transform: translateX(-50%); font-family: var(--display); font-size: 19px; text-shadow: var(--o2); white-space: nowrap; }
+#right { right: 22px; top: 50%; transform: translateY(-50%); display: grid; gap: 72px; justify-items: center; }
+#right .nb { width: 88px; height: 88px; }
+#right .chip { position: absolute; left: 50%; bottom: -50px; transform: translateX(-50%); }
+#next { left: 50%; bottom: 22px; width: 580px; height: 104px; margin-left: -290px; border-radius: 18px; }
+#nextIcon { left: 12px; top: 10px; width: 78px; height: 78px; border-radius: 12px; display: grid; place-items: center; font-size: 46px; }
+#nextT1 { left: 104px; top: 8px; font-family: var(--display); font-size: 26px; text-shadow: var(--o2); white-space: nowrap; }
+#nextT2 { left: 104px; top: 40px; font-size: 17px; color: var(--muted); font-weight: 600; }
+.bar { position: relative; height: 26px; border-radius: 999px; background: var(--navy-deep); border: 2.5px solid var(--ink); overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 999px; background: linear-gradient(var(--t, var(--yellow-t)), var(--b, var(--yellow-b))); transition: width .25s; }
+.bar span { position: relative; display: block; text-align: center; font-family: var(--display); font-size: 15px; line-height: 22px; text-shadow: var(--o2); white-space: nowrap; }
+#nextBar { position: absolute; left: 104px; top: 66px; width: 290px; }
+#upBtn { position: absolute; right: 14px; top: 14px; width: 158px; height: 70px; font-size: 28px; }
+#goal { left: 50%; bottom: 140px; transform: translateX(-50%); min-width: 470px; height: 34px; font-size: 18px; }
+#hint { left: 50%; bottom: 196px; width: 640px; margin-left: -320px; text-align: center; animation: bob 1.2s ease-in-out infinite alternate; pointer-events: none; }
+#hint h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 56px; color: var(--orange-t); text-shadow: var(--o3); transform: rotate(-2deg); }
+#hint p { margin: 4px 0 0; font-size: 21px; font-weight: 600; text-shadow: var(--o2); }
+#toasts { z-index: 30; left: 50%; top: 118px; width: 420px; margin-left: -210px; display: grid; gap: 10px; justify-items: center; pointer-events: none; }
+.toast { width: 400px; min-height: 56px; border-radius: 12px; display: flex; align-items: center; gap: 12px; padding: 6px 12px; animation: pop .3s var(--back); }
+.toast .ic { font-size: 36px; }
+.toast b { display: block; font-family: var(--display); font-weight: 400; font-size: 23px; text-shadow: var(--o2); line-height: 1.1; }
+.toast small { font-size: 16px; font-weight: 600; text-shadow: var(--o2); }
+#celebrate { z-index: 30; left: 50%; top: 32%; width: 700px; margin-left: -350px; text-align: center; pointer-events: none; display: none; }
+#celebrate.on { display: block; animation: pop .45s var(--back); }
+#celebrate .rays { position: absolute; left: 50%; top: 50%; width: 900px; height: 900px; margin: -450px 0 0 -450px; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(255,255,255,.18) 0 10deg, transparent 10deg 30deg); animation: spin 14s linear infinite; z-index: -1; }
+#celebrate p { margin: 0; font-family: var(--display); font-size: 34px; text-shadow: var(--o3); }
+#celebrate h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 96px; line-height: 1.05; transform: rotate(-3deg); color: var(--orange-t); text-shadow: var(--o3); }
+#joy { left: 124px; bottom: 26px; width: 150px; height: 150px; border-radius: 50%; background: rgba(14,17,24,.35); border: 3px solid rgba(255,255,255,.35); display: none; touch-action: none; }
+#joy i { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: linear-gradient(var(--blue-t), var(--blue-b)); border: 3px solid var(--ink); }
+body.touch #joy { display: block; }
+#help { right: 18px; bottom: 18px; font-size: 15px; color: #fff; text-shadow: var(--o2); text-align: right; font-weight: 600; pointer-events: none; }
+body.touch #help { display: none; }
+@media (orientation: portrait) { #joy { bottom: 190px; } }
+
+/* panels */
+#backdrop { position: absolute; inset: -50%; background: rgba(0,0,0,.5); display: none; z-index: 19; }
+#backdrop.on { display: block; }
+.panel { position: absolute; z-index: 20; left: 50%; top: calc(50% + 14px); transform: translate(-50%, -50%); border: 4px solid var(--ink); border-radius: 18px; background: linear-gradient(var(--navy-top), var(--navy));
+  box-shadow: 0 7px 0 rgba(14,17,24,.9); display: none; }
+.panel.on { display: block; animation: ppop .32s var(--back); }
+@keyframes ppop { from { transform: translate(-50%, -50%) scale(.7); } }
+.panel .tab { position: absolute; left: 22px; top: -30px; height: 60px; display: flex; align-items: center; gap: 8px; padding: 0 18px 0 12px; font-family: var(--display); font-size: 38px; text-shadow: var(--o3);
+  border: 3px solid var(--ink); border-radius: 18px; background: linear-gradient(var(--t), var(--b)); box-shadow: 0 5px 0 rgba(14,17,24,.9); }
+.panel .x { position: absolute; right: -18px; top: -20px; width: 56px; height: 56px; padding: 0; font-size: 30px; --t: var(--red-t); --b: var(--red-b); z-index: 2; }
+.panel .body { padding: 46px 22px 22px; max-height: calc(var(--uih, 720px) - 96px); overflow-y: auto; box-sizing: border-box; }
+.row { display: grid; grid-template-columns: 46px 1fr auto; gap: 12px; align-items: center; padding: 8px 12px; border-radius: 12px; margin-bottom: 10px; }
+.row .n { width: 42px; height: 42px; border-radius: 50%; border: 2.5px solid var(--ink); display: grid; place-items: center; font-family: var(--display); font-size: 20px; text-shadow: var(--o2); background: linear-gradient(var(--t), var(--b)); }
+.row b { display: block; font-family: var(--display); font-weight: 400; font-size: 22px; text-shadow: var(--o2); }
+.row small { font-size: 15px; font-weight: 600; color: var(--muted); }
+.row.form small { color: #fff; text-shadow: var(--o2); }
+.row .btn { min-width: 140px; }
+.cards { display: grid; grid-template-columns: repeat(3, 240px); gap: 18px; }
+.card { border-radius: 16px; padding: 12px; display: grid; gap: 6px; justify-items: center; text-align: center; overflow: hidden; }
+.card .ico { font-size: 46px; line-height: 1.1; }
+.card h4 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 21px; text-shadow: var(--o2); }
+.card p { margin: 0; font-size: 14px; font-weight: 600; text-shadow: var(--o2); min-height: 40px; }
+.card .btn { width: 100%; }
+.featured { display: grid; grid-template-columns: 110px 1fr auto; gap: 16px; align-items: center; padding: 14px 18px; border-radius: 16px; margin-bottom: 20px; overflow: hidden; }
+.featured .big { font-size: 64px; text-align: center; }
+.featured h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 38px; text-shadow: var(--o3); }
+.featured .x2 { font-family: var(--display); font-size: 32px; color: var(--yellow-t); text-shadow: var(--o2); }
+.featured p { margin: 0; font-weight: 600; text-shadow: var(--o2); }
+.price { --t: #5BD94A; --b: #16872A; }
+.note { color: var(--muted); font-size: 14px; margin: 14px 0 0; text-align: center; }
+.dots { display: flex; justify-content: space-between; position: relative; margin: 6px 0 18px; }
+.dots::before { content: ""; position: absolute; left: 24px; right: 24px; top: 21px; height: 7px; background: var(--ink); }
+.dot { position: relative; display: grid; justify-items: center; gap: 4px; width: 70px; }
+.dot i { font-style: normal; width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--ink); display: grid; place-items: center; font-family: var(--display); font-size: 20px; text-shadow: var(--o2); background: linear-gradient(var(--t), var(--b)); }
+.dot small { color: var(--muted); font-weight: 600; }
+.checks { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 6px; }
+.checks li { font-family: var(--display); font-size: 21px; text-shadow: var(--o2); }
+.checks li.ok { color: var(--good); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+.two .sf { padding: 10px 14px; }
+.two h4 { margin: 0 0 4px; font-family: var(--display); font-weight: 400; font-size: 22px; text-shadow: var(--o2); }
+.two ul { margin: 0; padding-left: 1.1em; font-weight: 600; text-shadow: var(--o2); }
+.center { display: flex; justify-content: center; }
+.sect { font-family: var(--display); font-size: 26px; text-shadow: var(--o2); margin: 0 0 10px; }
+.tools, .fins { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.tool, .fin { width: 160px; border-radius: 16px; padding: 10px; display: grid; gap: 6px; justify-items: center; text-align: center; }
+.tool .ico { font-size: 44px; }
+.tool h4, .fin h4 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 21px; text-shadow: var(--o2); }
+.fin p, .tool p { margin: 0; font-size: 13px; color: var(--muted); font-weight: 600; min-height: 34px; }
+.fin .sw { display: flex; gap: 6px; }
+.fin .sw i { width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid var(--ink); }
+.tool .btn, .fin .btn { width: 100%; font-size: 17px; min-height: 40px; }
+.daily { display: grid; grid-template-columns: 340px 340px; gap: 20px; }
+.daily .sf { padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.daily h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; text-shadow: var(--o2); text-align: center; }
+.daily .big { font-family: var(--display); font-size: 40px; color: var(--gold); text-shadow: var(--o3); text-align: center; }
+.daily p { margin: 0; text-align: center; font-weight: 600; }
+.stamps { display: flex; gap: 10px; justify-content: center; }
+.stamps i { width: 42px; height: 42px; border-radius: 50%; border: 2.5px solid var(--ink); display: grid; place-items: center; font-style: normal; font-family: var(--display); text-shadow: var(--o2); background: linear-gradient(var(--t), var(--b)); }
+.picker { display: flex; gap: 22px; }
+.pick { width: 250px; border-radius: 18px; padding: 16px; display: grid; gap: 8px; justify-items: center; text-align: center; overflow: hidden; }
+.pick .ico { font-size: 96px; line-height: 1.1; }
+.pick h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 40px; text-shadow: var(--o3); }
+.pick p { margin: 0; font-weight: 600; text-shadow: var(--o2); }
+.pick .btn { width: 100%; }
+
+/* world labels (screen space) */
+.wl { position: absolute; transform: translate(-50%, -100%); text-align: center; white-space: nowrap; pointer-events: none; }
+.wl b { display: block; font-family: var(--display); font-weight: 400; font-size: 22px; color: #FFE14D; text-shadow: var(--o2); }
+.wl small { display: block; font-weight: 700; font-size: 14px; text-shadow: var(--o2); }
+.wl em { display: block; font-style: normal; font-weight: 700; font-size: 14px; color: var(--good); text-shadow: var(--o2); }
+.hp { position: absolute; transform: translate(-50%, -100%); width: 120px; pointer-events: none; text-align: center; }
+.hp b { display: block; font-family: var(--display); font-weight: 400; font-size: 14px; text-shadow: var(--o2); white-space: nowrap; }
+.hp .bar { height: 18px; } .hp .bar span { font-size: 12px; line-height: 14px; }
+.dmg { position: absolute; transform: translate(-50%, -50%); font-family: var(--display); font-size: 30px; text-shadow: var(--o2); pointer-events: none; animation: rise .9s ease-out forwards; }
+@keyframes rise { to { transform: translate(-50%, -160%); opacity: 0; } }
+.fly { position: absolute; font-size: 28px; pointer-events: none; transition: transform .45s ease-in, opacity .45s; }
+.pointer { position: absolute; transform: translate(-50%, -100%); text-align: center; pointer-events: none; animation: bob .6s ease-in-out infinite alternate; }
+.pointer b { display: block; font-family: var(--display); font-weight: 400; font-size: 34px; color: var(--orange-t); text-shadow: var(--o3); }
+.pointer span { font-family: var(--display); font-size: 40px; color: var(--yellow-t); text-shadow: var(--o2); }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; background: linear-gradient(#1E2638, #0F1420); z-index: 50; text-align: center; padding: 0 16px; }
+#loading h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(44px, 9vw, 90px); color: var(--orange-t); text-shadow: var(--o3); transform: rotate(-3deg); }
+#loading p { font-size: 18px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+</style>
+
+<canvas id="c" tabindex="0" aria-label="Pick Your Mech game view"></canvas>
+<div id="labels" aria-hidden="true"></div>
+<div id="hud"><div id="ui">
+  <div id="top" class="abs pass">
+    <div id="scrapPill" class="abs sf n"><span id="scrap">0</span></div>
+    <div id="coin" class="abs sf sh y">⚙️</div>
+    <div id="powerPill" class="abs sf n"><span id="power">1</span><span style="color:var(--muted);font-weight:700">POWER</span></div>
+    <div id="bolt" class="abs sf sh bl">⚡</div>
+    <span id="multi" class="abs chip g">x2 SCRAP</span>
+  </div>
+  <div id="nav" class="abs">
+    <button class="nb g" data-panel="shop" aria-label="Shop">🛒<span class="lbl">SHOP</span><span class="badge" id="bShop">!</span></button>
+    <button class="nb o" data-panel="upgrade" aria-label="Upgrades">⚡<span class="lbl">UPGRADE</span><span class="badge" id="bUpgrade">!</span></button>
+    <button class="nb p" data-panel="rebirth" aria-label="Rebirth">♻️<span class="lbl">REBIRTH</span><span class="badge" id="bRebirth">!</span></button>
+    <button class="nb bl" data-panel="garage" aria-label="Garage">🎨<span class="lbl">GARAGE</span><span class="badge" id="bGarage">NEW</span></button>
+    <button class="nb y" data-panel="daily" aria-label="Daily rewards">📋<span class="lbl">DAILY</span><span class="badge" id="bDaily">!</span></button>
+  </div>
+  <div id="right" class="abs">
+    <button class="nb o" id="boostBtn" aria-label="Boost">🚀<span class="lbl">BOOST</span><span class="chip n" id="boostChip">GET</span></button>
+    <button class="nb bl" id="autoBtn" aria-label="Auto Farm">🤖<span class="lbl">AUTO</span><span class="chip s" id="autoChip">🔒</span></button>
+  </div>
+  <div id="hint" class="abs"><h2>SMASH THE JUNK!</h2><p>Walk up to junk in your lane. Your mech hits it for you.</p></div>
+  <span id="goal" class="abs chip n"></span>
+  <div id="next" class="abs sf n">
+    <div id="nextIcon" class="abs sf sh o">⚡</div>
+    <div id="nextT1" class="abs"></div>
+    <div id="nextT2" class="abs"></div>
+    <div id="nextBar" class="bar"><i></i><span></span></div>
+    <button id="upBtn" class="btn g">UPGRADE</button>
+  </div>
+  <div id="joy" class="abs" aria-hidden="true"><i></i></div>
+  <div id="help" class="abs">WASD / arrows to move · drag to look · scroll to zoom</div>
+  <div id="toasts" class="abs"></div>
+  <div id="celebrate" class="abs"><div class="rays"></div><p id="celSub"></p><h1 id="celTitle"></h1></div>
+  <div id="backdrop" class="abs"></div>
+  <section class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
+    <div class="tab" id="panelTab"><span id="panelIcon"></span><span id="panelTitle"></span></div>
+    <button class="btn x" id="panelClose" aria-label="Close">X</button>
+    <div class="body" id="panelBody"></div>
+  </section>
+</div></div>
+<div id="loading"><div><h1>PICK YOUR MECH!</h1><p id="loadMsg">Building the scrapyard…</p></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+// ======================= Config (same numbers as src/shared/Config.luau) =======================
+const AREAS = [
+  { name: "Starter Yard", hp: 10, scrap: 4, gatePower: 0, gateScrap: 0, respawn: 3, blurb: "Small scrap" },
+  { name: "Appliance Row", hp: 100, scrap: 40, gatePower: 10, gateScrap: 100, respawn: 4, blurb: "Washers & fridges" },
+  { name: "Crusher Yard", hp: 1000, scrap: 250, gatePower: 250, gateScrap: 1000, respawn: 5, blurb: "Big scrap & ore" },
+];
+const UPGRADES = [[2, 5, "Stronger hit effect"], [5, 20, "Larger forearms"], [10, 60, "Larger tool"], [25, 150, "Crusher form"],
+  [50, 400, "Broader shoulders"], [100, 1000, "Larger upper body"], [250, 2500, "Mega Mech form"], [500, 6000, "Larger tool & reactor"], [1000, 15000, "Final giant silhouette"]];
+const MILESTONE_ICON = ["💥", "💪", "🔨", "🤖", "🛡️", "🦾", "🚀", "☢️", "👑"];
+const BODY_SCALE = [1, 1, 1, 1.05, 1.2, 1.25, 1.3, 1.45, 1.5, 1.65];
+const FEES = [10000, 20000, 40000, 80000, 160000];
+const HIT_INTERVAL = 0.5, REACH = 6.5;
+const WORKSHOP_RATE = 40, WORKSHOP_CAP = 240, DAILY_GOAL = 30, DAILY_REWARD = 100, STAMPS_FOR_FINISH = 5;
+const TOOLS = [["Hammer", "🔨", "Big swings. Big dents."], ["Saw", "🪚", "Sparks on every cut."], ["Drill", "🔩", "Spins right through."]];
+const FINISHES = [["Default", "Factory", "Free", ["#FF8A1F", "#434A54", "#45D4FF"]], ["Worker", "Worker Shell", "Craft for 500 Scrap or Starter Pack", ["#FFC61A", "#2E2E2E", "#FF9F1A"]],
+  ["Lime", "Lime Paint", "Lime Paint pass", ["#7BEA2E", "#2F3A2A", "#E8FF5A"]], ["Chrome", "Stamped Chrome", "Collect 5 daily stamps", ["#D7DEE8", "#5E6B7D", "#4DA6FF"]],
+  ["Foundry", "Foundry", "Foundry VIP pass", ["#2A2A30", "#4A4A52", "#FF6A00"]]];
+const OFFERS = [
+  ["DoubleScrap", "Pass", 49, "Double Scrap", "Permanent 2x Scrap from every smash.", "⚙️", "g"],
+  ["ScrapBoost", "Product", 19, "Scrap Boost", "1 charge: 2x smash Scrap for 10 min of yard time.", "🚀", "o"],
+  ["AutoFarm", "Pass", 79, "Auto Farm", "Your mech walks to the next junk in your lane.", "🤖", "bl"],
+  ["FoundryVIP", "Pass", 99, "Foundry VIP", "Molten Foundry finish, [VIP] tag, gold lane sign.", "👑", "p"],
+  ["WorkerStarter", "Pass", 19, "Worker Starter Pack", "Worker Shell finish + 250 Scrap once.", "🦺", "y"],
+  ["LimePaint", "Pass", 9, "Lime Paint", "Permanent Lime finish. Looks only.", "🎨", "l"],
+  ["Scrap600", "Product", 29, "600 Scrap", "Exactly 600 Scrap. Never multiplied.", "🔩", "y"],
+];
+// ======================= Layout (same as src/shared/Layout.luau) =======================
+const LW = 22, LANES = 6, AW = 132, GAP = 14, LD = 112, CW = 18, HUBZ1 = CW + 72;
+const areaX0 = (a) => (a - 1) * (AW + GAP), areaX1 = (a) => areaX0(a) + AW;
+const laneX = (a, l) => areaX0(a) + (l - 0.5) * LW, gateX = (g) => areaX1(g) + GAP / 2;
+const TOTAL_W = areaX1(3), CORRIDOR_Z = CW / 2;
+const SLOTS = [
+  [[-5, -14], [5, -14], [-5, -29], [5, -29], [-5, -44], [5, -44], [-5, -59], [5, -59], [-5, -74], [5, -74], [-5, -89], [5, -89]],
+  [[-5, -16], [5, -16], [-5, -34], [5, -34], [-5, -52], [5, -52], [-5, -70], [5, -70], [-5, -88], [5, -88]],
+  [[-4, -16], [4, -30], [-4, -44], [4, -58], [-4, -72], [4, -86], [-4, -100]],
+];
+const PADS = [["upgrade", 28, 40, "UPGRADE BENCH", "Buy Power. Grow your mech!"], ["rebirth", 104, 40, "REBIRTH PAD", "Start small. Earn more forever."],
+  ["shop", 28, 70, "SHOP", "Boosts, passes & paint"], ["daily", 104, 70, "DAILY & WORKSHOP", "Free Scrap every day"], ["garage", 66, 64, "GARAGE", "Tools & finishes"]];
+const MY_LANE = 1;
+function areaAt(x, z) { if (z > CW || z < -LD) return 0; for (let a = 1; a <= 3; a++) if (x >= areaX0(a) && x <= areaX1(a)) return a; return 0; }
+function laneAt(x, z) { const a = areaAt(x, z); if (!a || z > 0) return [a, 0]; return [a, Math.min(LANES, Math.max(1, Math.floor((x - areaX0(a)) / LW) + 1))]; }
+
+// ======================= Save =======================
+const SAVE_KEY = "pick-your-mech-v1";
+const fresh = () => ({ scrap: 0, level: 0, rebirths: 0, gates: { 2: false, 3: false }, crusher: 0, tool: "Hammer", toolChosen: false, finish: "Default",
+  finishes: { Default: true }, boostCharges: 0, boostRemaining: 0, passes: {}, workshop: { stored: 0, updated: Date.now() / 1000 },
+  daily: { day: 0, progress: 0, claimed: false }, stamps: 0, destroys: 0, starterGranted: false });
+let S = fresh();
+try { const raw = localStorage.getItem(SAVE_KEY); if (raw) S = Object.assign(fresh(), JSON.parse(raw)); } catch (e) { /* storage unavailable */ }
+const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } };
+setInterval(save, 5000);
+document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
+
+// ======================= Economy (same as src/shared/Economy.luau) =======================
+const power = () => (S.level <= 0 ? 1 : UPGRADES[S.level - 1][0]);
+const nextUp = () => UPGRADES[S.level] || null;
+const formName = (l) => (l >= 7 ? "Mega Mech" : l >= 4 ? "Crusher" : "Scrap Bot");
+const rebirthFactor = (r) => 1 + 0.25 * Math.min(r, 5);
+const boostActive = () => S.boostRemaining > 0;
+const multiplier = () => rebirthFactor(S.rebirths) * (S.passes.DoubleScrap ? 2 : 1) * (boostActive() ? 2 : 1);
+const payout = (base) => Math.floor(base * multiplier() + 1e-9);
+const unlocked = (a) => a === 1 || !!S.gates[a];
+const dayIndex = () => Math.floor(Date.now() / 86400000);
+function rollDaily() { if (S.daily.day !== dayIndex()) S.daily = { day: dayIndex(), progress: 0, claimed: false }; }
+const workshopNow = () => Math.min(WORKSHOP_CAP, S.workshop.stored + Math.max(0, Date.now() / 1000 - S.workshop.updated) * WORKSHOP_RATE / 3600);
+function fmt(n) {
+  n = Math.floor(n);
+  if (Math.abs(n) < 10000) return n.toLocaleString("en-US");
+  const suf = ["K", "M", "B", "T"]; let v = n, s = "";
+  for (const x of suf) { if (Math.abs(v) < 1000) break; v /= 1000; s = x; }
+  return (Math.abs(v) < 100 ? v.toFixed(1).replace(/\.0$/, "") : Math.floor(v)) + s;
+}
+const fmtTime = (sec) => { sec = Math.max(0, Math.floor(sec)); const m = Math.floor(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m` : `${m}:${String(sec % 60).padStart(2, "0")}`; };
+function rebirthCheck() {
+  const fee = FEES[S.rebirths];
+  if (fee === undefined) return { maxed: true };
+  const powerOk = S.level >= 9, destroysOk = S.crusher >= 20, scrapOk = S.scrap >= fee;
+  return { ok: powerOk && destroysOk && scrapOk, powerOk, destroysOk, scrapOk, fee };
+}
+function gateCheck(a) {
+  const d = AREAS[a - 1];
+  const needPrevious = a > 2 && !unlocked(a - 1), needPower = power() < d.gatePower, needScrap = S.scrap < d.gateScrap;
+  return { ok: !(needPrevious || needPower || needScrap), needPrevious, needPower, needScrap };
+}
+
+// ======================= Three.js scene =======================
+const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+if (isTouch) document.body.classList.add("touch");
+const canvas = document.getElementById("c");
+if (!window.THREE) { document.getElementById("loadMsg").textContent = "The 3D engine couldn't load. Check your connection and reload."; return; }
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = !isTouch;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#9fd3ff");
+scene.fog = new THREE.Fog("#a9d8ff", 220, 620);
+scene.add(new THREE.HemisphereLight(0xe4f2ff, 0x6b5a45, 1.5));
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 1, far: 400 });
+sun.shadow.bias = -0.0005;
+scene.add(sun, sun.target);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 1500);
+
+const MAT = {
+  std: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.05 }),
+  neon: new THREE.MeshBasicMaterial({ vertexColors: true }),
+  trans: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.55, depthWrite: false }),
+};
+const BASE = {
+  0: new THREE.BoxGeometry(1, 1, 1).toNonIndexed(),
+  1: (() => { const g = new THREE.CylinderGeometry(0.5, 0.5, 1, 16); g.rotateZ(Math.PI / 2); return g.toNonIndexed(); })(),
+  2: new THREE.SphereGeometry(0.5, 12, 8).toNonIndexed(),
+};
+let DATA = null, COLORS = [];
+const ID = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+const _m = new THREE.Matrix4(), _s = new THREE.Matrix4(), _n = new THREE.Matrix3(), _v = new THREE.Vector3();
+// Merges many parts into one geometry per material class (fast to draw on phones too).
+function mergeParts(parts, filter) {
+  const acc = { std: [[], [], []], neon: [[], [], []], trans: [[], [], []] };
+  for (const p of parts) {
+    if (filter && !filter(p)) continue;
+    const [sx, sy, sz, px, py, pz, rot, ci, mi, shi, t] = p;
+    const cls = mi === 2 ? "neon" : (mi === 14 || mi === 5 || t > 0) ? "trans" : "std";
+    const r = rot === 0 ? ID : rot;
+    _m.set(r[0], r[1], r[2], px, r[3], r[4], r[5], py, r[6], r[7], r[8], pz, 0, 0, 0, 1);
+    _m.multiply(_s.makeScale(sx, sy, sz));
+    _n.getNormalMatrix(_m);
+    const g = BASE[shi] || BASE[0], pos = g.attributes.position, nor = g.attributes.normal;
+    const col = COLORS[ci], a = acc[cls];
+    for (let i = 0; i < pos.count; i++) {
+      _v.fromBufferAttribute(pos, i).applyMatrix4(_m); a[0].push(_v.x, _v.y, _v.z);
+      _v.fromBufferAttribute(nor, i).applyMatrix3(_n).normalize(); a[1].push(_v.x, _v.y, _v.z);
+      a[2].push(col.r, col.g, col.b);
+    }
+  }
+  const out = {};
+  for (const k in acc) {
+    if (!acc[k][0].length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(acc[k][0], 3));
+    geo.setAttribute("normal", new THREE.Float32BufferAttribute(acc[k][1], 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(acc[k][2], 3));
+    geo.computeBoundingSphere();
+    out[k] = geo;
+  }
+  return out;
+}
+function meshGroup(geos, shadows) {
+  const g = new THREE.Group();
+  for (const k in geos) {
+    const mesh = new THREE.Mesh(geos[k], MAT[k]);
+    mesh.castShadow = shadows && k === "std"; mesh.receiveShadow = k === "std";
+    g.add(mesh);
+  }
+  return g;
+}
+
+// ======================= Collision =======================
+// Static blockers as axis-aligned rectangles [x0, z0, x1, z1] taken from the Roblox map layout.
+const BLOCK = [];
+const rect = (x0, z0, x1, z1) => BLOCK.push([Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)]);
+for (let a = 1; a <= 3; a++) {
+  rect(areaX0(a), -LD - 1.5, areaX1(a), -LD);
+  for (let k = 1; k < LANES; k++) { const x = areaX0(a) + k * LW; rect(x - 0.35, -LD + 2, x + 0.35, -4); }
+}
+rect(-1.5, -LD - 1, 0, 1); rect(TOTAL_W, -LD - 1, TOTAL_W + 1.5, CW + 1);
+for (let g = 1; g <= 2; g++) {
+  const gx = gateX(g); rect(areaX1(g), -LD - 1.5, areaX1(g) + GAP, 0);
+  rect(gx - 2, -2, gx + 2, 0); rect(gx - 2, CW, gx + 2, CW + 2);
+}
+rect(AW, CW, TOTAL_W, CW + 2); rect(AW, CW, AW + 4, HUBZ1 + 8);
+rect(0, HUBZ1, AW, HUBZ1 + 1.5); rect(-1, CW, 0, HUBZ1);
+rect(22, 26, 34, 30.5); rect(14, 64, 18, 76); rect(113, 63, 123, 77); rect(58, 72.5, 74, 73.5); rect(34, 84.5, 98, 88); rect(5.5, 49.5, 14.5, 58.5);
+for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, x = 104 + Math.cos(a) * 8.5, z = 40 + Math.sin(a) * 8.5; rect(x - 0.6, z - 0.6, x + 0.6, z + 0.6); }
+const BOUNDS = [-22, -132, TOTAL_W + 22, HUBZ1 + 14];
+
+// ======================= World build =======================
+let gateMeshes = {};
+const targetKinds = { 1: [], 2: [], 3: [] };
+function buildWorld() {
+  const world = meshGroup(mergeParts(DATA.world), true);
+  scene.add(world);
+  for (const g of DATA.gates) {
+    const geos = mergeParts([g.part]);
+    const grp = meshGroup(geos, false);
+    scene.add(grp);
+    gateMeshes[g.area] = grp;
+  }
+  for (const t of DATA.targets) targetKinds[t.area].push({ name: t.name, hit: t.hit, geos: mergeParts(t.parts) });
+}
+
+// ======================= Mech =======================
+const mechCache = {};
+const SHOULDER = new THREE.Vector3(1.5, 4.0, 0);
+function mechModel(level, tool, finish) {
+  const key = `${finish}_${tool}_${level}`;
+  if (mechCache[key]) return mechCache[key];
+  const parts = DATA.mechs[key] || DATA.mechs[`Default_${tool}_${level}`];
+  const body = mergeParts(parts, (p) => p[11] !== 1);
+  const arm = mergeParts(parts.map((p) => (p[11] === 1 ? [p[0], p[1], p[2], p[3] - SHOULDER.x, p[4] - SHOULDER.y, p[5] - SHOULDER.z, ...p.slice(6)] : p)), (p) => p[11] === 1);
+  return (mechCache[key] = { body, arm });
+}
+const player = { x: laneX(1, MY_LANE), z: -4, heading: 0, moving: false, group: new THREE.Group(), armPivot: null, swingT: 1, walkT: 0, key: "" };
+scene.add(player.group);
+function rebuildMech() {
+  const key = `${S.finish}_${S.tool}_${S.level}`;
+  if (player.key === key) return;
+  player.key = key;
+  player.group.clear();
+  const m = mechModel(S.level, S.tool, S.finish);
+  const inner = new THREE.Group();
+  inner.add(meshGroup(m.body, true));
+  const pivot = new THREE.Group(); pivot.position.copy(SHOULDER); pivot.add(meshGroup(m.arm, true));
+  inner.add(pivot);
+  player.group.add(inner);
+  player.inner = inner; player.armPivot = pivot;
+  player.group.scale.setScalar(BODY_SCALE[S.level]);
+}
+
+// ======================= Targets (your lane) =======================
+const targets = [];
+const spawnCount = {};
+function spawnTarget(area, slot) {
+  const k = `${area}:${slot}`; spawnCount[k] = (spawnCount[k] || 0) + 1;
+  const kinds = targetKinds[area];
+  const idx = (MY_LANE * 2 + slot * 3 + spawnCount[k] - 1) % kinds.length;
+  const kind = kinds[idx];
+  const [ox, oz] = SLOTS[area - 1][slot];
+  const x = laneX(area, MY_LANE) + ox, z = oz;
+  const grp = meshGroup(kind.geos, true);
+  grp.position.set(x, 0, z);
+  scene.add(grp);
+  const [hx, hy, hz, cx, , cz] = kind.hit;
+  const t = { area, slot, name: kind.name, hp: AREAS[area - 1].hp, max: AREAS[area - 1].hp, group: grp, base: new THREE.Vector3(x, 0, z),
+    box: [x + cx - Math.max(hx, 2) / 2, z + cz - Math.max(hz, 2) / 2, x + cx + Math.max(hx, 2) / 2, z + cz + Math.max(hz, 2) / 2], height: Math.max(hy, 2), dead: false, shake: 0, flash: 0, el: null };
+  t.group.scale.setScalar(0.2);
+  t.spawnT = 0;
+  targets.push(t);
+  return t;
+}
+function reach(t, x, z) { const dx = Math.max(t.box[0] - x, 0, x - t.box[2]), dz = Math.max(t.box[1] - z, 0, z - t.box[3]); return Math.hypot(dx, dz); }
+
+// ======================= Effects =======================
+const fxGeo = new THREE.BoxGeometry(1, 1, 1);
+const debris = [];
+function burst(pos, color, count, size, speed, life, neon) {
+  for (let i = 0; i < count; i++) {
+    const mat = neon ? new THREE.MeshBasicMaterial({ color }) : new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
+    const m = new THREE.Mesh(fxGeo, mat);
+    const s = size * (0.6 + Math.random() * 0.7);
+    m.scale.setScalar(s); m.position.copy(pos);
+    m.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+    m.castShadow = !neon && !isTouch;
+    scene.add(m);
+    debris.push({ m, v: new THREE.Vector3((Math.random() - 0.5) * speed, speed * (0.7 + Math.random() * 0.8), (Math.random() - 0.5) * speed), life, t: 0, s, spin: (Math.random() - 0.5) * 12 });
+  }
+}
+function updateDebris(dt) {
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i]; d.t += dt; d.v.y -= 60 * dt; d.m.position.addScaledVector(d.v, dt);
+    if (d.m.position.y < d.s / 2) { d.m.position.y = d.s / 2; d.v.y *= -0.3; d.v.x *= 0.7; d.v.z *= 0.7; }
+    d.m.rotation.x += d.spin * dt; d.m.rotation.z += d.spin * dt;
+    const k = d.t / d.life; if (k > 0.6) d.m.scale.setScalar(d.s * (1 - (k - 0.6) / 0.4));
+    if (d.t >= d.life) { scene.remove(d.m); d.m.material.dispose(); debris.splice(i, 1); }
+  }
+}
+const SPARK = { Hammer: 0xFFE14D, Saw: 0xFF9E2C, Drill: 0xB8C4DA };
+let camShake = 0;
+const labelLayer = document.getElementById("labels");
+const _p = new THREE.Vector3();
+function toScreen(v) { _p.copy(v).project(camera); return { x: (_p.x + 1) / 2 * innerWidth, y: (1 - _p.y) / 2 * innerHeight, on: _p.z < 1 && _p.z > -1 }; }
+function floatText(pos, text, color, size) {
+  const s = toScreen(pos); if (!s.on) return;
+  const el = document.createElement("div"); el.className = "dmg"; el.textContent = text; el.style.color = color; el.style.fontSize = size + "px";
+  el.style.left = s.x + "px"; el.style.top = s.y + "px"; labelLayer.appendChild(el); setTimeout(() => el.remove(), 900);
+}
+function flyScrap(pos, amount) {
+  const s = toScreen(pos); const coin = document.getElementById("coin").getBoundingClientRect();
+  const tx = coin.left + coin.width / 2, ty = coin.top + coin.height / 2;
+  const n = Math.max(2, Math.min(7, Math.floor(Math.log2(amount + 1))));
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement("div"); el.className = "fly"; el.textContent = "⚙️";
+    const sx = s.on ? s.x : tx, sy = s.on ? s.y : ty + 200;
+    el.style.left = sx + (Math.random() - 0.5) * 60 + "px"; el.style.top = sy + (Math.random() - 0.5) * 40 + "px";
+    labelLayer.appendChild(el);
+    setTimeout(() => { el.style.transform = `translate(${tx - sx}px, ${ty - sy}px) scale(.6)`; el.style.opacity = "0.4"; }, 30 + i * 40);
+    setTimeout(() => { el.remove(); if (i === 0) popEl(document.getElementById("coin")); }, 520 + i * 40);
+  }
+}
+function popEl(el) { el.animate([{ transform: "scale(1.25)" }, { transform: "scale(1)" }], { duration: 300, easing: "cubic-bezier(.34,1.56,.64,1)" }); }
+
+// ======================= Combat =======================
+let hitTarget = null, nextHit = 0, clock = 0;
+function inMenu() { return panelOpen && BLOCKING.has(panelOpen); }
+function combatStep() {
+  const px = player.x, pz = player.z;
+  if (inMenu()) { hitTarget = null; return; }
+  if (hitTarget && (hitTarget.dead || reach(hitTarget, px, pz) > REACH || !unlocked(hitTarget.area))) hitTarget = null;
+  if (!hitTarget) {
+    let best = null, bd = REACH;
+    for (const t of targets) { if (t.dead || !unlocked(t.area)) continue; const d = reach(t, px, pz); if (d <= bd) { best = t; bd = d; } }
+    if (best) { hitTarget = best; nextHit = clock + HIT_INTERVAL; }
+  }
+  if (hitTarget && clock >= nextHit) { hit(hitTarget); nextHit += HIT_INTERVAL; if (nextHit < clock) nextHit = clock + HIT_INTERVAL; }
+}
+function hit(t) {
+  const dmg = power();
+  player.swingT = 0;
+  t.shake = 0.12;
+  const top = new THREE.Vector3((t.box[0] + t.box[2]) / 2, t.height, (t.box[1] + t.box[3]) / 2);
+  burst(top.clone().setY(t.height * 0.7), SPARK[S.tool] || 0xFFE14D, S.level >= 1 ? 6 : 3, 0.25, 18, 0.45, true);
+  floatText(top.clone().setY(t.height + 1), "-" + fmt(dmg), S.level >= 1 ? "#FFE14D" : "#fff", 28);
+  if (S.level >= 4) camShake = Math.max(camShake, 0.12);
+  t.hp -= dmg;
+  if (t.hp > 0) return;
+  t.dead = true;
+  const area = AREAS[t.area - 1];
+  const amount = payout(area.scrap);
+  S.scrap += amount; S.destroys += 1;
+  if (t.area === 3) S.crusher += 1;
+  rollDaily();
+  if (!S.daily.claimed && S.daily.progress < DAILY_GOAL) { S.daily.progress += 1; if (S.daily.progress === DAILY_GOAL) toast("📋", "y", "Daily contract done!", `Claim ${DAILY_REWARD} Scrap + a stamp in Daily.`); }
+  const colors = [];
+  t.group.traverse((o) => { if (o.isMesh && o.geometry.attributes.color && colors.length < 4) { const c = o.geometry.attributes.color; colors.push(new THREE.Color(c.getX(0), c.getY(0), c.getZ(0))); } });
+  for (let i = 0; i < 6 + t.area * 3; i++) burst(top.clone().setY(t.height * 0.5), colors[i % Math.max(colors.length, 1)] || new THREE.Color("#8A6A4A"), 1, Math.min(1.4, Math.max(0.4, t.height / 4)), 30, 1.6, false);
+  scene.remove(t.group);
+  if (t.el) { t.el.remove(); t.el = null; }
+  targets.splice(targets.indexOf(t), 1);
+  floatText(top.clone().setY(t.height + 2), "+" + fmt(amount) + " ⚙️", "#FFD12E", 36);
+  flyScrap(top, amount);
+  camShake = Math.max(camShake, 0.25);
+  setTimeout(() => spawnTarget(t.area, t.slot), area.respawn * 1000);
+  hitTarget = null;
+  refresh();
+}
+
+// ======================= Input & movement =======================
+const keys = {};
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && panelOpen) { closePanel(); return; }
+  if (e.target.tagName === "INPUT") return;
+  keys[e.code] = true;
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
+});
+addEventListener("keyup", (e) => { keys[e.code] = false; });
+addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+let camYaw = 0, camPitch = 0.42, camDist = 22;
+const pointers = new Map();
+canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); });
+canvas.addEventListener("pointermove", (e) => {
+  const p = pointers.get(e.pointerId); if (!p) return;
+  if (pointers.size === 2) {
+    const pts = [...pointers.values()]; const before = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    p.x = e.clientX; p.y = e.clientY;
+    const after = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    camDist = Math.min(70, Math.max(14, camDist * before / Math.max(after, 1)));
+    return;
+  }
+  camYaw -= (e.clientX - p.x) * 0.006; camPitch = Math.min(1.25, Math.max(0.15, camPitch + (e.clientY - p.y) * 0.004));
+  p.x = e.clientX; p.y = e.clientY;
+});
+const endPtr = (e) => pointers.delete(e.pointerId);
+canvas.addEventListener("pointerup", endPtr); canvas.addEventListener("pointercancel", endPtr);
+canvas.addEventListener("wheel", (e) => { camDist = Math.min(70, Math.max(14, camDist * (1 + Math.sign(e.deltaY) * 0.1))); e.preventDefault(); }, { passive: false });
+const joy = document.getElementById("joy"), knob = joy.querySelector("i");
+let joyVec = { x: 0, y: 0 }, joyId = null;
+joy.addEventListener("pointerdown", (e) => { joyId = e.pointerId; joy.setPointerCapture(e.pointerId); joyMove(e); });
+joy.addEventListener("pointermove", (e) => { if (e.pointerId === joyId) joyMove(e); });
+const joyEnd = () => { joyId = null; joyVec = { x: 0, y: 0 }; knob.style.transform = ""; };
+joy.addEventListener("pointerup", joyEnd); joy.addEventListener("pointercancel", joyEnd);
+function joyMove(e) {
+  const r = joy.getBoundingClientRect(); let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const max = r.width / 2, len = Math.hypot(dx, dy); if (len > max) { dx *= max / len; dy *= max / len; }
+  joyVec = { x: dx / max, y: dy / max }; knob.style.transform = `translate(${dx / uiScale}px, ${dy / uiScale}px)`;
+}
+function collide(x, z, rad) {
+  x = Math.min(BOUNDS[2], Math.max(BOUNDS[0], x)); z = Math.min(BOUNDS[3], Math.max(BOUNDS[1], z));
+  const boxes = BLOCK.slice();
+  for (let g = 2; g <= 3; g++) if (!unlocked(g)) { const gx = gateX(g - 1); boxes.push([gx - 0.6, 0, gx + 0.6, CW]); }
+  for (const t of targets) if (!t.dead) boxes.push(t.box);
+  for (let pass = 0; pass < 2; pass++) for (const b of boxes) {
+    const cx = Math.min(Math.max(x, b[0]), b[2]), cz = Math.min(Math.max(z, b[1]), b[3]);
+    const dx = x - cx, dz = z - cz, d2 = dx * dx + dz * dz;
+    if (d2 < rad * rad) {
+      if (d2 > 1e-8) { const d = Math.sqrt(d2); x = cx + dx / d * rad; z = cz + dz / d * rad; }
+      else { const l = x - b[0], r = b[2] - x, t = z - b[1], bo = b[3] - z, m = Math.min(l, r, t, bo); if (m === l) x = b[0] - rad; else if (m === r) x = b[2] + rad; else if (m === t) z = b[1] - rad; else z = b[3] + rad; }
+    }
+  }
+  return [x, z];
+}
+let autoOn = false, autoPause = 0;
+function moveInput() {
+  let f = 0, r = 0;
+  if (keys.KeyW || keys.ArrowUp) f += 1; if (keys.KeyS || keys.ArrowDown) f -= 1;
+  if (keys.KeyD || keys.ArrowRight) r += 1; if (keys.KeyA || keys.ArrowLeft) r -= 1;
+  f -= joyVec.y; r += joyVec.x;
+  const len = Math.hypot(f, r); if (len > 1) { f /= len; r /= len; }
+  return { x: -Math.sin(camYaw) * f + Math.cos(camYaw) * r, z: -Math.cos(camYaw) * f - Math.sin(camYaw) * r, manual: len > 0.1 };
+}
+function autoFarmDir() {
+  const [curA, curL] = laneAt(player.x, player.z);
+  let area = curA && unlocked(curA) ? curA : 1;
+  if (!(curA && unlocked(curA))) for (let a = 2; a <= 3; a++) if (unlocked(a)) area = a;
+  let best = null, bd = Infinity;
+  for (const t of targets) { if (t.dead || t.area !== area) continue; const d = reach(t, player.x, player.z); if (d < bd) { best = t; bd = d; } }
+  if (!best || bd <= REACH - 1) return null;
+  const ax = Math.min(Math.max(player.x, best.box[0] - 2), best.box[2] + 2), az = Math.min(Math.max(player.z, best.box[1] - 2), best.box[3] + 2);
+  let wps;
+  if (curA === area && curL === MY_LANE) wps = [[ax, az]];
+  else { const lx = laneX(area, MY_LANE); wps = [[Math.min(Math.max(player.x, 2), TOTAL_W - 2), CORRIDOR_Z], [lx, CORRIDOR_Z], [lx, -3], [ax, az]]; }
+  for (const [wx, wz] of wps) { const dx = wx - player.x, dz = wz - player.z, d = Math.hypot(dx, dz); if (d > 2.5) return { x: dx / d, z: dz / d }; }
+  return null;
+}
+function updatePlayer(dt) {
+  const inp = moveInput();
+  let dir = { x: inp.x, z: inp.z };
+  if (inp.manual) autoPause = 1.5;
+  if (autoOn && !inp.manual && autoPause <= 0 && !inMenu()) { const d = autoFarmDir(); if (d) dir = d; }
+  autoPause -= dt;
+  const speed = 20, len = Math.hypot(dir.x, dir.z);
+  player.moving = len > 0.05;
+  if (player.moving) {
+    const rad = 1.3 * BODY_SCALE[S.level];
+    const [nx, nz] = collide(player.x + dir.x * speed * dt, player.z + dir.z * speed * dt, rad);
+    player.x = nx; player.z = nz;
+    const want = Math.atan2(-dir.x, -dir.z);
+    let diff = want - player.heading; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    player.heading += diff * Math.min(1, dt * 12);
+    player.walkT += dt * 11;
+  } else {
+    const [nx, nz] = collide(player.x, player.z, 1.3 * BODY_SCALE[S.level]); player.x = nx; player.z = nz;
+  }
+  if (hitTarget && !player.moving) {
+    const cx = (hitTarget.box[0] + hitTarget.box[2]) / 2, cz = (hitTarget.box[1] + hitTarget.box[3]) / 2;
+    const want = Math.atan2(-(cx - player.x), -(cz - player.z)); let diff = want - player.heading; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    player.heading += diff * Math.min(1, dt * 10);
+  }
+  // boost clock: only in the yards, outside blocking menus
+  if (S.boostRemaining > 0 && areaAt(player.x, player.z) && !inMenu()) { S.boostRemaining = Math.max(0, S.boostRemaining - dt); if (S.boostRemaining === 0) toast("🚀", "o", "Boost finished", S.boostCharges > 0 ? "You have more charges ready." : ""); }
+  const sc = BODY_SCALE[S.level];
+  player.group.position.set(player.x, 0.12 + (player.moving ? Math.abs(Math.sin(player.walkT)) * 0.25 * sc : 0), player.z);
+  player.group.rotation.y = player.heading;
+  if (player.inner) player.inner.rotation.z = player.moving ? Math.sin(player.walkT) * 0.05 : 0;
+  // arm swing: wind up, slam, recover (0.32 s), same curve as Effects.luau
+  if (player.armPivot) {
+    player.swingT += dt; const t = player.swingT;
+    const ang = t < 0.12 ? 140 * t / 0.12 : t < 0.2 ? 140 - 110 * (t - 0.12) / 0.08 : t < 0.32 ? 30 * (1 - (t - 0.2) / 0.12) : 0;
+    player.armPivot.rotation.x = THREE.MathUtils.degToRad(ang);
+  }
+}
+
+// ======================= UI =======================
+const $ = (id) => document.getElementById(id);
+const ui = $("ui");
+let uiScale = 1;
+function fitUI() {
+  const w = innerWidth, h = innerHeight;
+  uiScale = Math.min(Math.max(Math.min(w / 1280, h / 720), isTouch ? 0.42 : 0.5), 1.35);
+  ui.style.width = w / uiScale + "px"; ui.style.height = h / uiScale + "px"; ui.style.transform = `scale(${uiScale})`;
+  ui.style.setProperty("--uih", h / uiScale + "px");
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener("resize", fitUI);
+function toast(icon, color, title, body) {
+  const el = document.createElement("div"); el.className = `toast sf sh ${color}`;
+  el.innerHTML = `<span class="ic">${icon}</span><div><b></b>${body ? "<small></small>" : ""}</div>`;
+  el.querySelector("b").textContent = title; if (body) el.querySelector("small").textContent = body;
+  $("toasts").appendChild(el); setTimeout(() => el.remove(), 3000);
+  while ($("toasts").children.length > 3) $("toasts").firstChild.remove();
+}
+const errorToast = (msg) => toast("⚠️", "r", msg, "");
+let celTimer = 0;
+function celebrate(title, sub, color) {
+  const c = $("celebrate"); $("celTitle").textContent = title.toUpperCase(); $("celSub").textContent = sub || "";
+  $("celTitle").style.color = color || "var(--orange-t)";
+  c.classList.remove("on"); void c.offsetWidth; c.classList.add("on");
+  clearTimeout(celTimer); celTimer = setTimeout(() => c.classList.remove("on"), 2400);
+}
+function setChip(el, cls, text) { el.className = "chip " + cls; el.textContent = text; }
+let lastScrap = 0, lastFinishCount = 1;
+function refresh() {
+  rollDaily();
+  $("scrap").textContent = fmt(S.scrap);
+  if (S.scrap > lastScrap) popEl($("scrapPill"));
+  lastScrap = S.scrap;
+  $("power").textContent = fmt(power());
+  const mult = multiplier();
+  $("multi").style.display = mult > 1.001 ? "inline-flex" : "none"; $("multi").textContent = `x${+mult.toFixed(2)} SCRAP`;
+  const up = nextUp();
+  if (up) {
+    $("nextT1").textContent = `NEXT: ⚡${fmt(up[0])} POWER`; $("nextT2").textContent = up[2]; $("nextIcon").textContent = MILESTONE_ICON[S.level];
+    const ok = S.scrap >= up[1];
+    const bar = $("nextBar"); bar.querySelector("i").style.width = Math.min(100, S.scrap / up[1] * 100) + "%";
+    bar.querySelector("i").style.setProperty("--t", ok ? "var(--green-t)" : "var(--yellow-t)"); bar.querySelector("i").style.setProperty("--b", ok ? "var(--green-b)" : "var(--yellow-b)");
+    bar.querySelector("span").textContent = `${fmt(Math.min(S.scrap, up[1]))} / ${fmt(up[1])} Scrap`;
+    $("upBtn").textContent = "UPGRADE"; $("upBtn").className = "btn " + (ok ? "g" : "off");
+  } else {
+    $("nextT1").textContent = "MAX POWER!"; $("nextT2").textContent = "Rebirth for +25% Scrap forever"; $("nextIcon").textContent = "👑";
+    $("nextBar").querySelector("i").style.width = "100%"; $("nextBar").querySelector("span").textContent = `⚡ ${fmt(power())} POWER`;
+    $("upBtn").textContent = "REBIRTH"; $("upBtn").className = "btn p";
+  }
+  // goal chip: next gate, then rebirth
+  let goal = "";
+  for (let a = 2; a <= 3 && !goal; a++) if (!unlocked(a)) goal = `🔒 ${AREAS[a - 1].name}: ⚡${fmt(AREAS[a - 1].gatePower)} + ${fmt(AREAS[a - 1].gateScrap)} Scrap`;
+  if (!goal) { const rc = rebirthCheck(); goal = rc.maxed ? "🏆 Every rebirth done. You're a legend!" : rc.ok ? "♻️ Rebirth ready! Visit the Rebirth Pad" : !rc.destroysOk ? `♻️ Rebirth: smash ${S.crusher}/20 in Crusher Yard` : `♻️ Rebirth: save ${fmt(rc.fee)} Scrap`; }
+  $("goal").textContent = goal;
+  $("bUpgrade").classList.toggle("on", !!up && S.scrap >= up[1]);
+  $("bRebirth").classList.toggle("on", !!rebirthCheck().ok);
+  $("bDaily").classList.toggle("on", (!S.daily.claimed && S.daily.progress >= DAILY_GOAL) || workshopNow() >= WORKSHOP_CAP);
+  const fc = Object.values(S.finishes).filter(Boolean).length;
+  if (fc > lastFinishCount) $("bGarage").classList.add("on");
+  lastFinishCount = fc;
+  updateBoostChip();
+  setChip($("autoChip"), !S.passes.AutoFarm ? "n" : autoOn ? "g" : "s", !S.passes.AutoFarm ? "🔒" : autoOn ? "ON" : "OFF");
+  $("hint").style.display = S.destroys === 0 && S.toolChosen && !panelOpen ? "block" : "none";
+  if (panelOpen && RENDER[panelOpen]) RENDER[panelOpen](true);
+  rebuildMech();
+}
+function updateBoostChip() {
+  if (S.boostRemaining > 0) setChip($("boostChip"), areaAt(player.x, player.z) && !inMenu() ? "g" : "s", fmtTime(S.boostRemaining));
+  else if (S.boostCharges > 0) setChip($("boostChip"), "o", "x" + S.boostCharges);
+  else setChip($("boostChip"), "n", "GET");
+}
+
+// ---- panels ----
+const BLOCKING = new Set(["shop", "rebirth", "garage", "daily", "picker"]);
+const PANEL_META = { upgrade: ["⚡", "UPGRADES", "o"], shop: ["🛒", "SHOP", "g"], rebirth: ["♻️", "REBIRTH", "p"], garage: ["🎨", "GARAGE", "bl"], daily: ["📋", "REWARDS", "y"], gate: ["🔓", "UNLOCK", "bl"], picker: ["🤖", "PICK YOUR MECH!", "o"] };
+let panelOpen = null, panelArg = null, openedByPad = null;
+function openPanel(name, arg) {
+  panelOpen = name; panelArg = arg;
+  const [icon, title, color] = PANEL_META[name];
+  $("panelIcon").textContent = icon; $("panelTitle").textContent = title; $("panelTab").className = "tab " + color;
+  $("panel").classList.remove("on"); void $("panel").offsetWidth; $("panel").classList.add("on"); $("backdrop").classList.add("on");
+  $("panelClose").style.display = name === "picker" ? "none" : "";
+  if (name === "garage") $("bGarage").classList.remove("on");
+  RENDER[name](false);
+  refresh();
+}
+function closePanel() {
+  if (panelOpen === "picker") return;
+  panelOpen = null; openedByPad = null; $("panel").classList.remove("on"); $("backdrop").classList.remove("on"); refresh(); canvas.focus();
+}
+$("panelClose").onclick = closePanel; $("backdrop").onclick = closePanel;
+document.querySelectorAll("#nav .nb").forEach((b) => b.onclick = () => (panelOpen === b.dataset.panel ? closePanel() : openPanel(b.dataset.panel)));
+const body = $("panelBody");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function btn(label, cls, onClick, disabledMsg) {
+  const b = document.createElement("button"); b.className = "btn " + cls; b.innerHTML = label;
+  b.onclick = () => { if (cls.includes("off")) { b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); if (disabledMsg) errorToast(disabledMsg); return; } onClick(); };
+  return b;
+}
+const RENDER = {
+  upgrade() {
+    body.innerHTML = "";
+    body.style.width = "640px";
+    UPGRADES.forEach(([p, c, m], i) => {
+      const lvl = i + 1, form = m.includes("form");
+      const row = document.createElement("div"); row.className = `row sf ${form ? "o form" : "n"}`;
+      const st = lvl <= S.level ? "g" : lvl === S.level + 1 ? "y" : "s";
+      row.innerHTML = `<span class="n ${st}">${lvl}</span><div><b>⚡ ${fmt(p)} POWER</b><small>${esc(m)}${form ? " · NEW FORM" : ""}</small></div>`;
+      if (lvl <= S.level) row.appendChild(btn("✓ OWNED", "off", () => {}));
+      else if (lvl === S.level + 1) row.appendChild(btn(`⚙️ ${fmt(c)}`, S.scrap >= c ? "g" : "off", doUpgrade, `Need ${fmt(c - S.scrap)} more Scrap`));
+      else row.appendChild(btn(`⚙️ ${fmt(c)}`, "off", () => {}, "Buy the upgrades above first"));
+      body.appendChild(row);
+    });
+  },
+  shop() {
+    body.style.width = "780px";
+    body.innerHTML = `<div class="featured sf sh g"><div class="big">⚙️</div><div><h3>DOUBLE SCRAP!</h3><div class="x2">x1 → x2</div><p>Permanent 2x Scrap from every smash.</p></div></div><div class="cards"></div><p class="note">Playtest build: every offer is free here so you can try it. In Roblox these are real R$ purchases.</p>`;
+    const feat = body.querySelector(".featured");
+    feat.appendChild(btn(S.passes.DoubleScrap ? "✓ OWNED" : "R$49", S.passes.DoubleScrap ? "off" : "price", () => buy("DoubleScrap")));
+    const cards = body.querySelector(".cards");
+    for (const [key, kind, price, name, benefit, icon, col] of OFFERS.slice(1)) {
+      const owned = kind === "Pass" && S.passes[key];
+      let text = benefit;
+      if (key === "WorkerStarter" && S.finishes.Worker && !owned) text = "You already own the shell, so this adds 250 Scrap once.";
+      if (key === "ScrapBoost" && S.boostCharges > 0) text += ` You have ${S.boostCharges}.`;
+      const card = document.createElement("div"); card.className = `card sf sh ${col}`;
+      card.innerHTML = `<div class="ico">${icon}</div><h4>${name.toUpperCase()}</h4><p>${esc(text)}</p>`;
+      card.appendChild(btn(owned ? "✓ OWNED" : "R$" + price, owned ? "off" : "price", () => buy(key)));
+      cards.appendChild(card);
+    }
+  },
+  rebirth() {
+    body.style.width = "640px";
+    const rc = rebirthCheck();
+    const dots = [1, 2, 3, 4, 5].map((i) => `<div class="dot"><i class="${i <= S.rebirths ? "p" : i === S.rebirths + 1 ? "y" : "s"}">${i <= S.rebirths ? "✓" : i}</i><small>+${i * 25}%</small></div>`).join("");
+    body.innerHTML = `<div class="dots">${dots}</div>` + (rc.maxed ? `<p class="sect" style="text-align:center">All five rebirths done!</p>` :
+      `<p class="sect" style="text-align:center;color:#E2C2FF">Scrap bonus: x${rebirthFactor(S.rebirths).toFixed(2)} → x${rebirthFactor(S.rebirths + 1).toFixed(2)}</p>
+      <ul class="checks"><li class="${rc.powerOk ? "ok" : ""}">${rc.powerOk ? "✅" : "❌"} Reach Power 1,000 (you: ${fmt(power())})</li>
+      <li class="${rc.destroysOk ? "ok" : ""}">${rc.destroysOk ? "✅" : "❌"} Smash ${Math.min(S.crusher, 20)}/20 in Crusher Yard</li>
+      <li class="${rc.scrapOk ? "ok" : ""}">${rc.scrapOk ? "✅" : "❌"} Have ${fmt(rc.fee)} Scrap</li></ul>
+      <div class="two"><div class="sf r"><h4>RESETS</h4><ul><li>Power back to 1</li><li>Gates lock again</li><li>Crusher smash count</li></ul></div>
+      <div class="sf g"><h4>YOU KEEP</h4><ul><li>Leftover Scrap</li><li>Tools &amp; finishes</li><li>Passes &amp; boosts</li></ul></div></div><div class="center"></div>`);
+    if (!rc.maxed) {
+      let confirm = false;
+      const b = btn(`REBIRTH · ⚙️ ${fmt(rc.fee)}`, rc.ok ? "p" : "off", () => {
+        if (!confirm) { confirm = true; b.textContent = "TAP AGAIN TO CONFIRM"; b.className = "btn r"; setTimeout(() => { if (confirm) RENDER.rebirth(); }, 3000); return; }
+        doRebirth();
+      }, "Finish the checklist above first");
+      body.querySelector(".center").appendChild(b);
+    }
+  },
+  garage() {
+    body.style.width = "760px";
+    body.innerHTML = `<p class="sect">TOOLS <small style="font-family:var(--body);font-size:15px;color:var(--muted)">Same damage and reach. Pick your style!</small></p><div class="tools"></div><p class="sect">FINISHES</p><div class="fins"></div><div class="center"></div>`;
+    const tools = body.querySelector(".tools");
+    for (const [id, icon, blurb] of TOOLS) {
+      const el = document.createElement("div"); el.className = "tool sf s";
+      el.innerHTML = `<div class="ico">${icon}</div><h4>${id.toUpperCase()}</h4><p>${blurb}</p>`;
+      el.appendChild(btn(S.tool === id ? "EQUIPPED" : "EQUIP", S.tool === id ? "off" : "g", () => { S.tool = id; S.toolChosen = true; refresh(); }));
+      tools.appendChild(el);
+    }
+    const fins = body.querySelector(".fins");
+    for (const [id, name, how, sw] of FINISHES) {
+      const el = document.createElement("div"); el.className = "fin sf n";
+      el.innerHTML = `<div class="sw">${sw.map((c) => `<i style="background:${c}"></i>`).join("")}</div><h4>${name.toUpperCase()}</h4><p>${how}</p>`;
+      let b;
+      if (S.finish === id) b = btn("EQUIPPED", "off", () => {});
+      else if (S.finishes[id]) b = btn("EQUIP", "g", () => { S.finish = id; refresh(); });
+      else if (id === "Worker") b = btn("CRAFT ⚙️500", "o", () => { if (S.scrap < 500) return errorToast(`Need ${fmt(500 - S.scrap)} more Scrap`); S.scrap -= 500; S.finishes.Worker = true; toast("🎨", "g", "Worker Shell crafted!", "Equip it in the Garage."); refresh(); });
+      else if (id === "Lime" || id === "Foundry") b = btn(`GET R$${id === "Lime" ? 9 : 99}`, "bl", () => openPanel("shop"));
+      else b = btn(`${Math.min(S.stamps, 5)}/5 📋`, "off", () => {}, "Collect 5 daily stamps to unlock Stamped Chrome");
+      el.appendChild(b); fins.appendChild(el);
+    }
+    let sure = false;
+    const reset = btn("RESET PROGRESS", "s", () => { if (!sure) { sure = true; reset.textContent = "TAP AGAIN TO WIPE"; reset.className = "btn r"; return; } S = fresh(); save(); location.reload(); });
+    reset.style.fontSize = "16px"; body.querySelector(".center").appendChild(reset);
+  },
+  daily() {
+    body.style.width = "720px";
+    rollDaily();
+    const p = Math.min(S.daily.progress, DAILY_GOAL), ws = workshopNow();
+    const stamps = [1, 2, 3, 4, 5].map((i) => `<i class="${i <= Math.min(S.stamps, 5) ? "y" : "s"}">${i <= Math.min(S.stamps, 5) ? "✓" : ""}</i>`).join("");
+    const full = ws >= WORKSHOP_CAP;
+    body.innerHTML = `<div class="daily"><div class="sf n"><h3>DAILY CONTRACT</h3><p style="font-family:var(--display);font-size:22px;text-shadow:var(--o2)">Smash ${DAILY_GOAL} junk today</p>
+      <div class="bar"><i style="width:${p / DAILY_GOAL * 100}%;--t:${p >= DAILY_GOAL ? "var(--green-t)" : "var(--yellow-t)"};--b:${p >= DAILY_GOAL ? "var(--green-b)" : "var(--yellow-b)"}"></i><span>${p} / ${DAILY_GOAL}</span></div>
+      <p>🎁 ${DAILY_REWARD} Scrap + 1 stamp</p><div class="stamps">${stamps}</div><p style="color:var(--muted);font-size:14px">Stamps ${Math.min(S.stamps, 5)}/5 · 5 unlock Stamped Chrome</p><div class="center" id="dC"></div></div>
+      <div class="sf n"><h3>WORKSHOP</h3><div class="big">⚙️ ${Math.floor(ws)} / ${WORKSHOP_CAP}</div><p>+${WORKSHOP_RATE} Scrap an hour, even while you're away</p>
+      <div class="bar"><i style="width:${ws / WORKSHOP_CAP * 100}%"></i><span></span></div><p style="color:var(--muted);font-size:14px">${full ? "Full! Claim it before it stops filling." : "Full in " + fmtTime((WORKSHOP_CAP - ws) / WORKSHOP_RATE * 3600)}</p><div class="center" id="wC"></div></div></div>`;
+    const claimed = S.daily.claimed, ready = p >= DAILY_GOAL;
+    $("dC").appendChild(btn(claimed ? "DONE TODAY" : "CLAIM", claimed || !ready ? "off" : "g", () => {
+      S.daily.claimed = true; S.stamps += 1; S.scrap += DAILY_REWARD;
+      if (S.stamps >= STAMPS_FOR_FINISH && !S.finishes.Chrome) { S.finishes.Chrome = true; toast("🎨", "g", "Stamped Chrome unlocked!", "Equip it in the Garage."); }
+      else toast("⚙️", "y", `+${DAILY_REWARD} Scrap`, `Stamp ${Math.min(S.stamps, 5)}/5`);
+      refresh();
+    }, claimed ? "Already claimed today. New contract tomorrow!" : `Smash ${DAILY_GOAL - p} more junk first`));
+    $("wC").appendChild(btn(`CLAIM ${Math.floor(ws)}`, ws >= 1 ? "g" : "off", () => {
+      const amt = Math.floor(workshopNow()); S.workshop = { stored: workshopNow() - amt, updated: Date.now() / 1000 }; S.scrap += amt;
+      toast("⚙️", "y", `+${amt} Scrap`, "Workshop delivery"); refresh();
+    }, "The workshop is still working. Check back soon!"));
+  },
+  gate() {
+    body.style.width = "500px";
+    const a = panelArg, d = AREAS[a - 1], gc = gateCheck(a);
+    body.innerHTML = `<p class="sect" style="text-align:center;font-size:38px;color:var(--orange-t)">${d.name.toUpperCase()}</p><p style="text-align:center;color:var(--muted);margin:0 0 12px">${d.blurb} · ${fmt(d.hp)} HP · ${d.scrap} Scrap each</p>
+      <ul class="checks">${gc.needPrevious ? "<li>❌ Unlock Appliance Row first</li>" : `<li class="${gc.needPower ? "" : "ok"}">${gc.needPower ? "❌" : "✅"} ⚡ Power ${fmt(d.gatePower)} (you: ${fmt(power())})</li><li class="${gc.needScrap ? "" : "ok"}">${gc.needScrap ? "❌" : "✅"} ⚙️ ${fmt(d.gateScrap)} Scrap</li>`}</ul><div class="center"></div>`;
+    body.querySelector(".center").appendChild(btn(`UNLOCK · ⚙️ ${fmt(d.gateScrap)}`, gc.ok ? "g" : "off", () => {
+      S.scrap -= d.gateScrap; S.gates[a] = true; closePanel(); celebrate(d.name + " unlocked!", `${fmt(d.hp)} HP junk · ${d.scrap} Scrap each`, "var(--blue-t)"); refresh();
+    }, "Keep smashing and upgrading to open this gate"));
+  },
+  picker(again) {
+    if (again) return;
+    body.style.width = "830px";
+    body.innerHTML = `<p style="text-align:center;font-size:20px;font-weight:600;margin:0 0 16px">Choose a free tool. Same damage and reach, so pick the style you like!</p><div class="picker"></div>`;
+    const row = body.querySelector(".picker");
+    const cols = { Hammer: "o", Saw: "r", Drill: "bl" };
+    for (const [id, icon, blurb] of TOOLS) {
+      const el = document.createElement("div"); el.className = `pick sf sh ${cols[id]}`;
+      el.innerHTML = `<div class="ico">${icon}</div><h3>${id.toUpperCase()}</h3><p>${blurb}</p>`;
+      el.appendChild(btn("PICK", "g", () => { S.tool = id; S.toolChosen = true; panelOpen = null; $("panel").classList.remove("on"); $("backdrop").classList.remove("on"); toast("💡", "bl", "Nice pick!", "Walk up to the junk in your lane to smash it."); refresh(); canvas.focus(); }));
+      row.appendChild(el);
+    }
+  },
+};
+function doUpgrade() {
+  const up = nextUp();
+  if (!up) return openPanel("rebirth");
+  if (S.scrap < up[1]) return errorToast(`Need ${fmt(up[1] - S.scrap)} more Scrap. Keep smashing!`);
+  const before = formName(S.level);
+  S.scrap -= up[1]; S.level += 1;
+  const after = formName(S.level);
+  if (after !== before) celebrate(after, "NEW FORM!", "var(--orange-t)");
+  else toast("⚡", "o", `Power ${fmt(up[0])}!`, up[2]);
+  refresh();
+}
+function doRebirth() {
+  const rc = rebirthCheck(); if (!rc.ok) return;
+  S.scrap -= rc.fee; S.rebirths += 1; S.level = 0; S.gates = { 2: false, 3: false }; S.crusher = 0;
+  player.x = laneX(1, MY_LANE); player.z = -4; player.heading = 0;
+  closePanel(); celebrate(`Rebirth ${S.rebirths}!`, `+${S.rebirths * 25}% Scrap forever`, "var(--purple-t)"); refresh();
+}
+function buy(key) {
+  const o = OFFERS.find((x) => x[0] === key); if (!o) return;
+  if (o[1] === "Pass") {
+    if (S.passes[key]) return;
+    S.passes[key] = true;
+    if (key === "LimePaint") S.finishes.Lime = true;
+    if (key === "FoundryVIP") S.finishes.Foundry = true;
+    if (key === "WorkerStarter") { S.finishes.Worker = true; if (!S.starterGranted) { S.starterGranted = true; S.scrap += 250; } }
+  } else if (key === "ScrapBoost") S.boostCharges += 1;
+  else if (key === "Scrap600") S.scrap += 600;
+  toast("🛒", "g", o[3] + "!", o[4]);
+  refresh();
+}
+$("upBtn").onclick = () => { if (!nextUp()) return openPanel("rebirth"); doUpgrade(); };
+$("boostBtn").onclick = () => {
+  if (S.boostCharges > 0) { S.boostCharges -= 1; S.boostRemaining += 600; toast("🚀", "o", "2x SCRAP!", "Boost time: " + fmtTime(S.boostRemaining)); refresh(); }
+  else openPanel("shop");
+};
+$("autoBtn").onclick = () => { if (!S.passes.AutoFarm) return openPanel("shop"); autoOn = !autoOn; refresh(); };
+
+// ======================= World labels (pads, gates, HP bars, pointer) =======================
+const padEls = PADS.map(([id, x, z, title, sub]) => {
+  const el = document.createElement("div"); el.className = "wl"; el.innerHTML = `<b>${title}</b><small>${sub}</small><em></em>`;
+  labelLayer.appendChild(el); return { id, pos: new THREE.Vector3(x, 7, z), el };
+});
+const gateEls = [2, 3].map((a) => {
+  const el = document.createElement("div"); el.className = "wl";
+  el.innerHTML = `<b style="color:#FF6B6B">🔒 ${AREAS[a - 1].name.toUpperCase()}</b><small>Needs ⚡${AREAS[a - 1].gatePower} Power + ${fmt(AREAS[a - 1].gateScrap)} Scrap</small>`;
+  labelLayer.appendChild(el); return { area: a, pos: new THREE.Vector3(gateX(a - 1), 17, CORRIDOR_Z), el };
+});
+const areaEls = AREAS.map((d, i) => {
+  const el = document.createElement("div"); el.className = "wl"; el.innerHTML = `<b style="font-size:30px;color:#FFB24A">${d.name.toUpperCase()}</b><small>${fmt(d.hp)} HP · ${d.scrap} Scrap each</small>`;
+  labelLayer.appendChild(el); return { pos: new THREE.Vector3(areaX0(i + 1) + 26, 19, -2), el };
+});
+const pointerEl = document.createElement("div"); pointerEl.className = "pointer"; pointerEl.innerHTML = "<b>SMASH!</b><span>▼</span>"; labelLayer.appendChild(pointerEl);
+function padLive(id) {
+  if (id === "upgrade") { const u = nextUp(); return u ? `Next: ⚡${fmt(u[0])} for ${fmt(u[1])} Scrap` : "MAX POWER!"; }
+  if (id === "daily") return `Workshop ${Math.floor(workshopNow())}/${WORKSHOP_CAP} · Contract ${Math.min(S.daily.progress, DAILY_GOAL)}/${DAILY_GOAL}`;
+  if (id === "rebirth") return S.rebirths >= 5 ? "All rebirths done!" : `Scrap x${rebirthFactor(S.rebirths).toFixed(2)} → x${rebirthFactor(S.rebirths + 1).toFixed(2)}`;
+  if (id === "shop") return S.boostCharges > 0 ? `${S.boostCharges} boost charge${S.boostCharges === 1 ? "" : "s"} ready` : "7 offers";
+  return `${Object.values(S.finishes).filter(Boolean).length}/5 finishes`;
+}
+function place(el, pos, maxDist) {
+  const d = camera.position.distanceTo(pos);
+  const s = toScreen(pos);
+  if (!s.on || d > maxDist) { el.style.display = "none"; return false; }
+  el.style.display = ""; el.style.left = s.x + "px"; el.style.top = s.y + "px";
+  const k = Math.max(0.55, Math.min(1.1, 60 / d)); el.style.transform = `translate(-50%, -100%) scale(${k})`;
+  return true;
+}
+function updateLabels() {
+  for (const p of padEls) { if (place(p.el, p.pos, 160)) p.el.querySelector("em").textContent = padLive(p.id); }
+  for (const g of gateEls) { if (unlocked(g.area)) g.el.style.display = "none"; else place(g.el, g.pos, 260); }
+  for (const a of areaEls) place(a.el, a.pos, 320);
+  for (const t of targets) {
+    const pos = new THREE.Vector3((t.box[0] + t.box[2]) / 2, t.height + 1.6, (t.box[1] + t.box[3]) / 2);
+    const near = t === hitTarget || pos.distanceTo(player.group.position) < 26 + 6 * BODY_SCALE[S.level];
+    if (!near) { if (t.el) t.el.style.display = "none"; continue; }
+    if (!t.el) { t.el = document.createElement("div"); t.el.className = "hp"; t.el.innerHTML = `<b></b><div class="bar"><i></i><span></span></div>`; labelLayer.appendChild(t.el); }
+    if (!place(t.el, pos, 80)) continue;
+    const locked = !unlocked(t.area), r = t.hp / t.max;
+    t.el.querySelector("b").textContent = `${t.name}  ⚙️${AREAS[t.area - 1].scrap}`;
+    const fill = t.el.querySelector("i"); fill.style.width = r * 100 + "%";
+    const col = locked ? "steel" : r > 0.5 ? "green" : r > 0.25 ? "yellow" : "red";
+    fill.style.setProperty("--t", `var(--${col}-t)`); fill.style.setProperty("--b", `var(--${col}-b)`);
+    t.el.querySelector("span").textContent = (locked ? "🔒 " : "") + fmt(Math.max(t.hp, 0)) + " HP";
+  }
+  if (S.destroys === 0 && S.toolChosen) {
+    let best = null, bd = Infinity;
+    for (const t of targets) if (t.area === 1) { const d = Math.hypot((t.box[0] + t.box[2]) / 2 - player.x, (t.box[1] + t.box[3]) / 2 - player.z); if (d < bd) { bd = d; best = t; } }
+    if (best) { place(pointerEl, new THREE.Vector3((best.box[0] + best.box[2]) / 2, best.height + 6, (best.box[1] + best.box[3]) / 2), 200); pointerEl.style.transform = "translate(-50%, -100%)"; }
+  } else pointerEl.style.display = "none";
+}
+let gatePrompted = 0;
+function checkPadsAndGates() {
+  let inside = null;
+  for (const [id, x, z] of PADS) if (Math.hypot(x - player.x, z - player.z) <= 6) inside = id;
+  if (inside && !panelOpen && openedByPad !== inside) { openPanel(inside); openedByPad = inside; }
+  else if (!inside && openedByPad) { if (panelOpen === openedByPad) closePanel(); openedByPad = null; }
+  for (let a = 2; a <= 3; a++) {
+    if (unlocked(a)) continue;
+    const d = Math.hypot(gateX(a - 1) - player.x, CORRIDOR_Z - player.z);
+    if (d < 12 && gatePrompted !== a && !panelOpen) { gatePrompted = a; openPanel("gate", a); }
+    else if (d > 20 && gatePrompted === a) gatePrompted = 0;
+  }
+}
+
+// ======================= Main loop =======================
+let last = performance.now(), tick = 0, labelTick = 0, slowTick = 0;
+function frame(now) {
+  // Fixed small steps keep collision solid and game speed real-time even when frames are slow.
+  let remaining = Math.min(0.25, (now - last) / 1000); last = now;
+  const dt = remaining;
+  while (remaining > 1e-4) {
+    const step = Math.min(0.05, remaining); remaining -= step; clock += step;
+    updatePlayer(step);
+    tick += step; if (tick >= 0.1) { tick = 0; combatStep(); }
+  }
+  for (const t of targets) {
+    if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 4); const k = t.spawnT; t.group.scale.setScalar(0.2 + 0.8 * (1 + 2.70158 * Math.pow(k - 1, 3) + 1.70158 * Math.pow(k - 1, 2))); }
+    if (t.shake > 0) { t.shake -= dt; t.group.position.set(t.base.x + (Math.random() - 0.5) * 0.4, 0, t.base.z + (Math.random() - 0.5) * 0.4); if (t.shake <= 0) t.group.position.copy(t.base); }
+  }
+  for (const g of [2, 3]) if (gateMeshes[g]) gateMeshes[g].visible = !unlocked(g);
+  updateDebris(dt);
+  // camera follows behind the mech
+  const sc = BODY_SCALE[S.level], focus = new THREE.Vector3(player.x, 3.2 * sc, player.z);
+  const d = camDist * (0.85 + sc * 0.15);
+  camera.position.set(focus.x + Math.sin(camYaw) * Math.cos(camPitch) * d, focus.y + Math.sin(camPitch) * d, focus.z + Math.cos(camYaw) * Math.cos(camPitch) * d);
+  camera.lookAt(focus);
+  if (camShake > 0) { camShake -= dt; camera.rotateX((Math.random() - 0.5) * camShake * 0.1); camera.rotateY((Math.random() - 0.5) * camShake * 0.1); }
+  sun.position.set(player.x + 60, 120, player.z + 50); sun.target.position.set(player.x, 0, player.z);
+  renderer.render(scene, camera);
+  labelTick += dt; if (labelTick > 0.033) { labelTick = 0; updateLabels(); }
+  slowTick += dt; if (slowTick > 0.25) { slowTick = 0; checkPadsAndGates(); updateBoostChip(); if (panelOpen === "daily") RENDER.daily(true); }
+  requestAnimationFrame(frame);
+}
+
+// ======================= Boot =======================
+fetch("game.json").then((r) => r.json()).then((d) => {
+  DATA = d; COLORS = d.colors.map((h) => new THREE.Color("#" + h));
+  buildWorld();
+  for (let a = 1; a <= 3; a++) for (let s = 0; s < SLOTS[a - 1].length; s++) spawnTarget(a, s);
+  for (const t of targets) { t.spawnT = 1; t.group.scale.setScalar(1); }
+  rebuildMech(); fitUI(); refresh();
+  $("loading").remove();
+  if (!S.toolChosen) openPanel("picker");
+  canvas.focus();
+  requestAnimationFrame((t) => { last = t; frame(t); });
+}).catch((e) => { $("loadMsg").textContent = "Couldn't load the game data. Reload to try again."; console.error(e); });
+window.__pym = { S: () => S, player, targets, openPanel };
+})();
+</script>
+</body></html>
