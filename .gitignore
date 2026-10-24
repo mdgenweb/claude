@@ -1,0 +1,11 @@
+# Build output and local tool caches
+*.rbxlx
+*.rbxl
+!PickYourMech.rbxlx
+roblox.yml
+sourcemap.json
+/target
+.DS_Store
+
+# Rust build output for tools/luau-runner
+/tools/luau-runner/target

@@ -1,0 +1,6 @@
+# Toolchain used to build and lint this project. Install with `aftman install`
+# (or the same lines in rokit.toml with `rokit install`).
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+selene = "Kampfkarren/selene@0.31.0"
+stylua = "JohnnyMorganz/StyLua@2.6.0"
