@@ -2,6 +2,7 @@
 *.rbxlx
 *.rbxl
 !PickYourMech.rbxlx
+!PickYourMech.rbxl
 roblox.yml
 sourcemap.json
 /target

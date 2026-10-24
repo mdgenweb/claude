@@ -16,8 +16,10 @@ https://claude.ai/artifact/3812iomkK3Lcw7M3c2kR34 (private to the owner until sh
 
 ## Open it
 
-**Option A: just play.** Open `PickYourMech.rbxlx` in Roblox Studio and press **Play**.
-The whole map, every model and all UI are built by scripts when the game starts.
+**Option A: just play.** Open `PickYourMech.rbxl` in Roblox Studio (**File → Open from File**)
+and press **Play**. The whole map, every model and all UI are built by scripts when the game
+starts. `PickYourMech.rbxlx` is the same place in XML; if a download renames it to `.xml` or
+`.txt`, rename it back or use the `.rbxl`.
 
 **Option B: develop with Rojo** (live sync from this folder):
 ```bash
