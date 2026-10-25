@@ -1,0 +1,5 @@
+std = "roblox"
+
+[lints]
+# Luau type annotations and generalized iteration are fine for Roblox.
+mixed_table = "allow"
