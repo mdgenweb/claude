@@ -80,10 +80,21 @@ local builders: { [string]: (Model, Color3) -> () } = {
 	heart = function(model, color)
 		glass(model, Enum.PartType.Ball, Vector3.one * 0.78, CFrame.new(-0.22, 0.1, 0))
 		glass(model, Enum.PartType.Ball, Vector3.one * 0.78, CFrame.new(0.22, 0.1, 0))
-		glass(model, Enum.PartType.Block, Vector3.new(0.6, 0.6, 0.5), CFrame.new(0, -0.22, 0) * CFrame.Angles(0, 0, math.rad(45)))
+		glass(
+			model,
+			Enum.PartType.Block,
+			Vector3.new(0.6, 0.6, 0.5),
+			CFrame.new(0, -0.22, 0) * CFrame.Angles(0, 0, math.rad(45))
+		)
 		liquid(model, Enum.PartType.Ball, Vector3.one * 0.6, CFrame.new(-0.2, 0.08, 0), color)
 		liquid(model, Enum.PartType.Ball, Vector3.one * 0.6, CFrame.new(0.2, 0.08, 0), color)
-		liquid(model, Enum.PartType.Block, Vector3.new(0.42, 0.42, 0.36), CFrame.new(0, -0.2, 0) * CFrame.Angles(0, 0, math.rad(45)), color)
+		liquid(
+			model,
+			Enum.PartType.Block,
+			Vector3.new(0.42, 0.42, 0.36),
+			CFrame.new(0, -0.2, 0) * CFrame.Angles(0, 0, math.rad(45)),
+			color
+		)
 		neckAndCork(model, 0.42)
 	end,
 	skull = function(model, color)

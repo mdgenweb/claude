@@ -162,7 +162,11 @@ function PotionService:Brew(player: Player, ids: any)
 
 	local lab = World.viewLab[player]
 	if lab then
-		self.S.LabService:FX(lab, "brew", { p = lab.origin + lab.layout.cauldron, c = potion.color, pid = potionId, who = player.UserId })
+		self.S.LabService:FX(
+			lab,
+			"brew",
+			{ p = lab.origin + lab.layout.cauldron, c = potion.color, pid = potionId, who = player.UserId }
+		)
 	end
 	return {
 		ok = true,
@@ -213,7 +217,11 @@ function PotionService:Use(player: Player, payload: any)
 		end
 		local available, _infinite, potency = self:Availability(player, lab, id)
 		if not available then
-			self.S.ShopService:Notify(player, "toast", { text = "Out of " .. potion.name .. "! Brew more at the cauldron.", kind = "error" })
+			self.S.ShopService:Notify(
+				player,
+				"toast",
+				{ text = "Out of " .. potion.name .. "! Brew more at the cauldron.", kind = "error" }
+			)
 			return
 		end
 		local mode = if payload.mode == "feed" then "feed" else "throw"
@@ -309,13 +317,22 @@ function PotionService:_feed(player: Player, lab, golem, potion, potency: number
 			return
 		end
 		local at = golem.byName.Torso and golem.byName.Torso.Position or lab.origin
-		self.S.EffectsService:ApplyPotion(lab, potion, at, { mode = "feed", target = golem, source = player, potency = potency })
+		self.S.EffectsService:ApplyPotion(
+			lab,
+			potion,
+			at,
+			{ mode = "feed", target = golem, source = player, potency = potency }
+		)
 	end)
 end
 
 function PotionService:_shatter(lab, projectile, position: Vector3, normal: Vector3?, hitPart: Instance?)
 	lab.projectiles[projectile.id] = nil
-	self.S.LabService:FX(lab, "shatter", { id = projectile.id, p = position, n = normal or Vector3.yAxis, pid = projectile.potion.id })
+	self.S.LabService:FX(
+		lab,
+		"shatter",
+		{ id = projectile.id, p = position, n = normal or Vector3.yAxis, pid = projectile.potion.id }
+	)
 	self.S.EffectsService:ApplyPotion(lab, projectile.potion, position, {
 		mode = "throw",
 		source = projectile.owner,

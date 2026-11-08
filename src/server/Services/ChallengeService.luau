@@ -156,7 +156,11 @@ function ChallengeService:_reward(player: Player, data, challenge, template)
 		data.daily.bonusClaimed = true
 		data.spins += 1
 		self.S.DataService:Replicate(player, "spins")
-		self.S.ShopService:Notify(player, "toast", { text = "All daily challenges done! +1 Mystery Flask", kind = "reward" })
+		self.S.ShopService:Notify(
+			player,
+			"toast",
+			{ text = "All daily challenges done! +1 Mystery Flask", kind = "reward" }
+		)
 	end
 end
 

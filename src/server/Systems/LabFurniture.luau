@@ -35,9 +35,30 @@ function LabFurniture.cauldron(parent: Instance, base: CFrame): Model
 	model:SetAttribute("Interactive", "Cauldron")
 	local iron = Color3.fromRGB(34, 32, 40)
 
-	part(model, { Name = "Pot", Shape = Enum.PartType.Cylinder, Size = Vector3.new(5.2, 7.6, 7.6), CFrame = base * CFrame.new(0, 3.6, 0) * UPRIGHT, Color = iron, Material = Enum.Material.Metal })
-	part(model, { Name = "Belly", Shape = Enum.PartType.Ball, Size = Vector3.one * 8.4, CFrame = base * CFrame.new(0, 3.1, 0), Color = iron, Material = Enum.Material.Metal })
-	part(model, { Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.8, 8.4, 8.4), CFrame = base * CFrame.new(0, 6.3, 0) * UPRIGHT, Color = Color3.fromRGB(50, 46, 56), Material = Enum.Material.Metal })
+	part(model, {
+		Name = "Pot",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(5.2, 7.6, 7.6),
+		CFrame = base * CFrame.new(0, 3.6, 0) * UPRIGHT,
+		Color = iron,
+		Material = Enum.Material.Metal,
+	})
+	part(model, {
+		Name = "Belly",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * 8.4,
+		CFrame = base * CFrame.new(0, 3.1, 0),
+		Color = iron,
+		Material = Enum.Material.Metal,
+	})
+	part(model, {
+		Name = "Rim",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.8, 8.4, 8.4),
+		CFrame = base * CFrame.new(0, 6.3, 0) * UPRIGHT,
+		Color = Color3.fromRGB(50, 46, 56),
+		Material = Enum.Material.Metal,
+	})
 	local liquid = part(model, {
 		Name = "CauldronLiquid",
 		Shape = Enum.PartType.Cylinder,
@@ -83,13 +104,32 @@ function LabFurniture.cauldron(parent: Instance, base: CFrame): Model
 
 	for i = 0, 2 do
 		local angle = math.rad(i * 120 + 30)
-		part(model, { Name = "Leg", Size = Vector3.new(0.9, 1.6, 0.9), CFrame = base * CFrame.new(math.cos(angle) * 3, 0.8, math.sin(angle) * 3), Color = iron, Material = Enum.Material.Metal })
+		part(model, {
+			Name = "Leg",
+			Size = Vector3.new(0.9, 1.6, 0.9),
+			CFrame = base * CFrame.new(math.cos(angle) * 3, 0.8, math.sin(angle) * 3),
+			Color = iron,
+			Material = Enum.Material.Metal,
+		})
 	end
 	-- Fire underneath.
 	for _, angle in { 25, -25 } do
-		part(model, { Name = "Log", Shape = Enum.PartType.Cylinder, Size = Vector3.new(5, 0.9, 0.9), CFrame = base * CFrame.new(0, 0.45, 1.5) * CFrame.Angles(0, math.rad(angle), 0), Color = Color3.fromRGB(90, 58, 40), Material = Enum.Material.Wood })
+		part(model, {
+			Name = "Log",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(5, 0.9, 0.9),
+			CFrame = base * CFrame.new(0, 0.45, 1.5) * CFrame.Angles(0, math.rad(angle), 0),
+			Color = Color3.fromRGB(90, 58, 40),
+			Material = Enum.Material.Wood,
+		})
 	end
-	local fire = part(model, { Name = "Fire", Size = Vector3.new(3, 0.5, 2), CFrame = base * CFrame.new(0, 0.8, 1.8), Transparency = 1, CastShadow = false })
+	local fire = part(model, {
+		Name = "Fire",
+		Size = Vector3.new(3, 0.5, 2),
+		CFrame = base * CFrame.new(0, 0.8, 1.8),
+		Transparency = 1,
+		CastShadow = false,
+	})
 	local flames = Instance.new("ParticleEmitter")
 	flames.Texture = "rbxasset://textures/particles/fire_main.dds"
 	flames.Rate = 20
@@ -130,23 +170,65 @@ function LabFurniture.rack(parent: Instance, base: CFrame): Model
 	model:SetAttribute("Interactive", "Rack")
 	local wood = Color3.fromRGB(110, 74, 50)
 	for _, y in { 4.2, 8.4 } do
-		part(model, { Name = "Board", Size = Vector3.new(11, 0.5, 2.6), CFrame = base * CFrame.new(0, y, 0), Color = wood, Material = Enum.Material.WoodPlanks })
+		part(model, {
+			Name = "Board",
+			Size = Vector3.new(11, 0.5, 2.6),
+			CFrame = base * CFrame.new(0, y, 0),
+			Color = wood,
+			Material = Enum.Material.WoodPlanks,
+		})
 	end
 	for _, x in { -5.3, 5.3 } do
-		part(model, { Name = "Post", Size = Vector3.new(0.6, 10.5, 2.6), CFrame = base * CFrame.new(x, 5.25, 0), Color = Color3.fromRGB(80, 54, 38), Material = Enum.Material.Wood })
+		part(model, {
+			Name = "Post",
+			Size = Vector3.new(0.6, 10.5, 2.6),
+			CFrame = base * CFrame.new(x, 5.25, 0),
+			Color = Color3.fromRGB(80, 54, 38),
+			Material = Enum.Material.Wood,
+		})
 	end
 	-- Six jars; LabService shows one per stocked ingredient.
 	for i = 1, 6 do
 		local row = if i <= 3 then 0 else 1
 		local col = (i - 1) % 3
 		local cf = base * CFrame.new(-3.4 + col * 3.4, 5.6 + row * 4.2, 0.2)
-		part(model, { Name = "Jar" .. i, Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.2, 1.9, 1.9), CFrame = cf * UPRIGHT, Color = Color3.fromRGB(220, 240, 255), Material = Enum.Material.Glass, Transparency = 0.5, CastShadow = false })
-		local content = part(model, { Name = "JarContent" .. i, Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.4, 1.5, 1.5), CFrame = cf * CFrame.new(0, -0.3, 0) * UPRIGHT, Color = Color3.fromRGB(255, 160, 60), Material = Enum.Material.Neon, CastShadow = false })
+		part(model, {
+			Name = "Jar" .. i,
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(2.2, 1.9, 1.9),
+			CFrame = cf * UPRIGHT,
+			Color = Color3.fromRGB(220, 240, 255),
+			Material = Enum.Material.Glass,
+			Transparency = 0.5,
+			CastShadow = false,
+		})
+		local content = part(model, {
+			Name = "JarContent" .. i,
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1.4, 1.5, 1.5),
+			CFrame = cf * CFrame.new(0, -0.3, 0) * UPRIGHT,
+			Color = Color3.fromRGB(255, 160, 60),
+			Material = Enum.Material.Neon,
+			CastShadow = false,
+		})
 		content.Transparency = 1
-		part(model, { Name = "JarLid", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 2.1, 2.1), CFrame = cf * CFrame.new(0, 1.2, 0) * UPRIGHT, Color = Color3.fromRGB(150, 104, 62), Material = Enum.Material.Wood })
+		part(model, {
+			Name = "JarLid",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.3, 2.1, 2.1),
+			CFrame = cf * CFrame.new(0, 1.2, 0) * UPRIGHT,
+			Color = Color3.fromRGB(150, 104, 62),
+			Material = Enum.Material.Wood,
+		})
 	end
 	-- Sign.
-	local sign = part(model, { Name = "Sign", Size = Vector3.new(7, 1.8, 0.3), CFrame = base * CFrame.new(0, 11.2, 0.6), Color = Color3.fromRGB(70, 46, 32), Material = Enum.Material.Wood })
+	local sign = part(model, {
+		Name = "Sign",
+		Size = Vector3.new(7, 1.8, 0.3),
+		CFrame = base * CFrame.new(0, 11.2, 0.6),
+		Color = Color3.fromRGB(70, 46, 32),
+		Material = Enum.Material.Wood,
+	})
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.LightInfluence = 0.2

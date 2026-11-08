@@ -117,7 +117,16 @@ Statuses.burning = {
 		if torso then
 			add(st, Vfx.emitter(torso, "embers"))
 			add(st, Vfx.emitter(torso, "smoke"))
-			add(st, Vfx.light(torso, if spirit then Color3.fromRGB(120, 190, 255) else Color3.fromRGB(255, 140, 50), 14, 2.2, true))
+			add(
+				st,
+				Vfx.light(
+					torso,
+					if spirit then Color3.fromRGB(120, 190, 255) else Color3.fromRGB(255, 140, 50),
+					14,
+					2.2,
+					true
+				)
+			)
 		end
 		st.data.char = 0
 		E:SetLook(golem, "burning", { priority = 20, tint = Color3.fromRGB(28, 18, 18), tintAlpha = 0 })
@@ -134,7 +143,11 @@ Statuses.burning = {
 			st.data.lookTimer = (st.data.lookTimer or 0) - labDt
 			if st.data.lookTimer <= 0 then
 				st.data.lookTimer = 0.5
-				E:SetLook(golem, "burning", { priority = 20, tint = Color3.fromRGB(28, 18, 18), tintAlpha = st.data.char })
+				E:SetLook(
+					golem,
+					"burning",
+					{ priority = 20, tint = Color3.fromRGB(28, 18, 18), tintAlpha = st.data.char }
+				)
 			end
 		end
 		-- Spread to anything touching.
@@ -181,7 +194,13 @@ Statuses.frozen = {
 		E.S.GolemService:SetRigid(golem, true)
 		golem.mods.noUpright.frozen = true
 		golem.mods.damage.frozen = 0.5
-		E:SetLook(golem, "frozen", { priority = 50, tint = Color3.fromRGB(175, 232, 255), tintAlpha = 0.72, material = Enum.Material.Ice, reflectance = 0.25 })
+		E:SetLook(golem, "frozen", {
+			priority = 50,
+			tint = Color3.fromRGB(175, 232, 255),
+			tintAlpha = 0.72,
+			material = Enum.Material.Ice,
+			reflectance = 0.25,
+		})
 		E:SetPhys(golem, "frozen", { priority = 50, friction = 0.04, frictionWeight = 100, elasticity = 0.05 })
 		local torso = torsoOf(golem)
 		if torso then
@@ -244,8 +263,16 @@ Statuses.levitating = {
 Statuses.bouncy = {
 	duration = 12,
 	apply = function(E, golem, st)
-		E:SetPhys(golem, "bouncy", { priority = 40, elasticity = 1, elasticityWeight = 100, friction = 0.15, frictionWeight = 50 })
-		E:SetLook(golem, "bouncy", { priority = 15, tint = Color3.fromRGB(110, 240, 120), tintAlpha = 0.35, material = Enum.Material.Rubber })
+		E:SetPhys(
+			golem,
+			"bouncy",
+			{ priority = 40, elasticity = 1, elasticityWeight = 100, friction = 0.15, frictionWeight = 50 }
+		)
+		E:SetLook(
+			golem,
+			"bouncy",
+			{ priority = 15, tint = Color3.fromRGB(110, 240, 120), tintAlpha = 0.35, material = Enum.Material.Rubber }
+		)
 		golem.mods.limp.bouncy = true
 		golem.mods.damage.bouncy = 0.35
 		local torso = torsoOf(golem)
@@ -369,7 +396,11 @@ Statuses.shocked = {
 			local top = Vector3.new(torso.Position.X + rand(-6, 6), lab.origin.Y + lab.map.height - 1, torso.Position.Z)
 			E:Lightning(lab, top, torso.Position)
 		end
-		G:Damage(golem, 16 * multiplier * (st.potency or 1), { source = st.source, position = torso.Position, kind = "shock" })
+		G:Damage(
+			golem,
+			16 * multiplier * (st.potency or 1),
+			{ source = st.source, position = torso.Position, kind = "shock" }
+		)
 		add(st, Vfx.emitter(torso, "shock"))
 		add(st, Vfx.light(torso, Color3.fromRGB(150, 210, 255), 12, 2.5, true))
 		E:Kick(golem, Vector3.new(0, 16, 0))
@@ -385,7 +416,11 @@ Statuses.shocked = {
 					if d < range or (opts.conductor and metal) then
 						count += 1
 						E:Lightning(lab, torso.Position, otherTorso.Position)
-						E:ApplyStatus(other, "shocked", { duration = st.duration * 0.75, source = st.source, chained = true, potency = st.potency })
+						E:ApplyStatus(
+							other,
+							"shocked",
+							{ duration = st.duration * 0.75, source = st.source, chained = true, potency = st.potency }
+						)
 					end
 				end
 			end
@@ -396,7 +431,13 @@ Statuses.shocked = {
 		if st.data.twitch <= 0 then
 			st.data.twitch = 0.11
 			st.data.flash = not st.data.flash
-			E:SetLook(golem, "shock", if st.data.flash then { priority = 70, color = Color3.fromRGB(235, 248, 255), material = Enum.Material.Neon } else nil)
+			E:SetLook(
+				golem,
+				"shock",
+				if st.data.flash
+					then { priority = 70, color = Color3.fromRGB(235, 248, 255), material = Enum.Material.Neon }
+					else nil
+			)
 			for _ = 1, 2 do
 				local part = golem.parts[math.random(1, #golem.parts)]
 				if part and part.Parent and not part.Anchored and not golem.grabbedBy then
@@ -424,7 +465,11 @@ Statuses.wet = {
 		if torso then
 			add(st, Vfx.emitter(torso, "drip"))
 		end
-		E:SetLook(golem, "wet", { priority = 5, tint = Color3.fromRGB(110, 160, 255), tintAlpha = 0.18, reflectance = 0.2 })
+		E:SetLook(
+			golem,
+			"wet",
+			{ priority = 5, tint = Color3.fromRGB(110, 160, 255), tintAlpha = 0.18, reflectance = 0.2 }
+		)
 	end,
 	remove = function(E, golem)
 		E:SetLook(golem, "wet", nil)
@@ -512,7 +557,14 @@ Statuses.gravityflip = {
 		golem.mods.limp.flip = true
 		local torso = torsoOf(golem)
 		if torso then
-			add(st, Vfx.emitter(torso, "float", { Color = ColorSequence.new(Color3.fromRGB(150, 130, 255)), Acceleration = Vector3.new(0, 6, 0) }))
+			add(
+				st,
+				Vfx.emitter(
+					torso,
+					"float",
+					{ Color = ColorSequence.new(Color3.fromRGB(150, 130, 255)), Acceleration = Vector3.new(0, 6, 0) }
+				)
+			)
 			add(st, Vfx.light(torso, Color3.fromRGB(140, 120, 255), 10, 1.4))
 		end
 		E:Kick(golem, Vector3.new(0, 22, 0))
@@ -528,7 +580,12 @@ Statuses.gravityflip = {
 Statuses.ghost = {
 	duration = 8,
 	apply = function(E, golem, st)
-		E:SetLook(golem, "ghost", { priority = 45, color = Color3.fromRGB(190, 255, 255), material = Enum.Material.ForceField, transparency = 0.3 })
+		E:SetLook(golem, "ghost", {
+			priority = 45,
+			color = Color3.fromRGB(190, 255, 255),
+			material = Enum.Material.ForceField,
+			transparency = 0.3,
+		})
 		st.data.collide = {}
 		for _, part in golem.parts do
 			st.data.collide[part] = part.CanCollide
@@ -595,7 +652,17 @@ Statuses.ghost = {
 
 -- ─────────────────────────────── ZOMBIE ───────────────────────────────
 
-local ZOMBIE_POSE = { ShoulderL = -100, ShoulderR = 100, ElbowL = 20, ElbowR = -20, HipL = 0, HipR = 0, KneeL = 0, KneeR = 0, Neck = 15 }
+local ZOMBIE_POSE = {
+	ShoulderL = -100,
+	ShoulderR = 100,
+	ElbowL = 20,
+	ElbowR = -20,
+	HipL = 0,
+	HipR = 0,
+	KneeL = 0,
+	KneeR = 0,
+	Neck = 15,
+}
 
 local function zombieController(golem, _dt, labDt)
 	local st = golem.statuses.zombie
@@ -614,7 +681,9 @@ local function zombieController(golem, _dt, labDt)
 	st.data.hop = (st.data.hop or 0) - labDt
 	if golem.grounded and st.data.hop <= 0 and not golem.controllerStunned then
 		st.data.hop = rand(0.75, 1.15)
-		local dir = if target then math.sign(target.byName.Torso.Position.X - torso.Position.X) else (if math.random() < 0.5 then -1 else 1)
+		local dir = if target
+			then math.sign(target.byName.Torso.Position.X - torso.Position.X)
+			else (if math.random() < 0.5 then -1 else 1)
 		if dir == 0 then
 			dir = 1
 		end
@@ -687,7 +756,11 @@ Statuses.golden = {
 		E.S.GolemService:SetRigid(golem, true)
 		golem.mods.noUpright.golden = true
 		golem.mods.damage.golden = 0.25
-		E:SetLook(golem, "golden", { priority = 60, color = Color3.fromRGB(255, 198, 56), material = Enum.Material.Foil, reflectance = 0.3 })
+		E:SetLook(
+			golem,
+			"golden",
+			{ priority = 60, color = Color3.fromRGB(255, 198, 56), material = Enum.Material.Foil, reflectance = 0.3 }
+		)
 		E:SetPhys(golem, "golden", { priority = 60, densityMul = 3 })
 		local torso = torsoOf(golem)
 		if torso then
@@ -719,7 +792,14 @@ Statuses.magnetic = {
 	apply = function(_E, golem, st)
 		local torso = torsoOf(golem)
 		if torso then
-			add(st, Vfx.emitter(torso, "sparkle", { Color = ColorSequence.new(Color3.fromRGB(255, 80, 90), Color3.fromRGB(90, 140, 255)), Rate = 20 }))
+			add(
+				st,
+				Vfx.emitter(
+					torso,
+					"sparkle",
+					{ Color = ColorSequence.new(Color3.fromRGB(255, 80, 90), Color3.fromRGB(90, 140, 255)), Rate = 20 }
+				)
+			)
 			add(st, Vfx.light(torso, Color3.fromRGB(255, 90, 110), 14, 1.6, true))
 		end
 		golem.model:SetAttribute("Magnet", true)
@@ -788,14 +868,17 @@ Statuses.disco = {
 		golem.mods.happy = true
 		local torso = torsoOf(golem)
 		if torso then
-			add(st, Vfx.emitter(torso, "sparkle", {
-				Color = ColorSequence.new({
-					ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 80, 200)),
-					ColorSequenceKeypoint.new(0.5, Color3.fromRGB(80, 220, 255)),
-					ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 240, 80)),
-				}),
-				Rate = 24,
-			}))
+			add(
+				st,
+				Vfx.emitter(torso, "sparkle", {
+					Color = ColorSequence.new({
+						ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 80, 200)),
+						ColorSequenceKeypoint.new(0.5, Color3.fromRGB(80, 220, 255)),
+						ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 240, 80)),
+					}),
+					Rate = 24,
+				})
+			)
 			local light = add(st, Vfx.light(torso, Color3.fromRGB(255, 120, 255), 18, 2))
 			light:AddTag("DiscoLight")
 		end
@@ -863,7 +946,8 @@ Statuses.clone = {
 		local lab = golem.lab
 		local localPos = torso.Position - lab.origin
 		local offset = if localPos.X > 0 then -5 else 5
-		local spawnAt = Vector3.new(math.clamp(localPos.X + offset, lab.minX + 4, lab.maxX - 4), math.max(0, localPos.Y - 4.6), 0)
+		local spawnAt =
+			Vector3.new(math.clamp(localPos.X + offset, lab.minX + 4, lab.maxX - 4), math.max(0, localPos.Y - 4.6), 0)
 		local clone, err = E.S.GolemService:Spawn(lab, golem.skin.id, spawnAt, { source = st.source })
 		if clone then
 			E.S.LabService:FX(lab, "clone", { p = clone.byName.Torso.Position, c = golem.skin.body })
@@ -1069,7 +1153,11 @@ Statuses.balloons = {
 Statuses.sticky = {
 	duration = 10,
 	apply = function(E, golem, st)
-		E:SetLook(golem, "sticky", { priority = 12, tint = Color3.fromRGB(150, 230, 60), tintAlpha = 0.35, reflectance = 0.15 })
+		E:SetLook(
+			golem,
+			"sticky",
+			{ priority = 12, tint = Color3.fromRGB(150, 230, 60), tintAlpha = 0.35, reflectance = 0.15 }
+		)
 		golem.mods.limp.sticky = true
 		st.data.welds = 0
 		st.data.conns = {}
@@ -1154,7 +1242,17 @@ Statuses.stasis = {
 
 -- ─────────────────────────────── ASCENSION (endgame) ───────────────────────────────
 
-local ASCEND_POSE = { ShoulderL = -140, ShoulderR = 140, ElbowL = 10, ElbowR = -10, HipL = -4, HipR = 4, KneeL = 0, KneeR = 0, Neck = 0 }
+local ASCEND_POSE = {
+	ShoulderL = -140,
+	ShoulderR = 140,
+	ElbowL = 10,
+	ElbowR = -10,
+	HipL = -4,
+	HipR = 4,
+	KneeL = 0,
+	KneeR = 0,
+	Neck = 0,
+}
 
 local function ascendController(golem, _dt, labDt)
 	local st = golem.statuses.ascension
@@ -1177,7 +1275,11 @@ Statuses.ascension = {
 		if not torso or not head then
 			return
 		end
-		E:SetLook(golem, "ascension", { priority = 90, color = Color3.fromRGB(255, 246, 228), material = Enum.Material.Marble, reflectance = 0.1 })
+		E:SetLook(
+			golem,
+			"ascension",
+			{ priority = 90, color = Color3.fromRGB(255, 246, 228), material = Enum.Material.Marble, reflectance = 0.1 }
+		)
 		golem.mods.gravity.ascend = -0.03
 		golem.mods.damage.ascend = 0
 		E:SetDrag(golem, "ascend", 1.6)
@@ -1206,7 +1308,9 @@ Statuses.ascension = {
 			local wing = Instance.new("Part")
 			wing.Name = "Wing"
 			wing.Size = Vector3.new(4.4 * s, 2.2 * s, 0.25 * s)
-			wing.CFrame = torso.CFrame * CFrame.new(side * 2.9 * s, 0.9 * s, -1.1 * s) * CFrame.Angles(0, 0, math.rad(side * 24))
+			wing.CFrame = torso.CFrame
+				* CFrame.new(side * 2.9 * s, 0.9 * s, -1.1 * s)
+				* CFrame.Angles(0, 0, math.rad(side * 24))
 			wing.Color = Color3.fromRGB(255, 252, 240)
 			wing.Material = Enum.Material.Neon
 			wing.Transparency = 0.15

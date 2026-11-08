@@ -22,7 +22,8 @@ function CursorService:Start()
 		if typeof(x) ~= "number" or typeof(y) ~= "number" or x ~= x or y ~= y then
 			return
 		end
-		self._cursors[player] = { x = x, y = y, s = if typeof(state) == "string" then state:sub(1, 8) else "" , t = os.clock() }
+		self._cursors[player] =
+			{ x = x, y = y, s = if typeof(state) == "string" then state:sub(1, 8) else "", t = os.clock() }
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self._cursors[player] = nil

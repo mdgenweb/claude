@@ -29,17 +29,34 @@ return function(b, info, rng: Random)
 	-- Rock formations on the back wall.
 	for _ = 1, 14 do
 		local s = rng:NextNumber(4, 10)
-		deco:part({ name = "Rock", size = Vector3.new(s, s * rng:NextNumber(0.6, 1.4), 4), at = Vector3.new(rng:NextNumber(-halfW, halfW), rng:NextNumber(0, H), -10), rot = CFrame.Angles(0, 0, math.rad(rng:NextNumber(0, 90))), color = Color3.fromRGB(80 + rng:NextInteger(0, 30), 120, 160), material = Enum.Material.Glacier })
+		deco:part({
+			name = "Rock",
+			size = Vector3.new(s, s * rng:NextNumber(0.6, 1.4), 4),
+			at = Vector3.new(rng:NextNumber(-halfW, halfW), rng:NextNumber(0, H), -10),
+			rot = CFrame.Angles(0, 0, math.rad(rng:NextNumber(0, 90))),
+			color = Color3.fromRGB(80 + rng:NextInteger(0, 30), 120, 160),
+			material = Enum.Material.Glacier,
+		})
 	end
 	-- Glowing crystal clusters.
-	local crystalColors = { Color3.fromRGB(120, 230, 255), Color3.fromRGB(170, 140, 255), Color3.fromRGB(120, 255, 220) }
+	local crystalColors =
+		{ Color3.fromRGB(120, 230, 255), Color3.fromRGB(170, 140, 255), Color3.fromRGB(120, 255, 220) }
 	for i = 1, 7 do
 		local x = -halfW + 6 + (i - 1) * ((W - 12) / 6)
 		local color = crystalColors[rng:NextInteger(1, #crystalColors)]
 		local host
 		for c = 1, 3 do
 			local h = rng:NextNumber(3, 7)
-			local crystal = deco:part({ name = "Crystal", size = Vector3.new(1.2, h, 1.2), at = Vector3.new(x + (c - 2) * 1.2, h / 2, -8.8), rot = CFrame.Angles(0, math.rad(45), math.rad((c - 2) * 18)), color = color, material = Enum.Material.Neon, transparency = 0.25, shadow = false })
+			local crystal = deco:part({
+				name = "Crystal",
+				size = Vector3.new(1.2, h, 1.2),
+				at = Vector3.new(x + (c - 2) * 1.2, h / 2, -8.8),
+				rot = CFrame.Angles(0, math.rad(45), math.rad((c - 2) * 18)),
+				color = color,
+				material = Enum.Material.Neon,
+				transparency = 0.25,
+				shadow = false,
+			})
 			host = host or crystal
 		end
 		deco:light(host, "PointLight", { Color = color, Brightness = 1.2, Range = 16 })
@@ -65,13 +82,42 @@ return function(b, info, rng: Random)
 	end
 
 	-- Frozen ledges.
-	solids:solid({ name = "IceLedge", size = Vector3.new(16, 1.4, 8), at = Vector3.new(-30, 16, -0.5), color = Color3.fromRGB(200, 235, 255), material = Enum.Material.Ice, physics = iceFloor })
-	solids:solid({ name = "IceLedge", size = Vector3.new(16, 1.4, 8), at = Vector3.new(30, 26, -0.5), color = Color3.fromRGB(200, 235, 255), material = Enum.Material.Ice, physics = iceFloor })
+	solids:solid({
+		name = "IceLedge",
+		size = Vector3.new(16, 1.4, 8),
+		at = Vector3.new(-30, 16, -0.5),
+		color = Color3.fromRGB(200, 235, 255),
+		material = Enum.Material.Ice,
+		physics = iceFloor,
+	})
+	solids:solid({
+		name = "IceLedge",
+		size = Vector3.new(16, 1.4, 8),
+		at = Vector3.new(30, 26, -0.5),
+		color = Color3.fromRGB(200, 235, 255),
+		material = Enum.Material.Ice,
+		physics = iceFloor,
+	})
 	-- A snow ramp (wedge) on the right.
-	solids:solid({ name = "SnowRamp", class = "WedgePart", size = Vector3.new(8, 8, 18), at = Vector3.new(halfW - 10, 4, -0.5), rot = CFrame.Angles(0, math.rad(-90), 0), color = Color3.fromRGB(240, 248, 255), material = Enum.Material.Snow, physics = iceFloor })
+	solids:solid({
+		name = "SnowRamp",
+		class = "WedgePart",
+		size = Vector3.new(8, 8, 18),
+		at = Vector3.new(halfW - 10, 4, -0.5),
+		rot = CFrame.Angles(0, math.rad(-90), 0),
+		color = Color3.fromRGB(240, 248, 255),
+		material = Enum.Material.Snow,
+		physics = iceFloor,
+	})
 
 	-- Falling snow.
-	local snowHost = deco:part({ name = "Snow", size = Vector3.new(W, 1, 14), at = Vector3.new(0, H - 1, 0), transparency = 1, shadow = false })
+	local snowHost = deco:part({
+		name = "Snow",
+		size = Vector3.new(W, 1, 14),
+		at = Vector3.new(0, H - 1, 0),
+		transparency = 1,
+		shadow = false,
+	})
 	deco:emitter(snowHost, {
 		Texture = "rbxasset://textures/particles/sparkles_main.dds",
 		Rate = 40,
@@ -85,8 +131,18 @@ return function(b, info, rng: Random)
 		EmissionDirection = Enum.NormalId.Bottom,
 		Shape = Enum.ParticleEmitterShape.Box,
 	})
-	local fill = deco:part({ name = "Fill", size = Vector3.one, at = Vector3.new(0, H - 10, 8), transparency = 1, shadow = false })
-	deco:light(fill, "PointLight", { Color = Color3.fromRGB(170, 210, 255), Brightness = 1.4, Range = 60, Shadows = true })
+	local fill = deco:part({
+		name = "Fill",
+		size = Vector3.one,
+		at = Vector3.new(0, H - 10, 8),
+		transparency = 1,
+		shadow = false,
+	})
+	deco:light(
+		fill,
+		"PointLight",
+		{ Color = Color3.fromRGB(170, 210, 255), Brightness = 1.4, Range = 60, Shadows = true }
+	)
 
 	return {
 		cauldron = Vector3.new(-14, 0, -5.5),

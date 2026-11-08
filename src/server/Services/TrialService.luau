@@ -75,23 +75,67 @@ local function zoneVisual(lab, zone)
 	end
 	if zone.visual == "basket" then
 		local wicker = Color3.fromRGB(190, 140, 80)
-		part({ Size = Vector3.new(zone.w, 0.6, 6), CFrame = CFrame.new(center + Vector3.new(0, -zone.h / 2, 0)), Color = wicker, Material = Enum.Material.Fabric, CanCollide = true, CollisionGroup = "Static" })
+		part({
+			Size = Vector3.new(zone.w, 0.6, 6),
+			CFrame = CFrame.new(center + Vector3.new(0, -zone.h / 2, 0)),
+			Color = wicker,
+			Material = Enum.Material.Fabric,
+			CanCollide = true,
+			CollisionGroup = "Static",
+		})
 		for _, side in { -1, 1 } do
-			part({ Size = Vector3.new(0.6, zone.h, 6), CFrame = CFrame.new(center + Vector3.new(side * zone.w / 2, 0, 0)), Color = wicker, Material = Enum.Material.Fabric, CanCollide = true, CollisionGroup = "Static" })
+			part({
+				Size = Vector3.new(0.6, zone.h, 6),
+				CFrame = CFrame.new(center + Vector3.new(side * zone.w / 2, 0, 0)),
+				Color = wicker,
+				Material = Enum.Material.Fabric,
+				CanCollide = true,
+				CollisionGroup = "Static",
+			})
 		end
-		part({ Size = Vector3.new(zone.w, zone.h, 0.2), CFrame = CFrame.new(center + Vector3.new(0, 0, -3)), Color = Color3.fromRGB(150, 100, 60), Material = Enum.Material.Fabric })
+		part({
+			Size = Vector3.new(zone.w, zone.h, 0.2),
+			CFrame = CFrame.new(center + Vector3.new(0, 0, -3)),
+			Color = Color3.fromRGB(150, 100, 60),
+			Material = Enum.Material.Fabric,
+		})
 	elseif zone.visual == "ring" then
-		local ring = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, zone.w, zone.w), CFrame = CFrame.new(center) * CFrame.Angles(0, math.rad(90), 0), Color = Color3.fromRGB(255, 210, 60), Material = Enum.Material.Neon, Transparency = 0.1 })
-		part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.7, zone.w - 1.4, zone.w - 1.4), CFrame = CFrame.new(center) * CFrame.Angles(0, math.rad(90), 0), Color = Color3.fromRGB(40, 30, 60), Material = Enum.Material.Glass, Transparency = 0.8 })
+		local ring = part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.6, zone.w, zone.w),
+			CFrame = CFrame.new(center) * CFrame.Angles(0, math.rad(90), 0),
+			Color = Color3.fromRGB(255, 210, 60),
+			Material = Enum.Material.Neon,
+			Transparency = 0.1,
+		})
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.7, zone.w - 1.4, zone.w - 1.4),
+			CFrame = CFrame.new(center) * CFrame.Angles(0, math.rad(90), 0),
+			Color = Color3.fromRGB(40, 30, 60),
+			Material = Enum.Material.Glass,
+			Transparency = 0.8,
+		})
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 220, 120)
 		light.Range = 14
 		light.Parent = ring
 	elseif zone.visual == "target" then
-		local colors = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(230, 50, 50), Color3.fromRGB(255, 255, 255), Color3.fromRGB(230, 50, 50) }
+		local colors = {
+			Color3.fromRGB(255, 255, 255),
+			Color3.fromRGB(230, 50, 50),
+			Color3.fromRGB(255, 255, 255),
+			Color3.fromRGB(230, 50, 50),
+		}
 		for i, color in colors do
 			local d = zone.h * (1 - (i - 1) * 0.22)
-			part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3 + i * 0.05, d, d), CFrame = CFrame.new(center + Vector3.new(0, 0, -2 + i * 0.05)) * CFrame.Angles(0, math.rad(90), 0), Color = color, Material = Enum.Material.SmoothPlastic })
+			part({
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.3 + i * 0.05, d, d),
+				CFrame = CFrame.new(center + Vector3.new(0, 0, -2 + i * 0.05)) * CFrame.Angles(0, math.rad(90), 0),
+				Color = color,
+				Material = Enum.Material.SmoothPlastic,
+			})
 		end
 	end
 	local glow = part({ Size = Vector3.new(zone.w, zone.h, 1), CFrame = CFrame.new(center), Transparency = 1 })

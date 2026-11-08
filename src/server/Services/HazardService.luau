@@ -112,7 +112,10 @@ function HazardService:_register(state, part: BasePart)
 	elseif kind == "Fan" then
 		table.insert(state.fans, part)
 	elseif kind == "Tesla" then
-		table.insert(state.teslas, { part = part, timer = rand(1, (part:GetAttribute("TeslaInterval") :: number?) or 3) })
+		table.insert(
+			state.teslas,
+			{ part = part, timer = rand(1, (part:GetAttribute("TeslaInterval") :: number?) or 3) }
+		)
 	elseif kind == "Icicle" then
 		part.CanTouch = true
 		local record = { part = part, template = part:Clone(), cframe = part.CFrame, falling = false }
@@ -279,7 +282,12 @@ function HazardService:_setupCrusher(state, head: BasePart)
 			self.S.GolemService:Stun(object, 2)
 			self.S.LabService:FX(lab, "crush", { p = other.Position })
 			if object.statuses.frozen or object.statuses.golden then
-				self.S.EffectsService:Shatter(object, if object.statuses.golden then "gold" else "ice", nil, head.Position)
+				self.S.EffectsService:Shatter(
+					object,
+					if object.statuses.golden then "gold" else "ice",
+					nil,
+					head.Position
+				)
 			end
 		elseif object.kind == "prop" then
 			if object.explosive then

@@ -116,7 +116,11 @@ function Fields.blackhole(E, lab, center: Vector3, potion, ctx, duration: number
 						if d < 5 then
 							field.dmg = (field.dmg or 0) + 14 * labDt
 							if field.dmg >= 4 then
-								E.S.GolemService:Damage(object, field.dmg, { source = ctx.source, position = position, kind = "void" })
+								E.S.GolemService:Damage(
+									object,
+									field.dmg,
+									{ source = ctx.source, position = position, kind = "void" }
+								)
 								field.dmg = 0
 							end
 						end
@@ -127,7 +131,13 @@ function Fields.blackhole(E, lab, center: Vector3, potion, ctx, duration: number
 		finish = function(_E, _lab, field, aborted)
 			E.S.LabService:FX(lab, "blackholeend", { id = field.id, p = field.position })
 			if not aborted then
-				E:Explosion(lab, field.position, field.radius * 0.55, 0.9, { source = ctx.source, color = Color3.fromRGB(170, 90, 255) })
+				E:Explosion(
+					lab,
+					field.position,
+					field.radius * 0.55,
+					0.9,
+					{ source = ctx.source, color = Color3.fromRGB(170, 90, 255) }
+				)
 			end
 		end,
 	})
@@ -205,7 +215,11 @@ function Fields.meteors(E, lab, center: Vector3, potion, ctx, duration: number)
 				f.spawned += 1
 				f.next = f.age + duration / count
 				local top = lab.origin.Y + lab.map.height - 2
-				local startX = math.clamp(center.X + rand(-spread / 2, spread / 2) - 14, lab.origin.X + lab.minX + 2, lab.origin.X + lab.maxX - 2)
+				local startX = math.clamp(
+					center.X + rand(-spread / 2, spread / 2) - 14,
+					lab.origin.X + lab.minX + 2,
+					lab.origin.X + lab.maxX - 2
+				)
 				local meteor = {
 					id = World.nextId(),
 					position = Vector3.new(startX, top, lab.origin.Z),
@@ -240,7 +254,11 @@ function Fields.tornado(E, lab, center: Vector3, potion, ctx, duration: number)
 	local id = World.nextId()
 	local floorY = lab.origin.Y
 	local height = math.min(lab.map.height - 2, 60)
-	E.S.LabService:FX(lab, "tornado", { id = id, p = Vector3.new(center.X, floorY, center.Z), d = duration, h = height })
+	E.S.LabService:FX(
+		lab,
+		"tornado",
+		{ id = id, p = Vector3.new(center.X, floorY, center.Z), d = duration, h = height }
+	)
 	E:AddField(lab, {
 		kind = "tornado",
 		id = id,
@@ -250,7 +268,8 @@ function Fields.tornado(E, lab, center: Vector3, potion, ctx, duration: number)
 		send = 0,
 		tick = function(_E, _lab, field, _dt, labDt)
 			if math.abs(field.x - field.targetX) < 2 then
-				field.targetX = math.clamp(field.x + rand(-26, 26), lab.origin.X + lab.minX + 8, lab.origin.X + lab.maxX - 8)
+				field.targetX =
+					math.clamp(field.x + rand(-26, 26), lab.origin.X + lab.minX + 8, lab.origin.X + lab.maxX - 8)
 			end
 			field.x += math.sign(field.targetX - field.x) * 10 * labDt
 			local halfWidth = potion.radius * 0.6
@@ -294,7 +313,13 @@ function Fields.supernova(E, lab, center: Vector3, potion, ctx)
 		if lab.destroyed then
 			return
 		end
-		E:Explosion(lab, center, potion.radius, 2.2 * (ctx.potency or 1), { source = ctx.source, color = Color3.fromRGB(255, 250, 210), big = true })
+		E:Explosion(
+			lab,
+			center,
+			potion.radius,
+			2.2 * (ctx.potency or 1),
+			{ source = ctx.source, color = Color3.fromRGB(255, 250, 210), big = true }
+		)
 		for _, golem in E.S.GolemService:InRadius(lab, center, potion.radius * 0.8) do
 			E:ApplyStatus(golem, "burning", { duration = 6, source = ctx.source })
 		end
@@ -303,8 +328,23 @@ end
 
 -- ── Chaos Potion: three random effects ──
 local CHAOS_STATUSES = {
-	"burning", "frozen", "levitating", "bouncy", "shocked", "giant", "tiny", "gravityflip",
-	"ghost", "zombie", "golden", "magnetic", "disco", "acid", "rocket", "balloons", "hyper",
+	"burning",
+	"frozen",
+	"levitating",
+	"bouncy",
+	"shocked",
+	"giant",
+	"tiny",
+	"gravityflip",
+	"ghost",
+	"zombie",
+	"golden",
+	"magnetic",
+	"disco",
+	"acid",
+	"rocket",
+	"balloons",
+	"hyper",
 }
 local CHAOS_FIELDS = { "explosion", "blackhole", "stasis", "tornado", "meteors", "steam" }
 

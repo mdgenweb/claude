@@ -22,9 +22,20 @@ local EffectsService = {
 }
 
 local LOOK_EXCLUDE = {
-	EyeL = true, EyeR = true, PupilL = true, PupilR = true, KOMark = true,
-	Mouth = true, Blush = true, Rune = true, Halo = true, Balloon = true,
-	BalloonKnot = true, Booster = true, BoosterCone = true, Wing = true,
+	EyeL = true,
+	EyeR = true,
+	PupilL = true,
+	PupilR = true,
+	KOMark = true,
+	Mouth = true,
+	Blush = true,
+	Rune = true,
+	Halo = true,
+	Balloon = true,
+	BalloonKnot = true,
+	Booster = true,
+	BoosterCone = true,
+	Wing = true,
 }
 
 function EffectsService:Init(services)
@@ -62,7 +73,13 @@ function EffectsService:ApplyPotion(lab, potion, position: Vector3, ctx)
 			targets = self.S.GolemService:InRadius(lab, position, potion.radius)
 		end
 		for _, golem in targets do
-			if self:ApplyStatus(golem, potion.effect, { duration = duration, source = source, potency = potency, potion = potion, origin = position }) then
+			if
+				self:ApplyStatus(
+					golem,
+					potion.effect,
+					{ duration = duration, source = source, potency = potency, potion = potion, origin = position }
+				)
+			then
 				affected += 1
 			end
 		end
@@ -192,7 +209,11 @@ function EffectsService:ApplyStatus(golem, id: string, opts)
 	end
 
 	if def.instant then
-		def.apply(self, golem, { id = id, data = {}, instances = {}, source = opts.source, potency = opts.potency or 1, opts = opts })
+		def.apply(
+			self,
+			golem,
+			{ id = id, data = {}, instances = {}, source = opts.source, potency = opts.potency or 1, opts = opts }
+		)
 		self:_statusEvent(golem, id, opts.source)
 		return true
 	end
@@ -333,7 +354,12 @@ function EffectsService:RefreshLook(golem)
 			if part.Transparency >= 1 then
 				continue
 			end
-			base = { Color = part.Color, Material = part.Material, Transparency = part.Transparency, Reflectance = part.Reflectance }
+			base = {
+				Color = part.Color,
+				Material = part.Material,
+				Transparency = part.Transparency,
+				Reflectance = part.Reflectance,
+			}
 			golem.baseLook[part] = base
 		end
 		local excluded = LOOK_EXCLUDE[part.Name]
@@ -394,7 +420,13 @@ function EffectsService:RefreshPhys(golem)
 			end
 		end
 	end
-	local physical = PhysicalProperties.new(math.max(props.density, 0.01), math.clamp(props.friction, 0, 2), math.clamp(props.elasticity, 0, 1), props.frictionWeight, props.elasticityWeight)
+	local physical = PhysicalProperties.new(
+		math.max(props.density, 0.01),
+		math.clamp(props.friction, 0, 2),
+		math.clamp(props.elasticity, 0, 1),
+		props.frictionWeight,
+		props.elasticityWeight
+	)
 	for _, part in golem.parts do
 		if part.Parent then
 			part.CustomPhysicalProperties = physical
@@ -490,7 +522,11 @@ function EffectsService:Explosion(lab, position: Vector3, radius: number, power:
 			break
 		end
 	end
-	self.S.LabService:FX(lab, "explode", { p = position, r = radius, c = opts.color or Color3.fromRGB(255, 150, 60), big = opts.big })
+	self.S.LabService:FX(
+		lab,
+		"explode",
+		{ p = position, r = radius, c = opts.color or Color3.fromRGB(255, 150, 60), big = opts.big }
+	)
 	local ts = lab.timeScale
 	local hits = 0
 	for _, golem in G:InRadius(lab, position, radius) do
@@ -506,7 +542,12 @@ function EffectsService:Explosion(lab, position: Vector3, radius: number, power:
 			self:Reaction(lab, "pop", position, source)
 		end
 		if golem.statuses.frozen or golem.statuses.golden or (golem.skin.traits.brittle and falloff > 0.7) then
-			self:Shatter(golem, if golem.statuses.golden then "gold" elseif golem.statuses.frozen then "ice" else "crystal", source, position)
+			self:Shatter(
+				golem,
+				if golem.statuses.golden then "gold" elseif golem.statuses.frozen then "ice" else "crystal",
+				source,
+				position
+			)
 			continue
 		end
 		G:Stun(golem, 2.2)
@@ -516,7 +557,11 @@ function EffectsService:Explosion(lab, position: Vector3, radius: number, power:
 			dir = (Vector3.new(dir.X, dir.Y, 0) + Vector3.new(0, 0.45, 0)).Unit
 			return dir * 135 * power * falloff * ts
 		end)
-		G:Damage(golem, 48 * power * falloff * falloff, { source = source, position = torso and torso.Position, kind = "blast" })
+		G:Damage(
+			golem,
+			48 * power * falloff * falloff,
+			{ source = source, position = torso and torso.Position, kind = "blast" }
+		)
 		-- Close blasts pop a limb off.
 		if falloff > 0.72 and power >= 1 and math.random() < 0.35 then
 			local joints = { "ShoulderL", "ShoulderR", "HipL", "HipR", "ElbowL", "ElbowR" }
@@ -607,7 +652,14 @@ function EffectsService:Shatter(golem, kind: string, source: Player?, from: Vect
 	golem.reformAt = os.clock() + 3.5
 end
 
-function EffectsService:CreatePuddle(lab, kind: string, position: Vector3, normal: Vector3?, color: Color3, source: Player?)
+function EffectsService:CreatePuddle(
+	lab,
+	kind: string,
+	position: Vector3,
+	normal: Vector3?,
+	color: Color3,
+	source: Player?
+)
 	Puddles.create(self, lab, kind, position, normal, color, source)
 end
 
@@ -630,7 +682,9 @@ function EffectsService:OnImpact(golem, part: BasePart, dv: number): boolean
 		return true
 	end
 	if s.frozen and dv > 50 then
-		self:Shatter(golem, "ice", nil, part.Position - part.AssemblyLinearVelocity.Unit * 2)
+		local velocity = part.AssemblyLinearVelocity
+		local from = if velocity.Magnitude > 0.5 then part.Position - velocity.Unit * 2 else nil
+		self:Shatter(golem, "ice", nil, from)
 		return true
 	end
 	if s.golden and dv > 68 then

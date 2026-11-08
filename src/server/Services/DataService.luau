@@ -210,15 +210,9 @@ end
 
 function DataService:Start()
 	Net.event("Data")
-	Players.PlayerAdded:Connect(function(player)
-		self:_onPlayerAdded(player)
-	end)
 	Players.PlayerRemoving:Connect(function(player)
 		self:_onPlayerRemoving(player)
 	end)
-	for _, player in Players:GetPlayers() do
-		task.spawn(self._onPlayerAdded, self, player)
-	end
 
 	-- Autosave loop.
 	task.spawn(function()
@@ -247,6 +241,17 @@ function DataService:Start()
 			task.wait(0.1)
 		end
 	end)
+end
+
+-- Called by Main once every service has started, so no one misses ProfileLoaded (in Studio a
+-- failed DataStore call can return instantly and fire the signal before others subscribe).
+function DataService:BeginPlayers()
+	Players.PlayerAdded:Connect(function(player)
+		self:_onPlayerAdded(player)
+	end)
+	for _, player in Players:GetPlayers() do
+		task.spawn(self._onPlayerAdded, self, player)
+	end
 end
 
 function DataService:_onPlayerAdded(player: Player)

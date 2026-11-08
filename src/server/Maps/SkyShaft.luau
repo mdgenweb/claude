@@ -42,8 +42,22 @@ return function(b, info, rng: Random)
 
 	-- Height markers every 25 studs.
 	for y = 25, H - 10, 25 do
-		deco:part({ name = "MarkerLine", size = Vector3.new(W, 0.3, 0.2), at = Vector3.new(0, y, -10.8), color = Color3.fromRGB(255, 220, 120), material = Enum.Material.Neon, transparency = 0.4, shadow = false })
-		local plate = deco:part({ name = "MarkerPlate", size = Vector3.new(6, 3, 0.4), at = Vector3.new(-halfW + 5, y + 2, -10.6), color = Color3.fromRGB(60, 40, 30), material = Enum.Material.Wood })
+		deco:part({
+			name = "MarkerLine",
+			size = Vector3.new(W, 0.3, 0.2),
+			at = Vector3.new(0, y, -10.8),
+			color = Color3.fromRGB(255, 220, 120),
+			material = Enum.Material.Neon,
+			transparency = 0.4,
+			shadow = false,
+		})
+		local plate = deco:part({
+			name = "MarkerPlate",
+			size = Vector3.new(6, 3, 0.4),
+			at = Vector3.new(-halfW + 5, y + 2, -10.6),
+			color = Color3.fromRGB(60, 40, 30),
+			material = Enum.Material.Wood,
+		})
 		markerLabel(plate, tostring(y))
 	end
 
@@ -62,14 +76,40 @@ return function(b, info, rng: Random)
 		{ x = 0, y = 190 },
 	}
 	for _, ledge in ledges do
-		solids:solid({ name = "Ledge", size = Vector3.new(14, 1.4, 8), at = Vector3.new(ledge.x, ledge.y, -0.5), color = Color3.fromRGB(120, 86, 60), material = Enum.Material.WoodPlanks })
-		deco:part({ name = "LedgeBracket", size = Vector3.new(1.2, 3, 6), at = Vector3.new(ledge.x, ledge.y - 2, -3), color = Color3.fromRGB(80, 56, 40), material = Enum.Material.Wood })
+		solids:solid({
+			name = "Ledge",
+			size = Vector3.new(14, 1.4, 8),
+			at = Vector3.new(ledge.x, ledge.y, -0.5),
+			color = Color3.fromRGB(120, 86, 60),
+			material = Enum.Material.WoodPlanks,
+		})
+		deco:part({
+			name = "LedgeBracket",
+			size = Vector3.new(1.2, 3, 6),
+			at = Vector3.new(ledge.x, ledge.y - 2, -3),
+			color = Color3.fromRGB(80, 56, 40),
+			material = Enum.Material.Wood,
+		})
 	end
 
 	-- Updraft fans in the floor.
 	for _, x in { -16, 16 } do
-		deco:part({ name = "FanGrate", shape = Enum.PartType.Cylinder, size = Vector3.new(0.6, 10, 10), at = Vector3.new(x, 0.2, -0.5), rot = CFrame.Angles(0, 0, math.rad(90)), color = Color3.fromRGB(60, 64, 72), material = Enum.Material.DiamondPlate })
-		local blades = deco:part({ name = "FanBlades", size = Vector3.new(9, 0.2, 1.2), at = Vector3.new(x, 0.6, -0.5), color = Color3.fromRGB(200, 205, 215), material = Enum.Material.Metal })
+		deco:part({
+			name = "FanGrate",
+			shape = Enum.PartType.Cylinder,
+			size = Vector3.new(0.6, 10, 10),
+			at = Vector3.new(x, 0.2, -0.5),
+			rot = CFrame.Angles(0, 0, math.rad(90)),
+			color = Color3.fromRGB(60, 64, 72),
+			material = Enum.Material.DiamondPlate,
+		})
+		local blades = deco:part({
+			name = "FanBlades",
+			size = Vector3.new(9, 0.2, 1.2),
+			at = Vector3.new(x, 0.6, -0.5),
+			color = Color3.fromRGB(200, 205, 215),
+			material = Enum.Material.Metal,
+		})
 		blades:AddTag("Spinner")
 		blades:SetAttribute("SpinSpeed", 12)
 		blades:SetAttribute("SpinAxis", "Y")
@@ -82,7 +122,13 @@ return function(b, info, rng: Random)
 			attributes = { Hazard = "Fan", FanAccel = 330 },
 		})
 		local _ = zone
-		local streaks = deco:part({ name = "FanStreaks", size = Vector3.new(9, 0.2, 9), at = Vector3.new(x, 1, -0.5), transparency = 1, shadow = false })
+		local streaks = deco:part({
+			name = "FanStreaks",
+			size = Vector3.new(9, 0.2, 9),
+			at = Vector3.new(x, 1, -0.5),
+			transparency = 1,
+			shadow = false,
+		})
 		deco:emitter(streaks, {
 			Texture = "rbxasset://textures/particles/sparkles_main.dds",
 			Rate = 16,
@@ -102,7 +148,13 @@ return function(b, info, rng: Random)
 		deco:torch(halfW - 4, y + 20, -8.5, Color3.fromRGB(255, 170, 90), 26)
 	end
 	-- Banner at the top.
-	deco:part({ name = "Banner", size = Vector3.new(10, 16, 0.3), at = Vector3.new(0, H - 14, -10.4), color = Color3.fromRGB(150, 40, 60), material = Enum.Material.Fabric })
+	deco:part({
+		name = "Banner",
+		size = Vector3.new(10, 16, 0.3),
+		at = Vector3.new(0, H - 14, -10.4),
+		color = Color3.fromRGB(150, 40, 60),
+		material = Enum.Material.Fabric,
+	})
 	local _ = rng
 
 	return {

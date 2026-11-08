@@ -13,26 +13,15 @@ local Net = require(Shared.Net)
 local Ingredients = require(Shared.Data.Ingredients)
 local Potions = require(Shared.Data.Potions)
 local Skins = require(Shared.Data.Skins)
+local Spins = require(Shared.Data.Spins)
 
 local Codes = require(script.Parent.Parent.Data.Codes)
 local World = require(script.Parent.Parent.Systems.World)
 
 local ShopService = {}
 
--- Mystery Flask prize table (weights are relative).
-local SPIN_TABLE = {
-	{ weight = 26, kind = "coins", amount = 100, icon = "🪙", label = "100 Coins" },
-	{ weight = 16, kind = "coins", amount = 250, icon = "💰", label = "250 Coins" },
-	{ weight = 5, kind = "coins", amount = 700, icon = "💎", label = "700 Coins" },
-	{ weight = 18, kind = "bundle", rarity = "Common", amount = 2, icon = "🌿", label = "Herb Bundle" },
-	{ weight = 13, kind = "bundle", rarity = "Uncommon", amount = 2, icon = "🍄", label = "Rare-ish Bundle" },
-	{ weight = 8, kind = "bundle", rarity = "Rare", amount = 2, icon = "✨", label = "Rare Bundle" },
-	{ weight = 4, kind = "bundle", rarity = "Epic", amount = 1, icon = "🐉", label = "Epic Ingredient" },
-	{ weight = 1.2, kind = "ingredient", id = "star_shard", amount = 1, icon = "⭐", label = "Star Shard" },
-	{ weight = 6, kind = "potions", amount = 3, icon = "🧪", label = "3 Random Potions" },
-	{ weight = 2, kind = "skin", id = "shadow", icon = "🌑", label = "Shadow Golem" },
-	{ weight = 0.8, kind = "skin", id = "rainbow", icon = "🌈", label = "Rainbow Golem" },
-}
+-- Mystery Flask prizes live in shared data so the client reel matches the server roll.
+local SPIN_TABLE = Spins.List
 ShopService.SpinTable = SPIN_TABLE
 
 local function today(): number
@@ -155,7 +144,11 @@ function ShopService:OnDiscovery(player: Player, potionId: string)
 	local discovered, total = self:_checkBadges(player, data)
 	self:Notify(player, "discover", { id = potionId, count = discovered, total = total })
 	if discovered == total - 1 and not data.discovered[Potions.FinalId] then
-		self:Notify(player, "toast", { text = "Only the Philosopher's Elixir remains... clear the Magnum Opus trial!", kind = "reward" })
+		self:Notify(
+			player,
+			"toast",
+			{ text = "Only the Philosopher's Elixir remains... clear the Magnum Opus trial!", kind = "reward" }
+		)
 	end
 end
 
@@ -301,7 +294,11 @@ end
 local function randomOfRarity(rarity: string, level: number): string?
 	local pool = {}
 	for _, ingredient in Ingredients.List do
-		if ingredient.rarity == rarity and ingredient.price > 0 and ingredient.unlockLevel <= math.max(level, 1) + 4 then
+		if
+			ingredient.rarity == rarity
+			and ingredient.price > 0
+			and ingredient.unlockLevel <= math.max(level, 1) + 4
+		then
 			table.insert(pool, ingredient.id)
 		end
 	end

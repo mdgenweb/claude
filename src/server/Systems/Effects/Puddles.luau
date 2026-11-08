@@ -181,7 +181,11 @@ function Puddles.create(E, lab, kind: string, position: Vector3, _normal: Vector
 		part.CustomPhysicalProperties = spec.physics
 	end
 	if spec.emitter then
-		Vfx.emitter(part, spec.emitter, { Rate = 8, Shape = Enum.ParticleEmitterShape.Disc, EmissionDirection = Enum.NormalId.Right })
+		Vfx.emitter(
+			part,
+			spec.emitter,
+			{ Rate = 8, Shape = Enum.ParticleEmitterShape.Disc, EmissionDirection = Enum.NormalId.Right }
+		)
 	end
 	if spec.light then
 		Vfx.light(part, spec.light, 12, 1.4, kind == "fire")

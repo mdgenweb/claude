@@ -57,30 +57,84 @@ end
 local BUILDERS = {}
 
 BUILDERS.crate = function(model: Model, at: CFrame)
-	local root = collider(model, { Name = "Crate", Size = Vector3.one * 3.6, CFrame = at * CFrame.new(0, 1.8, 0), Color = Color3.fromRGB(176, 128, 76), Material = Enum.Material.WoodPlanks, CustomPhysicalProperties = PhysicalProperties.new(0.6, 0.6, 0.15, 1, 1) })
+	local root = collider(model, {
+		Name = "Crate",
+		Size = Vector3.one * 3.6,
+		CFrame = at * CFrame.new(0, 1.8, 0),
+		Color = Color3.fromRGB(176, 128, 76),
+		Material = Enum.Material.WoodPlanks,
+		CustomPhysicalProperties = PhysicalProperties.new(0.6, 0.6, 0.15, 1, 1),
+	})
 	local edge = Color3.fromRGB(110, 74, 44)
 	for _, y in { -1.6, 1.6 } do
-		deco(model, root, { Name = "Edge", Size = Vector3.new(3.7, 0.4, 3.7), CFrame = root.CFrame * CFrame.new(0, y, 0), Color = edge, Material = Enum.Material.Wood })
+		deco(model, root, {
+			Name = "Edge",
+			Size = Vector3.new(3.7, 0.4, 3.7),
+			CFrame = root.CFrame * CFrame.new(0, y, 0),
+			Color = edge,
+			Material = Enum.Material.Wood,
+		})
 	end
 	for _, x in { -1.6, 1.6 } do
-		deco(model, root, { Name = "Edge", Size = Vector3.new(0.4, 3.7, 3.7), CFrame = root.CFrame * CFrame.new(x, 0, 0), Color = edge, Material = Enum.Material.Wood })
+		deco(model, root, {
+			Name = "Edge",
+			Size = Vector3.new(0.4, 3.7, 3.7),
+			CFrame = root.CFrame * CFrame.new(x, 0, 0),
+			Color = edge,
+			Material = Enum.Material.Wood,
+		})
 	end
-	deco(model, root, { Name = "Brace", Size = Vector3.new(0.35, 4.6, 0.3), CFrame = root.CFrame * CFrame.new(0, 0, 1.85) * CFrame.Angles(0, 0, math.rad(45)), Color = edge, Material = Enum.Material.Wood })
+	deco(model, root, {
+		Name = "Brace",
+		Size = Vector3.new(0.35, 4.6, 0.3),
+		CFrame = root.CFrame * CFrame.new(0, 0, 1.85) * CFrame.Angles(0, 0, math.rad(45)),
+		Color = edge,
+		Material = Enum.Material.Wood,
+	})
 	return root, {}, {}
 end
 
 BUILDERS.barrel = function(model: Model, at: CFrame)
-	local root = collider(model, { Name = "Barrel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(4.2, 3.2, 3.2), CFrame = at * CFrame.new(0, 2.1, 0) * UPRIGHT, Color = Color3.fromRGB(200, 44, 40), Material = Enum.Material.Metal, CustomPhysicalProperties = PhysicalProperties.new(0.9, 0.5, 0.2, 1, 1) })
+	local root = collider(model, {
+		Name = "Barrel",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(4.2, 3.2, 3.2),
+		CFrame = at * CFrame.new(0, 2.1, 0) * UPRIGHT,
+		Color = Color3.fromRGB(200, 44, 40),
+		Material = Enum.Material.Metal,
+		CustomPhysicalProperties = PhysicalProperties.new(0.9, 0.5, 0.2, 1, 1),
+	})
 	for _, y in { -1.4, 1.4 } do
-		deco(model, root, { Name = "Band", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.35, 3.35, 3.35), CFrame = root.CFrame * CFrame.new(y, 0, 0), Color = Color3.fromRGB(60, 60, 66), Material = Enum.Material.Metal })
+		deco(model, root, {
+			Name = "Band",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.35, 3.35, 3.35),
+			CFrame = root.CFrame * CFrame.new(y, 0, 0),
+			Color = Color3.fromRGB(60, 60, 66),
+			Material = Enum.Material.Metal,
+		})
 	end
-	local symbol = deco(model, root, { Name = "Hazard", Size = Vector3.new(1.3, 1.3, 0.2), CFrame = CFrame.new(root.Position + Vector3.new(0, 0, 1.6)) * CFrame.Angles(0, 0, math.rad(45)), Color = Color3.fromRGB(255, 210, 40), Material = Enum.Material.Neon })
+	local symbol = deco(model, root, {
+		Name = "Hazard",
+		Size = Vector3.new(1.3, 1.3, 0.2),
+		CFrame = CFrame.new(root.Position + Vector3.new(0, 0, 1.6)) * CFrame.Angles(0, 0, math.rad(45)),
+		Color = Color3.fromRGB(255, 210, 40),
+		Material = Enum.Material.Neon,
+	})
 	local _ = symbol
 	return root, {}, { explosive = true, blastRadius = 17, blastPower = 1.2, fuse = 0 }
 end
 
 BUILDERS.ball = function(model: Model, at: CFrame)
-	local root = collider(model, { Name = "BeachBall", Shape = Enum.PartType.Ball, Size = Vector3.one * 3.6, CFrame = at * CFrame.new(0, 1.8, 0), Color = Color3.fromRGB(255, 255, 255), Material = Enum.Material.SmoothPlastic, CustomPhysicalProperties = PhysicalProperties.new(0.12, 0.4, 0.85, 1, 100) })
+	local root = collider(model, {
+		Name = "BeachBall",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * 3.6,
+		CFrame = at * CFrame.new(0, 1.8, 0),
+		Color = Color3.fromRGB(255, 255, 255),
+		Material = Enum.Material.SmoothPlastic,
+		CustomPhysicalProperties = PhysicalProperties.new(0.12, 0.4, 0.85, 1, 100),
+	})
 	-- Coloured stripes: thin discs through the centre whose rims poke out of the ball surface.
 	local colors = { Color3.fromRGB(255, 70, 80), Color3.fromRGB(70, 160, 255), Color3.fromRGB(255, 210, 60) }
 	for i, color in colors do
@@ -97,34 +151,90 @@ BUILDERS.ball = function(model: Model, at: CFrame)
 end
 
 BUILDERS.plank = function(model: Model, at: CFrame)
-	local root = collider(model, { Name = "Plank", Size = Vector3.new(16, 0.9, 2.6), CFrame = at * CFrame.new(0, 0.45, 0), Color = Color3.fromRGB(168, 118, 74), Material = Enum.Material.WoodPlanks, CustomPhysicalProperties = PhysicalProperties.new(0.5, 0.7, 0.1, 1, 1) })
+	local root = collider(model, {
+		Name = "Plank",
+		Size = Vector3.new(16, 0.9, 2.6),
+		CFrame = at * CFrame.new(0, 0.45, 0),
+		Color = Color3.fromRGB(168, 118, 74),
+		Material = Enum.Material.WoodPlanks,
+		CustomPhysicalProperties = PhysicalProperties.new(0.5, 0.7, 0.1, 1, 1),
+	})
 	return root, {}, {}
 end
 
 BUILDERS.anvil = function(model: Model, at: CFrame)
 	local metal = Color3.fromRGB(64, 66, 76)
 	local heavy = PhysicalProperties.new(9, 0.7, 0.02, 1, 1)
-	local root = collider(model, { Name = "AnvilTop", Size = Vector3.new(4.2, 1.4, 2.4), CFrame = at * CFrame.new(0, 2.8, 0), Color = metal, Material = Enum.Material.Metal, CustomPhysicalProperties = heavy })
-	local base = collider(model, { Name = "AnvilBase", Size = Vector3.new(2.6, 2.1, 2.2), CFrame = at * CFrame.new(0, 1.05, 0), Color = metal, Material = Enum.Material.Metal, CustomPhysicalProperties = heavy })
+	local root = collider(model, {
+		Name = "AnvilTop",
+		Size = Vector3.new(4.2, 1.4, 2.4),
+		CFrame = at * CFrame.new(0, 2.8, 0),
+		Color = metal,
+		Material = Enum.Material.Metal,
+		CustomPhysicalProperties = heavy,
+	})
+	local base = collider(model, {
+		Name = "AnvilBase",
+		Size = Vector3.new(2.6, 2.1, 2.2),
+		CFrame = at * CFrame.new(0, 1.05, 0),
+		Color = metal,
+		Material = Enum.Material.Metal,
+		CustomPhysicalProperties = heavy,
+	})
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = root
 	weld.Part1 = base
 	weld.Parent = base
-	deco(model, root, { Name = "Horn", Size = Vector3.new(1.8, 0.9, 1.8), CFrame = root.CFrame * CFrame.new(-2.8, 0.2, 0) * CFrame.Angles(0, 0, math.rad(-20)), Color = metal, Material = Enum.Material.Metal })
+	deco(model, root, {
+		Name = "Horn",
+		Size = Vector3.new(1.8, 0.9, 1.8),
+		CFrame = root.CFrame * CFrame.new(-2.8, 0.2, 0) * CFrame.Angles(0, 0, math.rad(-20)),
+		Color = metal,
+		Material = Enum.Material.Metal,
+	})
 	return root, { base }, { heavy = true }
 end
 
 BUILDERS.bowling = function(model: Model, at: CFrame)
-	local root = collider(model, { Name = "BowlingBall", Shape = Enum.PartType.Ball, Size = Vector3.one * 2.8, CFrame = at * CFrame.new(0, 1.4, 0), Color = Color3.fromRGB(40, 60, 170), Material = Enum.Material.SmoothPlastic, Reflectance = 0.25, CustomPhysicalProperties = PhysicalProperties.new(4, 0.3, 0.3, 1, 1) })
+	local root = collider(model, {
+		Name = "BowlingBall",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * 2.8,
+		CFrame = at * CFrame.new(0, 1.4, 0),
+		Color = Color3.fromRGB(40, 60, 170),
+		Material = Enum.Material.SmoothPlastic,
+		Reflectance = 0.25,
+		CustomPhysicalProperties = PhysicalProperties.new(4, 0.3, 0.3, 1, 1),
+	})
 	for i, offset in { Vector3.new(-0.35, 0.5, 1.15), Vector3.new(0.35, 0.5, 1.15), Vector3.new(0, -0.1, 1.3) } do
-		deco(model, root, { Name = "Hole" .. i, Shape = Enum.PartType.Ball, Size = Vector3.one * 0.45, CFrame = root.CFrame * CFrame.new(offset), Color = Color3.fromRGB(15, 15, 20), Material = Enum.Material.SmoothPlastic })
+		deco(model, root, {
+			Name = "Hole" .. i,
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 0.45,
+			CFrame = root.CFrame * CFrame.new(offset),
+			Color = Color3.fromRGB(15, 15, 20),
+			Material = Enum.Material.SmoothPlastic,
+		})
 	end
 	return root, {}, {}
 end
 
 BUILDERS.tnt = function(model: Model, at: CFrame)
-	local root = collider(model, { Name = "TNT", Size = Vector3.one * 2.8, CFrame = at * CFrame.new(0, 1.4, 0), Color = Color3.fromRGB(210, 40, 36), Material = Enum.Material.SmoothPlastic, CustomPhysicalProperties = PhysicalProperties.new(0.9, 0.6, 0.1, 1, 1) })
-	deco(model, root, { Name = "Band", Size = Vector3.new(2.9, 0.9, 2.9), CFrame = root.CFrame, Color = Color3.fromRGB(240, 230, 210), Material = Enum.Material.SmoothPlastic })
+	local root = collider(model, {
+		Name = "TNT",
+		Size = Vector3.one * 2.8,
+		CFrame = at * CFrame.new(0, 1.4, 0),
+		Color = Color3.fromRGB(210, 40, 36),
+		Material = Enum.Material.SmoothPlastic,
+		CustomPhysicalProperties = PhysicalProperties.new(0.9, 0.6, 0.1, 1, 1),
+	})
+	deco(model, root, {
+		Name = "Band",
+		Size = Vector3.new(2.9, 0.9, 2.9),
+		CFrame = root.CFrame,
+		Color = Color3.fromRGB(240, 230, 210),
+		Material = Enum.Material.SmoothPlastic,
+	})
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.CanvasSize = Vector2.new(120, 40)
@@ -139,13 +249,26 @@ BUILDERS.tnt = function(model: Model, at: CFrame)
 	label.Parent = gui
 	local band = model:FindFirstChild("Band")
 	gui.Parent = band
-	local fuse = deco(model, root, { Name = "Fuse", Size = Vector3.new(0.2, 1, 0.2), CFrame = root.CFrame * CFrame.new(0, 1.9, 0), Color = Color3.fromRGB(60, 50, 40), Material = Enum.Material.Fabric })
+	local fuse = deco(model, root, {
+		Name = "Fuse",
+		Size = Vector3.new(0.2, 1, 0.2),
+		CFrame = root.CFrame * CFrame.new(0, 1.9, 0),
+		Color = Color3.fromRGB(60, 50, 40),
+		Material = Enum.Material.Fabric,
+	})
 	local _ = fuse
 	return root, {}, { explosive = true, blastRadius = 19, blastPower = 1.4, fuse = 2.4 }
 end
 
 BUILDERS.trampoline = function(model: Model, at: CFrame)
-	local frame = collider(model, { Name = "TrampolineFrame", Size = Vector3.new(10, 1.6, 6), CFrame = at * CFrame.new(0, 0.8, 0), Color = Color3.fromRGB(60, 64, 80), Material = Enum.Material.Metal, Anchored = true })
+	local frame = collider(model, {
+		Name = "TrampolineFrame",
+		Size = Vector3.new(10, 1.6, 6),
+		CFrame = at * CFrame.new(0, 0.8, 0),
+		Color = Color3.fromRGB(60, 64, 80),
+		Material = Enum.Material.Metal,
+		Anchored = true,
+	})
 	local top = collider(model, {
 		Name = "TrampolineTop",
 		Size = Vector3.new(9, 0.4, 5.4),
@@ -158,7 +281,16 @@ BUILDERS.trampoline = function(model: Model, at: CFrame)
 	top:SetAttribute("Hazard", "Trampoline")
 	top:SetAttribute("LaunchSpeed", 150)
 	for _, x in { -4.4, 4.4 } do
-		newPart(model, { Name = "Spring", Size = Vector3.new(0.6, 1.4, 0.6), CFrame = at * CFrame.new(x, 1.8, 2.2), Color = Color3.fromRGB(220, 220, 230), Material = Enum.Material.Metal, Anchored = true, CanCollide = false, CanQuery = false })
+		newPart(model, {
+			Name = "Spring",
+			Size = Vector3.new(0.6, 1.4, 0.6),
+			CFrame = at * CFrame.new(x, 1.8, 2.2),
+			Color = Color3.fromRGB(220, 220, 230),
+			Material = Enum.Material.Metal,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+		})
 	end
 	return frame, { top }, { static = true }
 end
@@ -248,13 +380,21 @@ function PropService:SpawnFor(player: Player, lab, propId: string, localPos: Vec
 		return nil
 	end
 	if data.level < info.unlockLevel then
-		self.S.ShopService:Notify(player, "toast", { text = ("%s unlocks at level %d"):format(info.name, info.unlockLevel), kind = "error" })
+		self.S.ShopService:Notify(
+			player,
+			"toast",
+			{ text = ("%s unlocks at level %d"):format(info.name, info.unlockLevel), kind = "error" }
+		)
 		return nil
 	end
 	local position = localPos or Vector3.new(0, 20, 0)
 	if propId == "trampoline" then
 		-- Snap to the surface below the cursor.
-		local hit = Workspace:Raycast(lab.origin + Vector3.new(position.X, position.Y + 2, 0), Vector3.new(0, -120, 0), lab.staticRayParams)
+		local hit = Workspace:Raycast(
+			lab.origin + Vector3.new(position.X, position.Y + 2, 0),
+			Vector3.new(0, -120, 0),
+			lab.staticRayParams
+		)
 		if not hit then
 			return nil
 		end
@@ -353,10 +493,19 @@ function PropService:Explode(prop)
 	end
 	local lab = prop.lab
 	local position = prop.root.Position
-	local source = if prop.lastActor and os.clock() - prop.lastActorTime < Config.Economy.ChaosAttributionWindow then prop.lastActor else nil
+	local source = if prop.lastActor
+			and os.clock() - prop.lastActorTime < Config.Economy.ChaosAttributionWindow
+		then prop.lastActor
+		else nil
 	self:Despawn(prop)
 	if self.S.EffectsService then
-		self.S.EffectsService:Explosion(lab, position, prop.blastRadius or 16, prop.blastPower or 1, { source = source, color = Color3.fromRGB(255, 140, 50) })
+		self.S.EffectsService:Explosion(
+			lab,
+			position,
+			prop.blastRadius or 16,
+			prop.blastPower or 1,
+			{ source = source, color = Color3.fromRGB(255, 140, 50) }
+		)
 	end
 end
 

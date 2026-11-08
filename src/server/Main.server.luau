@@ -47,4 +47,7 @@ for _, name in ORDER do
 	end
 end
 
+-- Only now start loading players, so every service is subscribed to ProfileLoaded.
+services.DataService:BeginPlayers()
+
 print(("[Flask Fiasco] server ready with %d services"):format(#ORDER))

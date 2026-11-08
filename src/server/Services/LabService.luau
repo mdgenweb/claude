@@ -153,7 +153,11 @@ function LabService:_onPlayerRemoving(player: Player)
 				local home = World.ownerLab[viewer]
 				World.viewLab[viewer] = home
 				self:SendState(viewer)
-				self.S.ShopService:Notify(viewer, "toast", { text = player.DisplayName .. "'s lab closed. Back home!", kind = "info" })
+				self.S.ShopService:Notify(
+					viewer,
+					"toast",
+					{ text = player.DisplayName .. "'s lab closed. Back home!", kind = "info" }
+				)
 			end
 		end
 		self:DestroyLab(owned)
@@ -293,8 +297,12 @@ function LabService:RefreshRack(lab)
 	end
 	local stock = data.rack.stock
 	local palette = {
-		Color3.fromRGB(255, 122, 44), Color3.fromRGB(122, 214, 255), Color3.fromRGB(214, 247, 255),
-		Color3.fromRGB(96, 232, 96), Color3.fromRGB(96, 146, 255), Color3.fromRGB(255, 140, 232),
+		Color3.fromRGB(255, 122, 44),
+		Color3.fromRGB(122, 214, 255),
+		Color3.fromRGB(214, 247, 255),
+		Color3.fromRGB(96, 232, 96),
+		Color3.fromRGB(96, 146, 255),
+		Color3.fromRGB(255, 140, 232),
 	}
 	for i = 1, 6 do
 		local content = rack:FindFirstChild("JarContent" .. i)
@@ -627,7 +635,11 @@ function LabService:Visit(player: Player, ownerUserId: any)
 	if previous and previous ~= target then
 		self:BroadcastState(previous)
 	end
-	self.S.ShopService:Notify(target.owner, "toast", { text = player.DisplayName .. " is visiting your lab!", kind = "social" })
+	self.S.ShopService:Notify(
+		target.owner,
+		"toast",
+		{ text = player.DisplayName .. " is visiting your lab!", kind = "social" }
+	)
 	return { ok = true }
 end
 
@@ -660,7 +672,10 @@ function LabService:StateFor(lab, player: Player)
 	local open = {}
 	for _, other in World.labs do
 		if other ~= lab then
-			table.insert(open, { userId = other.ownerId, name = other.owner.DisplayName, privacy = other.privacy, mapId = other.mapId })
+			table.insert(
+				open,
+				{ userId = other.ownerId, name = other.owner.DisplayName, privacy = other.privacy, mapId = other.mapId }
+			)
 		end
 	end
 	return {

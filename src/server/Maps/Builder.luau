@@ -196,25 +196,102 @@ function Builder:shell(spec: ShellSpec)
 	end
 	-- Gold trim along the inner edge of the frame.
 	local trim = Color3.fromRGB(214, 170, 82)
-	shell:part({ name = "Trim", size = Vector3.new(0.6, H + 10, 0.6), at = Vector3.new(-(halfW + 0.3), H / 2, z + 1), color = trim, material = Enum.Material.Foil })
-	shell:part({ name = "Trim", size = Vector3.new(0.6, H + 10, 0.6), at = Vector3.new(halfW + 0.3, H / 2, z + 1), color = trim, material = Enum.Material.Foil })
-	shell:part({ name = "Trim", size = Vector3.new(W + 1.2, 0.6, 0.6), at = Vector3.new(0, H + 2.3, z + 1), color = trim, material = Enum.Material.Foil })
-	shell:part({ name = "Trim", size = Vector3.new(W + 1.2, 0.6, 0.6), at = Vector3.new(0, -2.3, z + 1), color = trim, material = Enum.Material.Foil })
+	shell:part({
+		name = "Trim",
+		size = Vector3.new(0.6, H + 10, 0.6),
+		at = Vector3.new(-(halfW + 0.3), H / 2, z + 1),
+		color = trim,
+		material = Enum.Material.Foil,
+	})
+	shell:part({
+		name = "Trim",
+		size = Vector3.new(0.6, H + 10, 0.6),
+		at = Vector3.new(halfW + 0.3, H / 2, z + 1),
+		color = trim,
+		material = Enum.Material.Foil,
+	})
+	shell:part({
+		name = "Trim",
+		size = Vector3.new(W + 1.2, 0.6, 0.6),
+		at = Vector3.new(0, H + 2.3, z + 1),
+		color = trim,
+		material = Enum.Material.Foil,
+	})
+	shell:part({
+		name = "Trim",
+		size = Vector3.new(W + 1.2, 0.6, 0.6),
+		at = Vector3.new(0, -2.3, z + 1),
+		color = trim,
+		material = Enum.Material.Foil,
+	})
 	return model
 end
 
 -- A window in the back wall: dark frame, glass pane, moonlight beam and a soft light.
 function Builder:window(x: number, y: number, w: number, h: number, frameColor: Color3, lightColor: Color3)
 	local zWall = -10.9
-	self:part({ name = "WindowGlass", size = Vector3.new(w, h, 0.2), at = Vector3.new(x, y, zWall), color = lightColor, material = Enum.Material.Neon, transparency = 0.55 })
-	self:part({ name = "WindowFrame", size = Vector3.new(w + 1.2, 0.8, 0.8), at = Vector3.new(x, y + h / 2 + 0.4, zWall + 0.3), color = frameColor, material = Enum.Material.Wood })
-	self:part({ name = "WindowFrame", size = Vector3.new(w + 1.2, 1.2, 1.4), at = Vector3.new(x, y - h / 2 - 0.6, zWall + 0.6), color = frameColor, material = Enum.Material.Wood })
-	self:part({ name = "WindowFrame", size = Vector3.new(0.8, h, 0.8), at = Vector3.new(x - w / 2 - 0.2, y, zWall + 0.3), color = frameColor, material = Enum.Material.Wood })
-	self:part({ name = "WindowFrame", size = Vector3.new(0.8, h, 0.8), at = Vector3.new(x + w / 2 + 0.2, y, zWall + 0.3), color = frameColor, material = Enum.Material.Wood })
-	self:part({ name = "WindowMullion", size = Vector3.new(0.4, h, 0.4), at = Vector3.new(x, y, zWall + 0.2), color = frameColor, material = Enum.Material.Wood })
-	self:part({ name = "WindowMullion", size = Vector3.new(w, 0.4, 0.4), at = Vector3.new(x, y, zWall + 0.2), color = frameColor, material = Enum.Material.Wood })
-	local emitterHost = self:part({ name = "WindowLight", size = Vector3.new(w, h, 0.2), at = Vector3.new(x, y, zWall + 0.5), transparency = 1, shadow = false })
-	self:light(emitterHost, "SurfaceLight", { Face = Enum.NormalId.Front, Color = lightColor, Brightness = 1.4, Range = 26, Angle = 70, Shadows = true })
+	self:part({
+		name = "WindowGlass",
+		size = Vector3.new(w, h, 0.2),
+		at = Vector3.new(x, y, zWall),
+		color = lightColor,
+		material = Enum.Material.Neon,
+		transparency = 0.55,
+	})
+	self:part({
+		name = "WindowFrame",
+		size = Vector3.new(w + 1.2, 0.8, 0.8),
+		at = Vector3.new(x, y + h / 2 + 0.4, zWall + 0.3),
+		color = frameColor,
+		material = Enum.Material.Wood,
+	})
+	self:part({
+		name = "WindowFrame",
+		size = Vector3.new(w + 1.2, 1.2, 1.4),
+		at = Vector3.new(x, y - h / 2 - 0.6, zWall + 0.6),
+		color = frameColor,
+		material = Enum.Material.Wood,
+	})
+	self:part({
+		name = "WindowFrame",
+		size = Vector3.new(0.8, h, 0.8),
+		at = Vector3.new(x - w / 2 - 0.2, y, zWall + 0.3),
+		color = frameColor,
+		material = Enum.Material.Wood,
+	})
+	self:part({
+		name = "WindowFrame",
+		size = Vector3.new(0.8, h, 0.8),
+		at = Vector3.new(x + w / 2 + 0.2, y, zWall + 0.3),
+		color = frameColor,
+		material = Enum.Material.Wood,
+	})
+	self:part({
+		name = "WindowMullion",
+		size = Vector3.new(0.4, h, 0.4),
+		at = Vector3.new(x, y, zWall + 0.2),
+		color = frameColor,
+		material = Enum.Material.Wood,
+	})
+	self:part({
+		name = "WindowMullion",
+		size = Vector3.new(w, 0.4, 0.4),
+		at = Vector3.new(x, y, zWall + 0.2),
+		color = frameColor,
+		material = Enum.Material.Wood,
+	})
+	local emitterHost = self:part({
+		name = "WindowLight",
+		size = Vector3.new(w, h, 0.2),
+		at = Vector3.new(x, y, zWall + 0.5),
+		transparency = 1,
+		shadow = false,
+	})
+	self:light(
+		emitterHost,
+		"SurfaceLight",
+		{ Face = Enum.NormalId.Front, Color = lightColor, Brightness = 1.4, Range = 26, Angle = 70, Shadows = true }
+	)
 	-- Dust motes drifting in the light.
 	self:emitter(emitterHost, {
 		Texture = "rbxasset://textures/particles/sparkles_main.dds",
@@ -232,9 +309,24 @@ end
 
 -- Torch/candle with flickering light (client animates lights tagged "Flicker").
 function Builder:torch(x: number, y: number, z: number, color: Color3, range: number?)
-	self:part({ name = "TorchHolder", size = Vector3.new(0.8, 2.2, 0.8), at = Vector3.new(x, y - 1, z), color = Color3.fromRGB(60, 46, 40), material = Enum.Material.Metal })
-	local flame = self:part({ name = "TorchFlame", size = Vector3.new(0.5, 0.8, 0.5), at = Vector3.new(x, y + 0.5, z), color = color, material = Enum.Material.Neon, shadow = false, shape = Enum.PartType.Ball })
-	local light = self:light(flame, "PointLight", { Color = color, Brightness = 1.6, Range = range or 18, Shadows = true })
+	self:part({
+		name = "TorchHolder",
+		size = Vector3.new(0.8, 2.2, 0.8),
+		at = Vector3.new(x, y - 1, z),
+		color = Color3.fromRGB(60, 46, 40),
+		material = Enum.Material.Metal,
+	})
+	local flame = self:part({
+		name = "TorchFlame",
+		size = Vector3.new(0.5, 0.8, 0.5),
+		at = Vector3.new(x, y + 0.5, z),
+		color = color,
+		material = Enum.Material.Neon,
+		shadow = false,
+		shape = Enum.PartType.Ball,
+	})
+	local light =
+		self:light(flame, "PointLight", { Color = color, Brightness = 1.6, Range = range or 18, Shadows = true })
 	light:AddTag("Flicker")
 	self:emitter(flame, {
 		Texture = "rbxasset://textures/particles/fire_main.dds",
@@ -255,12 +347,34 @@ end
 -- A shelf with assorted glowing bottles (pure decoration, lots of colour).
 function Builder:bottleShelf(x: number, y: number, width: number, rng: Random)
 	local wood = Color3.fromRGB(92, 60, 42)
-	self:part({ name = "Shelf", size = Vector3.new(width, 0.6, 3), at = Vector3.new(x, y, -9.2), color = wood, material = Enum.Material.WoodPlanks })
-	self:part({ name = "ShelfBracket", size = Vector3.new(0.5, 1.6, 2.4), at = Vector3.new(x - width / 2 + 1, y - 1, -9.6), color = wood, material = Enum.Material.Wood })
-	self:part({ name = "ShelfBracket", size = Vector3.new(0.5, 1.6, 2.4), at = Vector3.new(x + width / 2 - 1, y - 1, -9.6), color = wood, material = Enum.Material.Wood })
+	self:part({
+		name = "Shelf",
+		size = Vector3.new(width, 0.6, 3),
+		at = Vector3.new(x, y, -9.2),
+		color = wood,
+		material = Enum.Material.WoodPlanks,
+	})
+	self:part({
+		name = "ShelfBracket",
+		size = Vector3.new(0.5, 1.6, 2.4),
+		at = Vector3.new(x - width / 2 + 1, y - 1, -9.6),
+		color = wood,
+		material = Enum.Material.Wood,
+	})
+	self:part({
+		name = "ShelfBracket",
+		size = Vector3.new(0.5, 1.6, 2.4),
+		at = Vector3.new(x + width / 2 - 1, y - 1, -9.6),
+		color = wood,
+		material = Enum.Material.Wood,
+	})
 	local palette = {
-		Color3.fromRGB(255, 90, 140), Color3.fromRGB(90, 220, 255), Color3.fromRGB(150, 255, 90),
-		Color3.fromRGB(255, 200, 60), Color3.fromRGB(190, 110, 255), Color3.fromRGB(255, 120, 40),
+		Color3.fromRGB(255, 90, 140),
+		Color3.fromRGB(90, 220, 255),
+		Color3.fromRGB(150, 255, 90),
+		Color3.fromRGB(255, 200, 60),
+		Color3.fromRGB(190, 110, 255),
+		Color3.fromRGB(255, 120, 40),
 	}
 	local cursor = x - width / 2 + 1.2
 	while cursor < x + width / 2 - 1 do
@@ -269,11 +383,43 @@ function Builder:bottleShelf(x: number, y: number, width: number, rng: Random)
 		local color = palette[rng:NextInteger(1, #palette)]
 		local shape = if rng:NextNumber() < 0.4 then Enum.PartType.Ball else Enum.PartType.Block
 		if shape == Enum.PartType.Ball then
-			self:part({ name = "Bottle", size = Vector3.one * w * 1.2, at = Vector3.new(cursor, y + 0.3 + w * 0.6, -9), color = Color3.fromRGB(220, 240, 255), material = Enum.Material.Glass, transparency = 0.5, shadow = false, shape = shape })
-			self:part({ name = "BottleLiquid", size = Vector3.one * w, at = Vector3.new(cursor, y + 0.3 + w * 0.55, -9), color = color, material = Enum.Material.Neon, shadow = false, shape = shape })
+			self:part({
+				name = "Bottle",
+				size = Vector3.one * w * 1.2,
+				at = Vector3.new(cursor, y + 0.3 + w * 0.6, -9),
+				color = Color3.fromRGB(220, 240, 255),
+				material = Enum.Material.Glass,
+				transparency = 0.5,
+				shadow = false,
+				shape = shape,
+			})
+			self:part({
+				name = "BottleLiquid",
+				size = Vector3.one * w,
+				at = Vector3.new(cursor, y + 0.3 + w * 0.55, -9),
+				color = color,
+				material = Enum.Material.Neon,
+				shadow = false,
+				shape = shape,
+			})
 		else
-			self:part({ name = "Bottle", size = Vector3.new(w, h, w), at = Vector3.new(cursor, y + 0.3 + h / 2, -9), color = Color3.fromRGB(220, 240, 255), material = Enum.Material.Glass, transparency = 0.5, shadow = false })
-			self:part({ name = "BottleLiquid", size = Vector3.new(w * 0.8, h * 0.6, w * 0.8), at = Vector3.new(cursor, y + 0.3 + h * 0.32, -9), color = color, material = Enum.Material.Neon, shadow = false })
+			self:part({
+				name = "Bottle",
+				size = Vector3.new(w, h, w),
+				at = Vector3.new(cursor, y + 0.3 + h / 2, -9),
+				color = Color3.fromRGB(220, 240, 255),
+				material = Enum.Material.Glass,
+				transparency = 0.5,
+				shadow = false,
+			})
+			self:part({
+				name = "BottleLiquid",
+				size = Vector3.new(w * 0.8, h * 0.6, w * 0.8),
+				at = Vector3.new(cursor, y + 0.3 + h * 0.32, -9),
+				color = color,
+				material = Enum.Material.Neon,
+				shadow = false,
+			})
 		end
 		cursor += w + rng:NextNumber(0.25, 0.7)
 	end
@@ -282,14 +428,23 @@ end
 -- Stack of books on a shelf.
 function Builder:books(x: number, y: number, count: number, rng: Random)
 	local colors = {
-		Color3.fromRGB(150, 40, 50), Color3.fromRGB(40, 80, 140), Color3.fromRGB(60, 120, 70),
-		Color3.fromRGB(140, 100, 40), Color3.fromRGB(90, 50, 120),
+		Color3.fromRGB(150, 40, 50),
+		Color3.fromRGB(40, 80, 140),
+		Color3.fromRGB(60, 120, 70),
+		Color3.fromRGB(140, 100, 40),
+		Color3.fromRGB(90, 50, 120),
 	}
 	local cursor = x
 	for _ = 1, count do
 		local h = rng:NextNumber(1.6, 2.4)
 		local w = rng:NextNumber(0.35, 0.6)
-		self:part({ name = "Book", size = Vector3.new(w, h, 1.8), at = Vector3.new(cursor, y + h / 2, -9.4), color = colors[rng:NextInteger(1, #colors)], material = Enum.Material.Fabric })
+		self:part({
+			name = "Book",
+			size = Vector3.new(w, h, 1.8),
+			at = Vector3.new(cursor, y + h / 2, -9.4),
+			color = colors[rng:NextInteger(1, #colors)],
+			material = Enum.Material.Fabric,
+		})
 		cursor += w + 0.05
 	end
 end

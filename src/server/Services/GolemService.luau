@@ -146,7 +146,12 @@ function GolemService:ApplyActuators(golem, force: boolean?)
 			local torque = massFactor * P.LegServoTorquePerMass * (KIND_TORQUE[kind] or 0.2) * golem.poseStrength * ts2
 			if kind == "shoulder" or kind == "elbow" then
 				-- Arms are light: a gentler servo so they swing on impacts but hold a pose.
-				torque = massFactor * P.ArmServoTorquePerMass * 40 * (KIND_TORQUE[kind] or 0.1) * (golem.armStrength or 1) * ts2
+				torque = massFactor
+					* P.ArmServoTorquePerMass
+					* 40
+					* (KIND_TORQUE[kind] or 0.1)
+					* (golem.armStrength or 1)
+					* ts2
 			end
 			if hinge.ActuatorType ~= Enum.ActuatorType.Servo then
 				hinge.ActuatorType = Enum.ActuatorType.Servo
@@ -225,7 +230,13 @@ function GolemService:_updateUpright(golem)
 		ramp = math.clamp(golem.stateTime / P.GetUpTime, 0.25, 1)
 	end
 	-- Torque ∝ total mass × lever arm (∝ scale).
-	upright.MaxTorque = golem.mass * golem.scale * P.UprightTorquePerMass * ramp * ts * ts * (golem.uprightStrength or 1)
+	upright.MaxTorque = golem.mass
+		* golem.scale
+		* P.UprightTorquePerMass
+		* ramp
+		* ts
+		* ts
+		* (golem.uprightStrength or 1)
 	upright.Responsiveness = 30 * ts
 end
 
@@ -405,7 +416,8 @@ function GolemService:Reform(golem, options)
 	golem.reviving = true
 
 	local feet = lab.origin + Vector3.new(localX, localY, 0)
-	local result = GolemFactory.build(golem.skin.id, feet, lab.planeOrigin, Physics2D.GolemGroups[golem.groupIndex], lab.dynamic)
+	local result =
+		GolemFactory.build(golem.skin.id, feet, lab.planeOrigin, Physics2D.GolemGroups[golem.groupIndex], lab.dynamic)
 	self:_adoptBuild(golem, result)
 	World.register(golem)
 	self:SetState(golem, "standing")
@@ -682,7 +694,12 @@ function GolemService:Update(lab, dt: number, labDt: number)
 			if golem.grabbedBy or speed > 9 or not golem.grounded then
 				golem.stateTime = math.min(golem.stateTime, duration * 0.6)
 			end
-			if golem.stateTime >= duration and golem.health > 0 and next(golem.mods.limp) == nil and not golem.rigid then
+			if
+				golem.stateTime >= duration
+				and golem.health > 0
+				and next(golem.mods.limp) == nil
+				and not golem.rigid
+			then
 				if golem.controller then
 					self:SetState(golem, "controlled")
 				else
@@ -694,7 +711,8 @@ function GolemService:Update(lab, dt: number, labDt: number)
 			local t = golem.stateTime / P.GetUpTime
 			if lift and lift.Parent then
 				lift.Enabled = t < 0.6
-				lift.Force = Vector3.new(0, golem.mass * g * math.max(golem.gravityScale, 0.2) * 1.15 * math.max(0, 1 - t), 0)
+				lift.Force =
+					Vector3.new(0, golem.mass * g * math.max(golem.gravityScale, 0.2) * 1.15 * math.max(0, 1 - t), 0)
 			end
 			self:_updateUpright(golem)
 			if golem.stateTime >= P.GetUpTime then
@@ -751,10 +769,15 @@ function GolemService:Update(lab, dt: number, labDt: number)
 		-- ── Safety: velocity clamp and out-of-bounds recovery ──
 		if not golem.grabbedBy then
 			local v = torso.AssemblyLinearVelocity
-			if v.Magnitude > P.MaxSpeed * ts then
+			local limit = P.MaxSpeed * ts
+			if v.Magnitude > limit then
 				for _, part in golem.parts do
 					if part.Parent and not part.Anchored then
-						part.AssemblyLinearVelocity = part.AssemblyLinearVelocity.Unit * P.MaxSpeed * ts * 0.9
+						local pv = part.AssemblyLinearVelocity
+						-- Only rescale parts that are actually too fast (never normalise a zero vector).
+						if pv.Magnitude > limit then
+							part.AssemblyLinearVelocity = pv.Unit * limit * 0.9
+						end
 					end
 				end
 			end
@@ -785,7 +808,11 @@ function GolemService:_onImpact(golem, part: BasePart, dv: number, threshold: nu
 	local now = os.clock()
 	if now - golem.lastImpactFx > 0.09 then
 		golem.lastImpactFx = now
-		self.S.LabService:FXU(lab, "impact", { p = part.Position, s = math.clamp(dv / 120, 0.1, 1.5), c = golem.skin.body })
+		self.S.LabService:FXU(
+			lab,
+			"impact",
+			{ p = part.Position, s = math.clamp(dv / 120, 0.1, 1.5), c = golem.skin.body }
+		)
 	end
 end
 
