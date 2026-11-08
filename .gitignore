@@ -1,0 +1,9 @@
+# Build outputs
+/build/
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+roblox.yml
+# Editor
+.vscode/
+.DS_Store

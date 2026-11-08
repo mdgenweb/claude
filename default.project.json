@@ -1,0 +1,69 @@
+{
+  "name": "FlaskFiasco",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": {
+        "EnableMouseLockOption": false,
+        "CameraMaxZoomDistance": 400
+      },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": false
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "Gravity": 196.2,
+        "StreamingEnabled": false,
+        "FallenPartsDestroyHeight": -500
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Technology": "Future",
+        "GlobalShadows": true,
+        "Brightness": 2,
+        "ClockTime": 20.5,
+        "Ambient": [0.16, 0.13, 0.22],
+        "OutdoorAmbient": [0.22, 0.18, 0.3],
+        "EnvironmentDiffuseScale": 0.6,
+        "EnvironmentSpecularScale": 0.8,
+        "ShadowSoftness": 0.25,
+        "ExposureCompensation": 0.1
+      }
+    },
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    },
+    "StarterGui": {
+      "$className": "StarterGui"
+    }
+  }
+}
